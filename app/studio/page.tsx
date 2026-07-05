@@ -14,7 +14,8 @@ import { planFromBrief, composePrompt, STYLE_PRESETS, NEGATIVE_PROMPT, type Sect
 import { THEMES, getTheme } from '@/lib/themes';
 import siteConfig from '@/data/site.json';
 import mediaData from '@/data/media.json';
-import { Sparkles, Upload, Wand2, Clapperboard, Copy, Check, Loader2, ArrowRight, ListVideo, Terminal, Palette, ArrowUp, ArrowDown, X, Plus, Eye, RotateCcw, LayoutList, Monitor, Tablet, Smartphone } from 'lucide-react';
+import { Sparkles, Upload, Wand2, Clapperboard, Copy, Check, Loader2, ArrowRight, ListVideo, Terminal, Palette, ArrowUp, ArrowDown, X, Plus, Eye, RotateCcw, LayoutList, Monitor, Tablet, Smartphone, LayoutTemplate } from 'lucide-react';
+import { getLanding, type LandingContent } from '@/lib/landing';
 
 const BLOCK_LABELS: Record<string, string> = {
   hero: 'Герой',
@@ -29,6 +30,7 @@ const BLOCK_LABELS: Record<string, string> = {
 const ALL_BLOCKS = Object.keys(BLOCK_LABELS);
 
 const STUDIO_TABS = [
+  { id: 'landing', label: 'Лендинг', icon: LayoutTemplate },
   { id: 'generate', label: 'Генерация', icon: Clapperboard },
   { id: 'theme', label: 'Тема', icon: Palette },
   { id: 'content', label: 'Контент', icon: Wand2 },
@@ -111,10 +113,33 @@ export default function StudioPage() {
   const [brief, setBrief] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [tab, setTab] = useState<StudioTab>('generate');
+  const [tab, setTab] = useState<StudioTab>('landing');
   const [device, setDevice] = useState<Device>('full');
   const [paneWidth, setPaneWidth] = useState(704); // px width of the right preview pane
   const draggingPane = useRef(false);
+
+  // Landing copy editor (data/landing.json)
+  const [landing, setLanding] = useState<LandingContent>(() => getLanding());
+  const [landingBusy, setLandingBusy] = useState(false);
+  const [landingMsg, setLandingMsg] = useState('');
+  const setHero = (k: keyof LandingContent['hero'], v: string) => setLanding((l) => ({ ...l, hero: { ...l.hero, [k]: v } }));
+  const setFinal = (k: keyof LandingContent['finalCta'], v: string) => setLanding((l) => ({ ...l, finalCta: { ...l.finalCta, [k]: v } }));
+  const setStepsMeta = (k: 'title' | 'subtitle', v: string) => setLanding((l) => ({ ...l, steps: { ...l.steps, [k]: v } }));
+  const setFeaturesMeta = (k: 'title' | 'subtitle', v: string) => setLanding((l) => ({ ...l, features: { ...l.features, [k]: v } }));
+  const setThemesMeta = (k: 'title' | 'subtitle', v: string) => setLanding((l) => ({ ...l, themesTeaser: { ...l.themesTeaser, [k]: v } }));
+  const setStepItem = (i: number, k: 'title' | 'text', v: string) => setLanding((l) => ({ ...l, steps: { ...l.steps, items: l.steps.items.map((it, idx) => (idx === i ? { ...it, [k]: v } : it)) } }));
+  const setFeatureItem = (i: number, k: 'title' | 'text', v: string) => setLanding((l) => ({ ...l, features: { ...l.features, items: l.features.items.map((it, idx) => (idx === i ? { ...it, [k]: v } : it)) } }));
+  const saveLanding = async () => {
+    setLandingBusy(true);
+    setLandingMsg('');
+    try {
+      const res = await fetch('/api/set-landing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: landing }) });
+      const data = await res.json();
+      if (res.ok) { setLandingMsg('Лендинг сохранён'); setPreviewKey((k) => k + 1); }
+      else setLandingMsg(data.error || 'Ошибка');
+    } catch { setLandingMsg('Ошибка сохранения'); }
+    finally { setLandingBusy(false); }
+  };
 
   // Step 2 — the generated prompt + section metadata
   const [prompt, setPrompt] = useState('');
@@ -478,7 +503,7 @@ export default function StudioPage() {
         </motion.header>
         {/* Tab bar */}
         <div className="sticky top-0 z-20 -mx-5 mb-2 border-b border-border/60 bg-background/85 px-5 pb-px backdrop-blur-md">
-          <div className="flex gap-1 overflow-x-auto">
+          <div className="flex gap-1">
             {STUDIO_TABS.map((t) => {
               const Icon = t.icon;
               const active = tab === t.id;
@@ -495,6 +520,93 @@ export default function StudioPage() {
             })}
           </div>
         </div>
+        {/* Landing editor */}
+        {tab === 'landing' && (
+        <motion.section {...fade} className="space-y-4">
+          {/* Hero */}
+          <Card className="space-y-2.5 p-4">
+            <p className="text-sm font-semibold">Герой</p>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Бейдж</label>
+              <Input value={landing.hero.badge} onChange={(e) => setHero('badge', e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Заголовок</label>
+              <Textarea value={landing.hero.title} onChange={(e) => setHero('title', e.target.value)} rows={2} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Подзаголовок</label>
+              <Textarea value={landing.hero.subtitle} onChange={(e) => setHero('subtitle', e.target.value)} rows={3} />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input value={landing.hero.ctaPrimaryLabel} onChange={(e) => setHero('ctaPrimaryLabel', e.target.value)} placeholder="Кнопка 1 — текст" />
+              <Input value={landing.hero.ctaPrimaryHref} onChange={(e) => setHero('ctaPrimaryHref', e.target.value)} placeholder="Кнопка 1 — ссылка" />
+              <Input value={landing.hero.ctaSecondaryLabel} onChange={(e) => setHero('ctaSecondaryLabel', e.target.value)} placeholder="Кнопка 2 — текст" />
+              <Input value={landing.hero.ctaSecondaryHref} onChange={(e) => setHero('ctaSecondaryHref', e.target.value)} placeholder="Кнопка 2 — ссылка" />
+            </div>
+            <Input value={landing.hero.note} onChange={(e) => setHero('note', e.target.value)} placeholder="Подпись под кнопками" />
+          </Card>
+
+          {/* Steps */}
+          <Card className="space-y-2.5 p-4">
+            <p className="text-sm font-semibold">Как это работает</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input value={landing.steps.title} onChange={(e) => setStepsMeta('title', e.target.value)} placeholder="Заголовок секции" />
+              <Input value={landing.steps.subtitle} onChange={(e) => setStepsMeta('subtitle', e.target.value)} placeholder="Подзаголовок" />
+            </div>
+            {landing.steps.items.map((it, i) => (
+              <div key={i} className="rounded-xl border border-border/60 bg-background/40 p-2.5">
+                <span className="text-[10px] font-semibold uppercase text-muted-foreground">Шаг {it.n}</span>
+                <Input className="mt-1" value={it.title} onChange={(e) => setStepItem(i, 'title', e.target.value)} placeholder="Заголовок" />
+                <Textarea className="mt-1.5" rows={2} value={it.text} onChange={(e) => setStepItem(i, 'text', e.target.value)} placeholder="Текст" />
+              </div>
+            ))}
+          </Card>
+
+          {/* Features */}
+          <Card className="space-y-2.5 p-4">
+            <p className="text-sm font-semibold">Возможности</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input value={landing.features.title} onChange={(e) => setFeaturesMeta('title', e.target.value)} placeholder="Заголовок секции" />
+              <Input value={landing.features.subtitle} onChange={(e) => setFeaturesMeta('subtitle', e.target.value)} placeholder="Подзаголовок" />
+            </div>
+            {landing.features.items.map((it, i) => (
+              <div key={i} className="rounded-xl border border-border/60 bg-background/40 p-2.5">
+                <Input value={it.title} onChange={(e) => setFeatureItem(i, 'title', e.target.value)} placeholder="Заголовок" />
+                <Textarea className="mt-1.5" rows={2} value={it.text} onChange={(e) => setFeatureItem(i, 'text', e.target.value)} placeholder="Текст" />
+              </div>
+            ))}
+          </Card>
+
+          {/* Themes teaser + Final CTA */}
+          <Card className="space-y-2.5 p-4">
+            <p className="text-sm font-semibold">Блок тем</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input value={landing.themesTeaser.title} onChange={(e) => setThemesMeta('title', e.target.value)} placeholder="Заголовок" />
+              <Input value={landing.themesTeaser.subtitle} onChange={(e) => setThemesMeta('subtitle', e.target.value)} placeholder="Подзаголовок" />
+            </div>
+          </Card>
+          <Card className="space-y-2.5 p-4">
+            <p className="text-sm font-semibold">Финальный призыв (CTA)</p>
+            <Input value={landing.finalCta.title} onChange={(e) => setFinal('title', e.target.value)} placeholder="Заголовок" />
+            <Textarea rows={2} value={landing.finalCta.subtitle} onChange={(e) => setFinal('subtitle', e.target.value)} placeholder="Подзаголовок" />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input value={landing.finalCta.ctaPrimaryLabel} onChange={(e) => setFinal('ctaPrimaryLabel', e.target.value)} placeholder="Кнопка 1 — текст" />
+              <Input value={landing.finalCta.ctaPrimaryHref} onChange={(e) => setFinal('ctaPrimaryHref', e.target.value)} placeholder="Кнопка 1 — ссылка" />
+              <Input value={landing.finalCta.ctaSecondaryLabel} onChange={(e) => setFinal('ctaSecondaryLabel', e.target.value)} placeholder="Кнопка 2 — текст" />
+              <Input value={landing.finalCta.ctaSecondaryHref} onChange={(e) => setFinal('ctaSecondaryHref', e.target.value)} placeholder="Кнопка 2 — ссылка" />
+            </div>
+          </Card>
+
+          <div className="sticky bottom-0 flex items-center gap-2 bg-background/90 py-2 backdrop-blur">
+            <Button size="sm" onClick={saveLanding} disabled={landingBusy} className="gap-1.5">
+              {landingBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Сохранить лендинг
+            </Button>
+            {landingMsg && <span className="text-xs text-muted-foreground">{landingMsg}</span>}
+          </div>
+        </motion.section>
+        )}
+
         {/* Step 1 — Brief */}
         {tab === 'generate' && (
         <motion.section {...fade} transition={{ ...fade.transition, delay: 0.05 }} className="mb-6">
