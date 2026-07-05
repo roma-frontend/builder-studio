@@ -383,8 +383,8 @@ function BuilderEditor() {
 
   // Click-to-select coming from the live preview iframe (edit mode).
   const previewRef = useRef<HTMLIFrameElement>(null);
-  const stateRef = useRef({ doc, pageId, selectedId, previewDark });
-  stateRef.current = { doc, pageId, selectedId, previewDark };
+  const stateRef = useRef({ doc, pageId, selectedId, previewDark, siteSlug: siteMeta?.slug, siteId: siteMeta?.id });
+  stateRef.current = { doc, pageId, selectedId, previewDark, siteSlug: siteMeta?.slug, siteId: siteMeta?.id };
   const postPreview = useCallback(() => {
     previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', ...stateRef.current }, '*');
   }, []);

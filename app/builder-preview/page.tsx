@@ -5,6 +5,7 @@ import { getTheme, DEFAULT_THEME } from '@/lib/themes';
 import { ThemeStyle } from '@/components/theme-style';
 import { SiteChrome } from '@/components/builder/site-chrome';
 import { RenderNode } from '@/components/builder/render-node';
+import { SiteAuthProvider } from '@/components/builder/site-auth-blocks';
 import type { BuilderDoc } from '@/lib/builder/types';
 
 // Isolated live preview. Receives the full editor state via postMessage and
@@ -16,6 +17,8 @@ interface Incoming {
   pageId: string;
   selectedId: string | null;
   previewDark?: boolean;
+  siteSlug?: string;
+  siteId?: string;
 }
 
 export default function BuilderPreview() {
@@ -35,8 +38,12 @@ export default function BuilderPreview() {
     window.parent?.postMessage({ source: 'builder-preview', type: 'ready' }, '*');
 
     const onClick = (ev: MouseEvent) => {
+      // Never navigate away inside the editor preview (e.g. clicking the logo
+      // or a button that links elsewhere) — just select the nearest node.
+      const anchor = (ev.target as HTMLElement | null)?.closest('a');
+      if (anchor) { ev.preventDefault(); }
       const el = (ev.target as HTMLElement | null)?.closest('[data-nid]');
-      if (!el) return;
+      if (!el) { if (anchor) ev.stopPropagation(); return; }
       ev.preventDefault();
       ev.stopPropagation();
       window.parent?.postMessage({ source: 'builder-preview', type: 'select', id: el.getAttribute('data-nid') }, '*');
@@ -88,9 +95,12 @@ export default function BuilderPreview() {
     return <div className="flex h-dvh items-center justify-center text-sm text-muted-foreground">Загрузка предпросмотра…</div>;
   }
 
-  const { doc, pageId, selectedId } = state;
-  const page = doc.pages.find((p) => p.id === pageId) ?? doc.pages[0];
-  const theme = doc.themeId && doc.themeId !== 'auto' ? getTheme(doc.themeId) : DEFAULT_THEME;
+  const { doc, pageId, selectedId, siteSlug, siteId } = state;
+  // Give the preview the tenant context so chrome links resolve to the site
+  // (not the legacy /site route) and the auth buttons render.
+  const previewDoc: BuilderDoc = { ...doc, base: siteSlug ? `/s/${siteSlug}` : doc.base, siteId: siteId ?? doc.siteId };
+  const page = previewDoc.pages.find((p) => p.id === pageId) ?? previewDoc.pages[0];
+  const theme = previewDoc.themeId && previewDoc.themeId !== 'auto' ? getTheme(previewDoc.themeId) : DEFAULT_THEME;
 
   return (
     <>
@@ -103,11 +113,13 @@ export default function BuilderPreview() {
         />
       )}
       {page ? (
-        <SiteChrome doc={doc}>
-          {page.blocks.map((node) => (
-            <RenderNode key={node.id} node={node} />
-          ))}
-        </SiteChrome>
+        <SiteAuthProvider siteId={previewDoc.siteId ?? ''}>
+          <SiteChrome doc={previewDoc}>
+            {page.blocks.map((node) => (
+              <RenderNode key={node.id} node={node} />
+            ))}
+          </SiteChrome>
+        </SiteAuthProvider>
       ) : (
         <div className="flex h-dvh items-center justify-center text-sm text-muted-foreground">Нет страницы</div>
       )}
