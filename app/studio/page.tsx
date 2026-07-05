@@ -417,14 +417,16 @@ export default function StudioPage() {
   const hasPrompt = prompt.trim().length > 0;
 
   return (
-    <main className="relative min-h-dvh">
-      <header className="relative z-50 border-b border-border/60 bg-background/70 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-[110rem] items-center justify-between px-6 sm:px-8">
+    <main className="flex h-dvh flex-col bg-background">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-3 px-4">
           <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
             <Clapperboard className="h-5 w-5 text-primary" />
             <span>Студия</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="mx-2 h-6 w-px bg-border" />
+          <span className="hidden text-sm text-muted-foreground sm:inline">Генерация видео · тема · композиция страницы</span>
+          <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
             <Link href="/studio/builder">
               <Button size="sm" className="gap-1.5"><LayoutList className="h-4 w-4" /> Конструктор сайта</Button>
@@ -436,38 +438,22 @@ export default function StudioPage() {
         </div>
       </header>
 
-      {/* Animated aurora background */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <motion.div
-          className="absolute -left-32 -top-32 h-[42rem] w-[42rem] rounded-full opacity-40"
-          style={{ background: 'radial-gradient(circle, var(--primary), transparent 60%)', filter: 'blur(80px)' }}
-          animate={{ x: [0, 60, 0], y: [0, 40, 0] }}
-          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute -right-40 top-40 h-[36rem] w-[36rem] rounded-full opacity-30"
-          style={{ background: 'radial-gradient(circle, oklch(0.7 0.17 200), transparent 60%)', filter: 'blur(90px)' }}
-          animate={{ x: [0, -50, 0], y: [0, 60, 0] }}
-          transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
-
-      <div className="mx-auto max-w-[110rem] px-4 py-10 sm:px-8">
-        <motion.header {...fade} className="mb-8 text-center">
-          <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground backdrop-blur">
+      <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
+        {/* Left tools panel — scrollable */}
+        <aside className="min-w-0 flex-1 overflow-auto">
+          <div className="mx-auto max-w-3xl space-y-6 px-5 py-8">
+        <motion.header {...fade} className="mb-2">
+          <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-primary" /> Cinematic Studio
           </span>
-          <h1 className="text-balance text-4xl font-black tracking-tight sm:text-5xl">
+          <h1 className="text-balance text-3xl font-black tracking-tight sm:text-4xl">
             Опишите идею — получите кино
           </h1>
-          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
             Напишите бриф или перетащите <code>.md</code>. Студия соберёт кинематографический промпт,
-            а затем сгенерирует и оптимизирует видео для секции сайта.
+            сгенерирует и оптимизирует видео для секции сайта.
           </p>
         </motion.header>
-
-        <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_46rem] xl:items-start">
-          <div className="min-w-0 space-y-6">
         {/* Step 1 — Brief */}
         <motion.section {...fade} transition={{ ...fade.transition, delay: 0.05 }} className="mb-6">
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -839,18 +825,23 @@ export default function StudioPage() {
           )}
         </AnimatePresence>
           </div>
+        </aside>
 
-          {/* Live preview — sticky right pane */}
-          <div className="xl:sticky xl:top-20 xl:self-start">
-            <div className="mb-2 flex items-center justify-between text-sm font-semibold">
-              <span className="flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> Предпросмотр</span>
-              <button onClick={() => setPreviewKey((k) => k + 1)} className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+        {/* Live preview — sticky right pane, matches builder */}
+        <div className="hidden shrink-0 flex-col border-l border-border/60 bg-muted/20 xl:flex xl:w-[44rem]">
+          <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground">
+            <Eye className="h-4 w-4 text-primary" />
+            <span className="truncate">Предпросмотр сайта — /</span>
+            <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">главная</span>
+            <div className="ml-auto flex items-center gap-1">
+              <Link href="/" target="_blank" className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">Открыть</Link>
+              <button onClick={() => setPreviewKey((k) => k + 1)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">
                 <RotateCcw className="h-3.5 w-3.5" /> Обновить
               </button>
             </div>
-            <Card className="overflow-hidden p-0">
-              <iframe key={previewKey} src="/" title="Предпросмотр сайта" className="h-[calc(100vh-9rem)] w-full border-0 bg-background" />
-            </Card>
+          </div>
+          <div className="min-h-0 flex-1 p-4">
+            <iframe key={previewKey} src="/" title="Предпросмотр сайта" className="h-full w-full rounded-xl border border-border bg-background shadow-2xl" />
           </div>
         </div>
       </div>
