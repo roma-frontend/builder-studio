@@ -1,6 +1,6 @@
 {
   "brand": "Nova Studio",
-  "themeId": "tech-saas",
+  "themeId": "luxury-dark",
   "nav": [
     {
       "label": "Главная",
@@ -88,7 +88,13 @@
                         "href": "/site/contact",
                         "variant": "default",
                         "size": "lg",
-                        "align": "center"
+                        "align": "center",
+                        "fontWeight": "bold",
+                        "textColor": "white",
+                        "hover": "glow",
+                        "animate": "none",
+                        "radius": "lg",
+                        "shadow": "md"
                       }
                     },
                     {

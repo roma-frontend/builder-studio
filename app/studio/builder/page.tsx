@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  ArrowUp, ArrowDown, X, Plus, Save, Loader2, Check, Monitor, Tablet, Smartphone,
+  ArrowUp, ArrowDown, X, Plus, Save, Loader2, Monitor, Tablet, Smartphone,
   ExternalLink, Trash2, FileText, LayoutTemplate, ChevronRight, Copy, Upload, Wand2, Palette,
   Undo2, Redo2, LayoutGrid,
 } from 'lucide-react';
@@ -225,16 +225,28 @@ export default function BuilderEditor() {
   void histTick;
 
   // Click-to-select coming from the live preview iframe (edit mode).
+  const previewRef = useRef<HTMLIFrameElement>(null);
+  const stateRef = useRef({ doc, pageId, selectedId });
+  stateRef.current = { doc, pageId, selectedId };
+  const postPreview = useCallback(() => {
+    previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', ...stateRef.current }, '*');
+  }, []);
+  // Push live state to the preview on every change — instant, no save needed.
+  useEffect(() => {
+    postPreview();
+  }, [doc, pageId, selectedId, postPreview]);
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      if (e.data?.source === 'builder-preview' && e.data.type === 'select' && e.data.id) {
+      if (e.data?.source !== 'builder-preview') return;
+      if (e.data.type === 'ready') postPreview();
+      else if (e.data.type === 'select' && e.data.id) {
         setSelectedId(e.data.id as string);
         setTab('blocks');
       }
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
-  }, []);
+  }, [postPreview]);
 
   const page: BuilderPage | undefined = useMemo(
     () => doc.pages.find((p) => p.id === pageId) ?? doc.pages[0],
@@ -414,7 +426,7 @@ export default function BuilderEditor() {
   const previewSrc = `/site${page?.path ? `/${page.path}` : ''}`;
 
   return (
-    <main className="min-h-dvh bg-background">
+    <main className="flex h-dvh flex-col overflow-hidden bg-background">
       {/* Toolbar */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-3 px-4">
@@ -453,8 +465,8 @@ export default function BuilderEditor() {
         {msg && <div className="border-t border-border/60 bg-muted/40 px-4 py-1 text-center text-xs text-muted-foreground">{msg}</div>}
       </header>
 
-      <div className="mx-auto grid max-w-[120rem] gap-4 p-4 xl:grid-cols-[minmax(0,36rem)_minmax(0,1fr)]">
-        <div className="min-w-0">
+      <div className="flex min-h-0 flex-1">
+        <aside className="w-[27rem] shrink-0 overflow-y-auto border-r border-border/60 p-3">
           {/* Tabs */}
           <div className="mb-3 grid grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1">
             {([['pages', 'Страницы'], ['blocks', 'Блоки'], ['design', 'Сайт']] as const).map(([id, label]) => (
@@ -628,20 +640,29 @@ export default function BuilderEditor() {
             </div>
           </Card>
           </div>{/* end Сайт */}
-        </div>
+        </aside>
 
-        {/* Column 3 — live preview */}
-        <div className="xl:sticky xl:top-20 xl:self-start">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <ChevronRight className="h-4 w-4 text-primary" /> Предпросмотр <span className="text-xs font-normal text-muted-foreground">{previewSrc}</span>
-            <button onClick={() => setPreviewKey((k) => k + 1)} className="ml-auto text-xs font-medium text-muted-foreground hover:text-foreground">Обновить</button>
+        {/* Live preview canvas */}
+        <div className="flex min-w-0 flex-1 flex-col bg-muted/20">
+          <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground">
+            <ChevronRight className="h-4 w-4 text-primary" />
+            <span className="truncate">{previewSrc}</span>
+            <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">в реальном времени</span>
+            <span className="ml-auto hidden sm:inline">Клик по элементу — выбрать · </span>
+            <button onClick={() => setPreviewKey((k) => k + 1)} className="rounded-md px-2 py-1 hover:bg-muted">Перезагрузить</button>
           </div>
-          <Card className="overflow-hidden bg-muted/30 p-0">
-            <div className="mx-auto transition-all" style={{ width: DEVICE[device] }}>
-              <iframe key={previewKey} src={`${previewSrc}?edit=1`} title="Предпросмотр" className="h-[80vh] w-full border-0 bg-background" />
+          <div className="min-h-0 flex-1 overflow-auto p-4">
+            <div className="mx-auto h-full transition-[width] duration-300" style={{ width: DEVICE[device] }}>
+              <iframe
+                ref={previewRef}
+                key={previewKey}
+                src="/builder-preview"
+                title="Предпросмотр"
+                onLoad={postPreview}
+                className="h-full w-full rounded-xl border border-border bg-background shadow-2xl"
+              />
             </div>
-          </Card>
-          <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5" /> Изменения появятся после «Сохранить».</p>
+          </div>
         </div>
       </div>
     </main>
