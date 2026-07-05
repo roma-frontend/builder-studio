@@ -266,6 +266,7 @@ function rebaseNodes(nodes: BuilderNode[], base: string): BuilderNode[] {
 export function rebaseDoc(doc: BuilderDoc, base: string): BuilderDoc {
   return {
     ...doc,
+    base,
     nav: doc.nav.map((l) => ({ ...l, href: rebaseHref(l.href, base) })),
     footer: { ...doc.footer, links: doc.footer.links.map((l) => ({ ...l, href: rebaseHref(l.href, base) })) },
     pages: doc.pages.map((p) => ({ ...p, blocks: rebaseNodes(p.blocks, base) })),

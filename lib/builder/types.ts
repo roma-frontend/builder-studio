@@ -56,6 +56,9 @@ export interface BuilderDoc {
   footerVariant?: string;
   asideVariant?: string;
   asideStyle?: string;
+  /** Transient link base set by rebaseDoc for tenant rendering (e.g. '/s/slug').
+   *  Absent for the legacy /site route. Used by chrome for brand/CTA links. */
+  base?: string;
   nav: NavLink[];
   footer: { text: string; links: NavLink[] };
   pages: BuilderPage[];
