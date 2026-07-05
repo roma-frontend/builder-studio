@@ -60,14 +60,14 @@ function LoginForm() {
           <label className="text-sm font-medium">Email</label>
           <div className="relative">
             <Mail className={iconCls} />
-            <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className="h-11 pl-10" />
+            <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className="h-11 pl-10" data-testid="login-email" />
           </div>
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium">Пароль</label>
           <div className="relative">
             <Lock className={iconCls} />
-            <Input type={showPw ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" className="h-11 pl-10 pr-10" />
+            <Input type={showPw ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" className="h-11 pl-10 pr-10" data-testid="login-password" />
             <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground" aria-label="Показать пароль">
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -75,19 +75,19 @@ function LoginForm() {
         </div>
 
         {error && (
-          <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500 duration-200 animate-in fade-in slide-in-from-top-1">
+          <div role="alert" data-testid="login-error" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500 duration-200 animate-in fade-in slide-in-from-top-1">
             {error}
           </div>
         )}
 
-        <Button type="submit" disabled={busy} size="lg" className="w-full gap-2">
+        <Button type="submit" disabled={busy} size="lg" className="w-full gap-2" data-testid="login-submit">
           {busy && <Loader2 className="h-4 w-4 animate-spin" />} Войти
         </Button>
       </form>
 
       <p className="mt-5 text-center text-sm text-muted-foreground">
         Нет аккаунта?{' '}
-        <Link href="/register" className="font-medium text-primary hover:underline">Регистрация</Link>
+        <Link href="/register" data-testid="to-register" className="font-medium text-primary hover:underline">Регистрация</Link>
       </p>
     </Shell>
   );
@@ -173,14 +173,14 @@ function RegisterWizard() {
                     <label className="text-sm font-medium">Имя</label>
                     <div className="relative">
                       <User className={iconCls} />
-                      <Input autoFocus value={form.name} onChange={set('name')} placeholder="Как к вам обращаться" autoComplete="name" className="h-11 pl-10" />
+                      <Input autoFocus value={form.name} onChange={set('name')} placeholder="Как к вам обращаться" autoComplete="name" className="h-11 pl-10" data-testid="register-name" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Email</label>
                     <div className="relative">
                       <Mail className={iconCls} />
-                      <Input type="email" value={form.email} onChange={set('email')} placeholder="you@example.com" autoComplete="email" className="h-11 pl-10" />
+                      <Input type="email" value={form.email} onChange={set('email')} placeholder="you@example.com" autoComplete="email" className="h-11 pl-10" data-testid="register-email" />
                     </div>
                   </div>
                 </>
@@ -192,7 +192,7 @@ function RegisterWizard() {
                     <label className="text-sm font-medium">Пароль</label>
                     <div className="relative">
                       <Lock className={iconCls} />
-                      <Input autoFocus type={showPw ? 'text' : 'password'} value={form.password} onChange={set('password')} placeholder="Минимум 8 символов" autoComplete="new-password" className="h-11 pl-10 pr-10" />
+                      <Input autoFocus type={showPw ? 'text' : 'password'} value={form.password} onChange={set('password')} placeholder="Минимум 8 символов" autoComplete="new-password" className="h-11 pl-10 pr-10" data-testid="register-password" />
                       <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground" aria-label="Показать пароль">
                         {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -203,7 +203,7 @@ function RegisterWizard() {
                     <label className="text-sm font-medium">Повторите пароль</label>
                     <div className="relative">
                       <Lock className={iconCls} />
-                      <Input type={showPw ? 'text' : 'password'} value={form.confirm} onChange={set('confirm')} placeholder="Ещё раз" autoComplete="new-password" className="h-11 pl-10 pr-10" />
+                      <Input type={showPw ? 'text' : 'password'} value={form.confirm} onChange={set('confirm')} placeholder="Ещё раз" autoComplete="new-password" className="h-11 pl-10 pr-10" data-testid="register-confirm" />
                       {form.confirm.length > 0 && (
                         <span className="absolute right-3 top-1/2 -translate-y-1/2">
                           {form.confirm === form.password ? <Check className="h-4 w-4 text-green-500" /> : <span className="block h-2 w-2 rounded-full bg-red-500" />}
@@ -239,23 +239,23 @@ function RegisterWizard() {
         </div>
 
         {error && (
-          <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500 duration-200 animate-in fade-in slide-in-from-top-1">
+          <div role="alert" data-testid="register-error" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500 duration-200 animate-in fade-in slide-in-from-top-1">
             {error}
           </div>
         )}
 
         <div className="flex items-center gap-3 pt-2">
           {step > 0 && (
-            <Button type="button" variant="outline" size="lg" className="gap-2" onClick={goBack} disabled={busy}>
+            <Button type="button" variant="outline" size="lg" className="gap-2" onClick={goBack} disabled={busy} data-testid="register-back">
               <ArrowLeft className="h-4 w-4" /> Назад
             </Button>
           )}
           {step < STEP_TITLES.length - 1 ? (
-            <Button type="submit" size="lg" className="flex-1 gap-2">
+            <Button type="submit" size="lg" className="flex-1 gap-2" data-testid="register-next">
               Далее <ArrowRight className="h-4 w-4" />
             </Button>
           ) : (
-            <Button type="submit" size="lg" disabled={busy} className="flex-1 gap-2">
+            <Button type="submit" size="lg" disabled={busy} className="flex-1 gap-2" data-testid="register-submit">
               {busy && <Loader2 className="h-4 w-4 animate-spin" />} Зарегистрироваться
             </Button>
           )}
@@ -265,7 +265,7 @@ function RegisterWizard() {
       {step === 0 && (
         <p className="mt-5 text-center text-sm text-muted-foreground">
           Уже есть аккаунт?{' '}
-          <Link href="/login" className="font-medium text-primary hover:underline">
+          <Link href="/login" data-testid="to-login" className="font-medium text-primary hover:underline">
             Войти <ArrowRight className="inline h-3 w-3" />
           </Link>
         </p>
