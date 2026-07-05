@@ -1,0 +1,134 @@
+import 'server-only';
+import { and, desc, eq } from 'drizzle-orm';
+import { getDb, newId, orgRequests, sites, users, type OrgRequest, type User } from '@/lib/db';
+import { createSite } from '@/lib/sites';
+import { assignSiteAdmin } from '@/lib/admin';
+
+// Platform-level organization requests (ported from hr-project). A logged-in
+// platform user requests to CREATE a new org (tenant site) or JOIN an existing
+// one; a superadmin approves/rejects. On approve of 'create' a site is created
+// and owned by the requester; on 'join' the requester becomes that org's admin.
+
+export function normalizeSlug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
+const slugTaken = (slug: string) => Boolean(getDb().select({ id: sites.id }).from(sites).where(eq(sites.slug, slug)).get());
+
+/** Create a pending request. Throws on validation problems. */
+export function createOrgRequest(
+  user: User,
+  input: { type: 'create' | 'join'; requestedName?: string; requestedSlug?: string; targetSiteId?: string; message?: string },
+): OrgRequest {
+  // Only one pending request at a time per requester.
+  const existing = getDb()
+    .select({ id: orgRequests.id })
+    .from(orgRequests)
+    .where(and(eq(orgRequests.requesterId, user.id), eq(orgRequests.status, 'pending')))
+    .get();
+  if (existing) throw new Error('PENDING_EXISTS');
+
+  const now = new Date();
+  let requestedName = '';
+  let requestedSlug = '';
+  let targetSiteId: string | null = null;
+
+  if (input.type === 'create') {
+    requestedName = (input.requestedName ?? '').trim();
+    if (!requestedName) throw new Error('NAME_REQUIRED');
+    requestedSlug = normalizeSlug(input.requestedSlug || requestedName);
+    if (!requestedSlug) throw new Error('SLUG_INVALID');
+    if (slugTaken(requestedSlug)) throw new Error('SLUG_TAKEN');
+  } else {
+    targetSiteId = (input.targetSiteId ?? '').trim();
+    const site = getDb().select({ id: sites.id }).from(sites).where(eq(sites.id, targetSiteId)).get();
+    if (!site) throw new Error('ORG_NOT_FOUND');
+  }
+
+  const row: OrgRequest = {
+    id: newId('or'),
+    type: input.type,
+    requesterId: user.id,
+    requesterEmail: user.email,
+    requesterName: user.name,
+    requestedName,
+    requestedSlug,
+    targetSiteId,
+    message: (input.message ?? '').slice(0, 500),
+    status: 'pending',
+    reviewedBy: null,
+    reviewedAt: null,
+    rejectionReason: '',
+    resultSiteId: null,
+    createdAt: now,
+  };
+  getDb().insert(orgRequests).values(row).run();
+  return row;
+}
+
+export function getMyOrgRequests(userId: string): OrgRequest[] {
+  return getDb().select().from(orgRequests).where(eq(orgRequests.requesterId, userId)).orderBy(desc(orgRequests.createdAt)).all();
+}
+
+export interface OrgRequestRow extends OrgRequest {
+  targetName: string | null;
+}
+
+export function listOrgRequests(status?: 'pending' | 'approved' | 'rejected'): OrgRequestRow[] {
+  const db = getDb();
+  const rows = status
+    ? db.select().from(orgRequests).where(eq(orgRequests.status, status)).orderBy(desc(orgRequests.createdAt)).all()
+    : db.select().from(orgRequests).orderBy(desc(orgRequests.createdAt)).all();
+  return rows.map((r) => {
+    let targetName: string | null = null;
+    if (r.targetSiteId) targetName = db.select({ name: sites.name }).from(sites).where(eq(sites.id, r.targetSiteId)).get()?.name ?? null;
+    return { ...r, targetName };
+  });
+}
+
+export function countPendingOrgRequests(): number {
+  return getDb().select({ id: orgRequests.id }).from(orgRequests).where(eq(orgRequests.status, 'pending')).all().length;
+}
+
+/** Superadmin approval (enforced in the route). Creates/assigns the org. */
+export function approveOrgRequest(superadminId: string, requestId: string): { siteId: string } {
+  const db = getDb();
+  const req = db.select().from(orgRequests).where(eq(orgRequests.id, requestId)).get();
+  if (!req) throw new Error('REQUEST_NOT_FOUND');
+  if (req.status !== 'pending') throw new Error('ALREADY_REVIEWED');
+
+  let siteId: string;
+  if (req.type === 'create') {
+    if (req.requestedSlug && slugTaken(req.requestedSlug)) throw new Error('SLUG_TAKEN');
+    const site = createSite(req.requesterId, req.requestedName || 'Организация');
+    // Honour the requested slug when still free.
+    if (req.requestedSlug && !slugTaken(req.requestedSlug)) {
+      db.update(sites).set({ slug: req.requestedSlug }).where(eq(sites.id, site.id)).run();
+    }
+    // Promote a plain customer to admin (they now run an organization).
+    const owner = db.select().from(users).where(eq(users.id, req.requesterId)).get();
+    if (owner && owner.role === 'customer') db.update(users).set({ role: 'admin' }).where(eq(users.id, owner.id)).run();
+    siteId = site.id;
+  } else {
+    if (!req.targetSiteId) throw new Error('ORG_NOT_FOUND');
+    assignSiteAdmin(req.targetSiteId, req.requesterEmail);
+    siteId = req.targetSiteId;
+  }
+
+  db.update(orgRequests)
+    .set({ status: 'approved', reviewedBy: superadminId, reviewedAt: new Date(), resultSiteId: siteId })
+    .where(eq(orgRequests.id, requestId))
+    .run();
+  return { siteId };
+}
+
+export function rejectOrgRequest(superadminId: string, requestId: string, reason = ''): void {
+  const req = getDb().select({ status: orgRequests.status }).from(orgRequests).where(eq(orgRequests.id, requestId)).get();
+  if (!req) throw new Error('REQUEST_NOT_FOUND');
+  if (req.status !== 'pending') throw new Error('ALREADY_REVIEWED');
+  getDb()
+    .update(orgRequests)
+    .set({ status: 'rejected', reviewedBy: superadminId, reviewedAt: new Date(), rejectionReason: reason.slice(0, 300) })
+    .where(eq(orgRequests.id, requestId))
+    .run();
+}

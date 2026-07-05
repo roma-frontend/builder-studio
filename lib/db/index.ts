@@ -140,6 +140,26 @@ CREATE TABLE IF NOT EXISTS site_notifications (
 );
 CREATE INDEX IF NOT EXISTS site_notifications_user_idx ON site_notifications (site_user_id);
 CREATE INDEX IF NOT EXISTS site_notifications_site_idx ON site_notifications (site_id);
+
+CREATE TABLE IF NOT EXISTS org_requests (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL DEFAULT 'create',
+  requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  requester_email TEXT NOT NULL DEFAULT '',
+  requester_name TEXT NOT NULL DEFAULT '',
+  requested_name TEXT NOT NULL DEFAULT '',
+  requested_slug TEXT NOT NULL DEFAULT '',
+  target_site_id TEXT,
+  message TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending',
+  reviewed_by TEXT,
+  reviewed_at INTEGER,
+  rejection_reason TEXT NOT NULL DEFAULT '',
+  result_site_id TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS org_requests_status_idx ON org_requests (status);
+CREATE INDEX IF NOT EXISTS org_requests_requester_idx ON org_requests (requester_id);
 `;
 
 type DB = BetterSQLite3Database<typeof schema>;

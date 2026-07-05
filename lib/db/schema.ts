@@ -193,6 +193,36 @@ export const siteNotifications = sqliteTable(
 );
 export type SiteNotification = typeof siteNotifications.$inferSelect;
 
+// Platform-level organization requests (ported from hr-project organizationRequests):
+// a platform user asks to CREATE a new organization (tenant site) or JOIN an
+// existing one; a SUPERADMIN approves or rejects. On approval of 'create' a site
+// is created and owned by the requester (promoted to admin); on 'join' the
+// requester is assigned as the org's admin.
+export const orgRequests = sqliteTable(
+  'org_requests',
+  {
+    id: text('id').primaryKey(),
+    type: text('type').notNull().default('create'), // 'create' | 'join'
+    requesterId: text('requester_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    requesterEmail: text('requester_email').notNull().default(''),
+    requesterName: text('requester_name').notNull().default(''),
+    requestedName: text('requested_name').notNull().default(''),
+    requestedSlug: text('requested_slug').notNull().default(''),
+    targetSiteId: text('target_site_id'),
+    message: text('message').notNull().default(''),
+    status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'rejected'
+    reviewedBy: text('reviewed_by'),
+    reviewedAt: integer('reviewed_at', { mode: 'timestamp_ms' }),
+    rejectionReason: text('rejection_reason').notNull().default(''),
+    resultSiteId: text('result_site_id'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('org_requests_status_idx').on(t.status), index('org_requests_requester_idx').on(t.requesterId)],
+);
+export type OrgRequest = typeof orgRequests.$inferSelect;
+
 export const submissions = sqliteTable(
   'submissions',
   {

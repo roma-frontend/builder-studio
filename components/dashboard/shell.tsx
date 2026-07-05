@@ -23,6 +23,7 @@ interface NavItem { href: string; label: string; icon: React.ComponentType<{ cla
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Обзор', icon: LayoutDashboard },
   { href: '/dashboard/sites', label: 'Мои сайты', icon: Globe },
+  { href: '/dashboard/join', label: 'Организация', icon: Building2 },
   { href: '/dashboard/submissions', label: 'Заявки', icon: Inbox },
   { href: '/dashboard/account', label: 'Аккаунт', icon: UserCircle },
   { href: '/dashboard/users', label: 'Пользователи', icon: Users, staff: true },
