@@ -77,7 +77,7 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10 sm:py-20">
+      <section id="how" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
         <div className="mb-12 text-center">
           <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{L.steps.title}</h2>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{L.steps.subtitle}</p>
@@ -102,7 +102,7 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10 sm:py-20">
+      <section id="features" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
         <div className="mb-12 text-center">
           <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{L.features.title}</h2>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{L.features.subtitle}</p>
@@ -124,7 +124,7 @@ export default function Home() {
       </section>
 
       {/* Themes gallery teaser */}
-      <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10 sm:py-20">
+      <section id="themes" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{L.themesTeaser.title}</h2>
@@ -168,7 +168,7 @@ export default function Home() {
 
       {/* Made on the platform — real example from demo content */}
       {examples.length > 0 && (
-        <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10 sm:py-20">
+        <section id="examples" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
           <div className="mb-12 text-center">
             <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               <Video className="h-3.5 w-3.5 text-primary" /> Сделано на платформе

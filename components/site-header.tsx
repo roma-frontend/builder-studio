@@ -11,11 +11,20 @@ import {
   LayoutDashboard, Globe, UserCircle, Crown, ShieldCheck, Loader2,
 } from 'lucide-react';
 
-const NAV = [
+// App sections — only a superadmin sees these platform links in the top bar.
+const APP_NAV = [
   { href: '/themes', label: 'Темы' },
   { href: '/studio/builder', label: 'Конструктор' },
   { href: '/studio', label: 'Студия' },
   { href: '/presets', label: 'Пресеты' },
+];
+
+// Landing anchors — shown to guests and non-superadmins; smooth-scroll to sections.
+const LANDING_NAV = [
+  { href: '/#how', label: 'Как это работает' },
+  { href: '/#features', label: 'Возможности' },
+  { href: '/#themes', label: 'Темы' },
+  { href: '/#examples', label: 'Примеры' },
 ];
 
 type Role = 'customer' | 'admin' | 'superadmin';
@@ -133,7 +142,7 @@ export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const isActive = (href: string) => pathname === href || (href !== '/' && pathname?.startsWith(href));
+  const isActive = (href: string) => !href.includes('#') && (pathname === href || (href !== '/' && pathname?.startsWith(href)));
 
   // Session probe: `undefined` = still loading (render a skeleton so the
   // header doesn't flash «Войти» at signed-in users), `null` = guest.
@@ -162,6 +171,9 @@ export function SiteHeader() {
     }
   };
 
+  // Platform links are superadmin-only; everyone else gets landing anchors.
+  const nav = user?.role === 'superadmin' ? APP_NAV : LANDING_NAV;
+
   const guestActions = (
     <>
       <Link href="/login">
@@ -188,7 +200,7 @@ export function SiteHeader() {
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-1 md:flex">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -234,7 +246,7 @@ export function SiteHeader() {
       {open && (
         <div className="border-t border-border/60 bg-background/95 backdrop-blur-xl md:hidden">
           <nav className="mx-auto flex max-w-[var(--container-max)] flex-col gap-1 px-6 py-4">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
