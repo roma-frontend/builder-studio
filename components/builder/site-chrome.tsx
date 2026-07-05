@@ -3,6 +3,7 @@ import type { BuilderDoc } from '@/lib/builder/types';
 import { MobileNav } from './mobile-nav';
 import { ScrollHeader } from './scroll-header';
 import { SiteAuthButtons } from './site-auth-blocks';
+import { SiteThemeToggle } from './site-theme-toggle';
 
 // Shared header + footer (+ optional aside) for all builder pages, with several
 // professional variants selectable in the editor.
@@ -43,6 +44,7 @@ export function Header({ doc }: { doc: BuilderDoc }) {
     </nav>
   );
   const auth = showAuth(doc) ? <SiteAuthButtons base={authBase(doc)} /> : null;
+  const themeToggle = <SiteThemeToggle />;
   void contactHref;
 
   const shell = 'sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md';
@@ -53,7 +55,7 @@ export function Header({ doc }: { doc: BuilderDoc }) {
     desktop = (
       <div className="mx-auto hidden w-full max-w-6xl flex-col items-center gap-2 px-6 py-3 md:flex">
         {brand}
-        <div className="flex items-center gap-3">{nav}{auth}</div>
+        <div className="flex items-center gap-3">{nav}{auth}{themeToggle}</div>
       </div>
     );
   } else if (variant === 'split') {
@@ -61,7 +63,7 @@ export function Header({ doc }: { doc: BuilderDoc }) {
       <div className="mx-auto hidden w-full max-w-6xl grid-cols-3 items-center px-6 py-3 md:grid">
         <div className="justify-self-start">{nav}</div>
         <div className="justify-self-center">{brand}</div>
-        <div className="justify-self-end">{auth}</div>
+        <div className="flex items-center gap-2 justify-self-end">{auth}{themeToggle}</div>
       </div>
     );
   } else if (variant === 'cta') {
@@ -71,6 +73,7 @@ export function Header({ doc }: { doc: BuilderDoc }) {
         <div className="flex items-center gap-3">
           {nav}
           {auth}
+          {themeToggle}
         </div>
       </div>
     );
@@ -78,7 +81,7 @@ export function Header({ doc }: { doc: BuilderDoc }) {
     desktop = (
       <div className="mx-auto hidden h-16 w-full max-w-6xl items-center justify-between px-6 md:flex">
         {brand}
-        <div className="flex items-center gap-3">{nav}{auth}</div>
+        <div className="flex items-center gap-3">{nav}{auth}{themeToggle}</div>
       </div>
     );
   }
@@ -90,6 +93,7 @@ export function Header({ doc }: { doc: BuilderDoc }) {
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-6 md:hidden">
         {brand}
         <div className="flex items-center gap-2">
+          {themeToggle}
           {auth}
           <MobileNav links={doc.nav} cta={false} />
         </div>
