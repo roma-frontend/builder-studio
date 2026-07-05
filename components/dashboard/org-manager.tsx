@@ -132,7 +132,7 @@ function OrgDetail({ overview, onReload }: { overview: Overview; onReload: () =>
 
       {/* Current admin */}
       <div className="rounded-2xl border border-border/60 bg-card p-5">
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><UserCog className="h-4 w-4" /> Администратор организации</h3>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><UserCog className="h-4 w-4" /> Администратор организации «{overview.name}»</h3>
         {overview.owner ? (
           <div className="mb-4 flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-4 py-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">{(overview.owner.name || overview.owner.email).charAt(0).toUpperCase()}</div>
@@ -143,7 +143,7 @@ function OrgDetail({ overview, onReload }: { overview: Overview; onReload: () =>
           </div>
         ) : <p className="mb-4 text-sm text-muted-foreground">Админ не назначен.</p>}
 
-        <label className="mb-1.5 block text-sm font-medium">Назначить нового админа (email пользователя платформы)</label>
+        <label className="mb-1.5 block text-sm font-medium">Назначить нового админа организации «{overview.name}» (email пользователя платформы)</label>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" type="email" className="h-11 flex-1" />
           <Button onClick={assign} disabled={busy || !email.trim()} size="lg" className="gap-2">
