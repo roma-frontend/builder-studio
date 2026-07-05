@@ -11,7 +11,7 @@ const mk = (type: NodeType, props: Record<string, string> = {}, children?: Build
 };
 
 const card = (title: string, body: string, level = '3') =>
-  mk('card', { padding: 'md', bg: 'card', border: 'true', gap: 'sm' }, [
+  mk('card', { padding: 'md', cardVariant: 'elevated', gap: 'sm', animate: 'slide-up', hover: 'lift' }, [
     mk('heading', { text: title, level, align: 'left' }),
     mk('text', { text: body, align: 'left', muted: 'true' }),
   ]);
@@ -233,11 +233,11 @@ export const TEMPLATES: TemplateDef[] = [
 const heroCenter = (title: string, sub: string, cta1: string, cta2: string, bg = 'primary'): BuilderNode =>
   mk('section', { padding: 'lg', bg, width: 'normal' }, [
     mk('stack', { gap: 'md', align: 'center' }, [
-      mk('heading', { text: title, level: '1', align: 'center' }),
-      mk('text', { text: sub, align: 'center', muted: 'false', size: 'lg' }),
+      mk('heading', { text: title, level: '1', align: 'center', animate: 'slide-up' }),
+      mk('text', { text: sub, align: 'center', muted: 'false', size: 'lg', animate: 'fade' }),
       mk('row', { gap: 'sm', align: 'center', justify: 'center', wrap: 'wrap' }, [
-        mk('button', { text: cta1, href: '/site/contact', variant: 'default', size: 'lg', align: 'center', type: 'link' }),
-        mk('button', { text: cta2, href: '#', variant: 'outline', size: 'lg', align: 'center', type: 'link' }),
+        mk('button', { text: cta1, href: '/site/contact', variant: 'default', size: 'lg', align: 'center', type: 'link', hover: 'lift' }),
+        mk('button', { text: cta2, href: '#', variant: 'outline', size: 'lg', align: 'center', type: 'link', hover: 'lift' }),
       ]),
     ]),
   ]);
@@ -328,7 +328,7 @@ export const LANDINGS: TemplateDef[] = [
   {
     id: 'l-agency', label: 'Агентство', description: 'Услуги, кейсы, процесс, призыв.', suggestedPath: '', themeId: 'modern-clean',
     build: () => landingPage('Digital-агентство', [
-      heroCenter('Создаём цифровые продукты, которые продают', 'Дизайн, разработка и маркетинг под ключ для вашего бренда.', 'Обсудить проект', 'Наши работы', 'none'),
+      heroSplit('Создаём цифровые продукты, которые продают', 'Дизайн, разработка и маркетинг под ключ для вашего бренда.', 'Обсудить проект'),
       featureGrid('Услуги', '3', [['Брендинг', 'Логотип, стиль, гайдлайны.'], ['Веб-разработка', 'Сайты и приложения.'], ['Маркетинг', 'Реклама и аналитика.']]),
       gallerySection('Избранные работы'),
       testimonialsSection('quote', 'muted'),
@@ -378,7 +378,7 @@ export const LANDINGS: TemplateDef[] = [
   {
     id: 'l-app', label: 'Мобильное приложение', description: 'Промо приложения с фичами и отзывами.', suggestedPath: '', themeId: 'tech-saas',
     build: () => landingPage('Мобильное приложение', [
-      heroCenter('Ваш помощник в кармане', 'Всё, что нужно, в одном приложении. Скачайте бесплатно.', 'Скачать в App Store', 'Google Play', 'primary'),
+      heroImage('Ваш помощник в кармане', 'Всё, что нужно, в одном приложении. Скачайте бесплатно.', 'Скачать'),
       featureGrid('Фишки приложения', '3', [['Синхронизация', 'Данные на всех устройствах.'], ['Офлайн', 'Работает без интернета.'], ['Уведомления', 'Ничего не пропустите.']]),
       gallerySection('Скриншоты'),
       testimonialsSection('card', 'muted'),
@@ -388,7 +388,7 @@ export const LANDINGS: TemplateDef[] = [
   {
     id: 'l-restaurant', label: 'Ресторан', description: 'Премиальный тёмный лендинг ресторана.', suggestedPath: '', themeId: 'luxury-dark',
     build: () => landingPage('Ресторан', [
-      heroCenter('Высокая кухня и безупречный сервис', 'Авторское меню от шефа в атмосфере изысканности.', 'Забронировать', 'Меню', 'primary'),
+      heroImage('Высокая кухня и безупречный сервис', 'Авторское меню от шефа в атмосфере изысканности.', 'Забронировать'),
       featureGrid('Наши блюда', '3', [['Закуски', 'Тонкие сочетания вкусов.'], ['Основные', 'Авторская подача.'], ['Десерты', 'Произведения искусства.']], 'none'),
       gallerySection('Интерьер и блюда'),
       testimonialsSection('centered', 'muted'),
@@ -398,7 +398,7 @@ export const LANDINGS: TemplateDef[] = [
   {
     id: 'l-portfolio', label: 'Портфолио / креатив', description: 'Минималистичный лендинг для специалиста.', suggestedPath: '', themeId: 'luxury-dark',
     build: () => landingPage('Портфолио', [
-      heroCenter('Привет, я дизайнер', 'Создаю визуальные истории для брендов и продуктов.', 'Связаться', 'Работы', 'none'),
+      heroImage('Привет, я дизайнер', 'Создаю визуальные истории для брендов и продуктов.', 'Связаться'),
       gallerySection('Избранные проекты'),
       featureGrid('Что я делаю', '3', [['UI/UX', 'Интерфейсы и прототипы.'], ['Брендинг', 'Айдентика и стиль.'], ['Иллюстрации', 'Уникальная графика.']], 'muted'),
       ctaSection('Обсудим сотрудничество?', 'Написать мне'),
@@ -419,28 +419,28 @@ export const LANDINGS: TemplateDef[] = [
 
 
 // ---- hero variants ----
-const heroSplit = (): BuilderNode =>
+const heroSplit = (title = 'Растите быстрее с нами', sub = 'Понятное решение для вашего бизнеса. Запуск за считанные минуты.', cta = 'Начать'): BuilderNode =>
   mk('section', { padding: 'lg', bg: 'none', width: 'wide' }, [
     mk('grid', { gap: 'lg', columns: '2' }, [
       mk('stack', { gap: 'md', align: 'start' }, [
-        mk('heading', { text: 'Растите быстрее с нами', level: '1', align: 'left' }),
-        mk('text', { text: 'Понятное решение для вашего бизнеса. Запуск за считанные минуты.', align: 'left', muted: 'true', size: 'lg' }),
+        mk('heading', { text: title, level: '1', align: 'left', animate: 'slide-up' }),
+        mk('text', { text: sub, align: 'left', muted: 'true', size: 'lg', animate: 'fade' }),
         mk('row', { gap: 'sm', align: 'center', justify: 'start', wrap: 'wrap' }, [
-          mk('button', { text: 'Начать', href: '/site/contact', variant: 'default', size: 'lg', align: 'left', type: 'link' }),
-          mk('button', { text: 'Подробнее', href: '#', variant: 'outline', size: 'lg', align: 'left', type: 'link' }),
+          mk('button', { text: cta, href: '/site/contact', variant: 'default', size: 'lg', align: 'left', type: 'link', hover: 'lift' }),
+          mk('button', { text: 'Подробнее', href: '#', variant: 'outline', size: 'lg', align: 'left', type: 'link', hover: 'lift' }),
         ]),
       ]),
-      mk('image', { src: '', alt: 'Иллюстрация', rounded: 'xl', ratio: '4/3' }),
+      mk('image', { src: '', alt: 'Иллюстрация', rounded: 'xl', ratio: '4/3', animate: 'zoom', shadow: 'xl' }),
     ]),
   ]);
 
-const heroImage = (): BuilderNode =>
+const heroImage = (title = 'Заголовок поверх изображения', sub = 'Короткое описание вашего продукта или услуги.', cta = 'Хочу так же'): BuilderNode =>
   mk('section', { padding: 'lg', bg: 'none', width: 'normal' }, [
     mk('stack', { gap: 'md', align: 'center' }, [
-      mk('image', { src: '', alt: 'Обложка', rounded: 'xl', ratio: '21/9' }),
-      mk('heading', { text: 'Заголовок поверх изображения', level: '1', align: 'center' }),
-      mk('text', { text: 'Короткое описание вашего продукта или услуги.', align: 'center', muted: 'true', size: 'lg' }),
-      mk('button', { text: 'Хочу так же', href: '/site/contact', variant: 'default', size: 'lg', align: 'center', type: 'link' }),
+      mk('image', { src: '', alt: 'Обложка', rounded: 'xl', ratio: '21/9', animate: 'fade', shadow: 'xl' }),
+      mk('heading', { text: title, level: '1', align: 'center', animate: 'slide-up' }),
+      mk('text', { text: sub, align: 'center', muted: 'true', size: 'lg' }),
+      mk('button', { text: cta, href: '/site/contact', variant: 'default', size: 'lg', align: 'center', type: 'link', hover: 'lift' }),
     ]),
   ]);
 

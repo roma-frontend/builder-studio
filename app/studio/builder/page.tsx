@@ -13,7 +13,8 @@ import {
   Undo2, Redo2, LayoutGrid, ChevronDown,
 } from 'lucide-react';
 import seed from '@/data/builder.json';
-import { THEMES } from '@/lib/themes';
+import { THEMES, getTheme, themeCss } from '@/lib/themes';
+import { RenderNode } from '@/components/builder/render-node';
 import { TEMPLATES, LANDINGS, SECTION_PRESETS } from '@/lib/builder/templates';
 import {
   type BuilderDoc, type BuilderNode, type NodeType, type BuilderPage,
@@ -810,32 +811,23 @@ export default function BuilderEditor() {
   );
 }
 
-// Schematic mini-preview of a landing (colored bars per top-level section).
-const THEME_ACCENT: Record<string, string> = {
-  'tech-saas': '#6366f1',
-  'modern-clean': '#0ea5e9',
-  'neon-night': '#a855f7',
-  'editorial-coffee': '#b45309',
-  'sport-dynamic': '#dc2626',
-  'luxury-dark': '#c9a227',
-  'nature-fresh': '#16a34a',
-};
-
-function LandingThumb({ def }: { def: { themeId?: string; build: () => { blocks: BuilderNode[] } } }) {
+// Real, theme-scoped mini-preview of a landing (scaled-down actual render).
+function LandingThumb({ def }: { def: { id: string; themeId?: string; build: () => { blocks: BuilderNode[] } } }) {
+  const theme = getTheme(def.themeId ?? 'modern-clean');
   const blocks = useMemo(() => def.build().blocks, [def]);
-  const accent = THEME_ACCENT[def.themeId ?? ''] ?? '#6366f1';
+  const cls = `thumb-${def.id}`;
+  const css = useMemo(() => themeCss(theme).split(':root').join(`.${cls}`).split('.dark').join(`.${cls}`), [theme, cls]);
   return (
-    <div className="flex flex-col gap-1 bg-muted/40 p-2">
-      {blocks.slice(0, 6).map((b, i) => {
-        const primary = b.props?.bg === 'primary';
-        return (
-          <div
-            key={i}
-            className="rounded-sm"
-            style={{ height: i === 0 ? 16 : 7, background: primary ? accent : 'var(--border)', opacity: primary ? 1 : 0.55 }}
-          />
-        );
-      })}
+    <div className="relative h-40 w-full overflow-hidden border-b border-border bg-background">
+      <style dangerouslySetInnerHTML={{ __html: css }} />
+      <div
+        className={`${cls} pointer-events-none absolute left-0 top-0 origin-top-left`}
+        style={{ width: 1280, transform: 'scale(0.34)', background: 'var(--background)', color: 'var(--foreground)' }}
+      >
+        {blocks.map((n) => (
+          <RenderNode key={n.id} node={n} />
+        ))}
+      </div>
     </div>
   );
 }
