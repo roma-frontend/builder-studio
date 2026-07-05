@@ -48,6 +48,23 @@ export function OrgOnboarding() {
 
   if (requests === null) return <div className="flex h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
+  const approvedJoin = requests.find((r) => r.status === 'approved' && r.type === 'join');
+  if (approvedJoin) {
+    const org = orgs.find((o) => o.id === approvedJoin.targetSiteId);
+    return (
+      <div className="mx-auto max-w-lg rounded-2xl border border-green-500/30 bg-green-500/5 p-8 text-center">
+        <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-500/15 text-green-600"><Check className="h-7 w-7" /></span>
+        <h2 className="text-lg font-bold">Вы приняты в организацию{org ? ` «${org.name}»` : ''}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Вы участник организации. Доступ к материалам — в кабинете на самом сайте (отдельный вход для участников).</p>
+        {org && (
+          <a href={`/s/${org.slug}/login`} target="_blank" rel="noreferrer" className="mt-5 inline-block">
+            <Button size="lg" className="gap-2">Войти в кабинет участника <ArrowRight className="h-4 w-4" /></Button>
+          </a>
+        )}
+      </div>
+    );
+  }
+
   if (pending) {
     return (
       <div className="mx-auto max-w-lg rounded-2xl border border-amber-500/30 bg-amber-500/5 p-8 text-center">

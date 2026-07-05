@@ -1,6 +1,6 @@
 import 'server-only';
 import { and, desc, eq } from 'drizzle-orm';
-import { getDb, newId, orgRequests, orgMembers, sites, users, type OrgRequest, type User } from '@/lib/db';
+import { getDb, newId, orgRequests, siteUsers, sites, users, type OrgRequest, type User } from '@/lib/db';
 import { createSite } from '@/lib/sites';
 
 // Platform-level organization requests (ported from hr-project). A logged-in
@@ -110,14 +110,28 @@ export function approveOrgRequest(superadminId: string, requestId: string): { si
     siteId = site.id;
   } else {
     if (!req.targetSiteId) throw new Error('ORG_NOT_FOUND');
-    // Join = become a member (co-editor) of the org WITHOUT taking ownership.
-    const existing = db
-      .select({ id: orgMembers.id })
-      .from(orgMembers)
-      .where(and(eq(orgMembers.siteId, req.targetSiteId), eq(orgMembers.userId, req.requesterId)))
-      .get();
-    if (!existing) {
-      db.insert(orgMembers).values({ id: newId('om'), siteId: req.targetSiteId, userId: req.requesterId, role: 'editor', createdAt: new Date() }).run();
+    // Join = become a regular TENANT member (site_user) of that organization —
+    // they see the site + admin materials in the tenant account (/s/<slug>/account),
+    // NOT the platform dashboard. Reuse the requester's platform credentials so
+    // they can sign in on the tenant site with the same email/password.
+    const requester = db.select().from(users).where(eq(users.id, req.requesterId)).get();
+    if (requester) {
+      const exists = db
+        .select({ id: siteUsers.id })
+        .from(siteUsers)
+        .where(and(eq(siteUsers.siteId, req.targetSiteId), eq(siteUsers.email, requester.email)))
+        .get();
+      if (exists) {
+        db.update(siteUsers).set({ status: 'approved', approvedAt: new Date(), updatedAt: new Date() }).where(eq(siteUsers.id, exists.id)).run();
+      } else {
+        const now = new Date();
+        db.insert(siteUsers).values({
+          id: newId('su'), siteId: req.targetSiteId, email: requester.email, name: requester.name,
+          passwordHash: requester.passwordHash, status: 'approved', approvedBy: superadminId, approvedAt: now,
+          rejectionReason: '', phone: '', avatarColor: '', emailNotify: true, marketing: false, locale: '',
+          createdAt: now, updatedAt: now, lastLoginAt: now,
+        }).run();
+      }
     }
     siteId = req.targetSiteId;
   }
