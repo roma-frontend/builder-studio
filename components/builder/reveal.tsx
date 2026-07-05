@@ -7,12 +7,13 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 // thumbnails/static contexts so content is always visible.
 export const RevealDisabled = createContext(false);
 
-const VARIANTS: Record<string, { initial: Record<string, number>; animate: Record<string, number> }> = {
+const VARIANTS: Record<string, { initial: Record<string, number | string>; animate: Record<string, number | string> }> = {
   fade: { initial: { opacity: 0 }, animate: { opacity: 1 } },
   'slide-up': { initial: { opacity: 0, y: 28 }, animate: { opacity: 1, y: 0 } },
   'slide-left': { initial: { opacity: 0, x: 36 }, animate: { opacity: 1, x: 0 } },
   'slide-right': { initial: { opacity: 0, x: -36 }, animate: { opacity: 1, x: 0 } },
   zoom: { initial: { opacity: 0, scale: 0.94 }, animate: { opacity: 1, scale: 1 } },
+  mask: { initial: { opacity: 0, clipPath: 'inset(0 100% 0 0)' }, animate: { opacity: 1, clipPath: 'inset(0 0% 0 0)' } },
 };
 
 // Wraps content and animates it into view on scroll (Framer Motion).

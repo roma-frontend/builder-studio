@@ -55,11 +55,12 @@ const HOVER_FX: Record<string, string> = {
 const ANIM_FX: Record<string, string> = { none: '', fade: 'b-anim-fade', 'slide-up': 'b-anim-slide', zoom: 'b-anim-zoom' };
 const MT: Record<string, string> = { none: '', sm: 'mt-3', md: 'mt-6', lg: 'mt-12' };
 const MB: Record<string, string> = { none: '', sm: 'mb-3', md: 'mb-6', lg: 'mb-12' };
+const LOOP: Record<string, string> = { none: '', pulse: 'b-loop-pulse', float: 'b-loop-float', bounce: 'b-loop-bounce' };
 
 function motionClass(p: Record<string, string>): string {
   // animation now handled by <Reveal> (Framer Motion, scroll-triggered)
   void ANIM_FX;
-  return cn(p.hover && HOVER_FX[p.hover], p.mt && MT[p.mt], p.mb && MB[p.mb]);
+  return cn(p.hover && HOVER_FX[p.hover], p.loop && LOOP[p.loop], p.mt && MT[p.mt], p.mb && MB[p.mb]);
 }
 
 // surfaceClass: shadow, focus ring, hover background/text (need :hover/:focus)

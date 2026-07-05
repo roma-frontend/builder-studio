@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { BuilderDoc } from '@/lib/builder/types';
 import { MobileNav } from './mobile-nav';
+import { ScrollHeader } from './scroll-header';
 
 // Shared header + footer (+ optional aside) for all builder pages, with several
 // professional variants selectable in the editor.
@@ -29,6 +30,7 @@ function Header({ doc }: { doc: BuilderDoc }) {
 
   const shell = 'sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md';
   const wantsCta = variant === 'split' || variant === 'cta';
+  void shell;
 
   let desktop: React.ReactNode;
   if (variant === 'centered') {
@@ -66,14 +68,14 @@ function Header({ doc }: { doc: BuilderDoc }) {
   }
 
   return (
-    <header className={`relative ${shell}`}>
+    <ScrollHeader behavior={doc.headerBehavior || 'solid'}>
       {desktop}
       {/* mobile / tablet bar */}
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6 md:hidden">
         {brand}
         <MobileNav links={doc.nav} cta={wantsCta} />
       </div>
-    </header>
+    </ScrollHeader>
   );
 }
 

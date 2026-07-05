@@ -51,6 +51,7 @@ export interface BuilderDoc {
   brand: string;
   themeId: string;
   headerVariant?: string;
+  headerBehavior?: string;
   footerVariant?: string;
   asideVariant?: string;
   nav: NavLink[];

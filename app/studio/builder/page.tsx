@@ -175,7 +175,8 @@ const STYLE_GROUPS: { title: string; fields: Field[] }[] = [
   {
     title: 'Анимация и наведение',
     fields: [
-      { k: 'animate', label: 'Анимация появления', opts: ['—', 'none', 'fade', 'slide-up', 'slide-left', 'slide-right', 'zoom'] },
+      { k: 'animate', label: 'Анимация появления', opts: ['—', 'none', 'fade', 'slide-up', 'slide-left', 'slide-right', 'zoom', 'mask'] },
+      { k: 'loop', label: 'Постоянная анимация', opts: ['—', 'none', 'pulse', 'float', 'bounce'] },
       { k: 'hover', label: 'Движение при наведении', opts: ['—', 'none', 'lift', 'grow', 'glow', 'bright'] },
       { k: 'hoverBg', label: 'Фон при наведении', opts: ['—', 'none', 'primary', 'muted', 'foreground', 'dark'] },
       { k: 'hoverText', label: 'Цвет текста при наведении', opts: ['—', 'none', 'primary', 'foreground', 'muted'] },
@@ -771,6 +772,14 @@ export default function BuilderEditor() {
                   <HeaderThumb variant={v} />
                   <span className="mt-1 block text-[11px] font-medium">{HEADER_LABELS[v]}</span>
                 </button>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-muted-foreground">Поведение:</span>
+              {(['solid', 'transparent'] as const).map((b) => (
+                <Button key={b} size="sm" variant={(doc.headerBehavior || 'solid') === b ? 'default' : 'outline'} className="h-7 flex-1 text-xs" onClick={() => setDoc((d) => ({ ...d, headerBehavior: b }))}>
+                  {b === 'solid' ? 'Сплошная' : 'Прозрачная'}
+                </Button>
               ))}
             </div>
             <p className="mb-2 mt-3 text-sm font-semibold">Подвал (footer)</p>
