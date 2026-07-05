@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { requireStaff, forbidden } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 
@@ -15,6 +16,7 @@ async function readJson(file: string, fallback: unknown) {
 }
 
 export async function GET() {
+  if (!(await requireStaff())) return forbidden();
   const dir = path.join(process.cwd(), 'data');
   const site = await readJson(path.join(dir, 'site.json'), { theme: 'auto', layout: null });
   const media = await readJson(path.join(dir, 'media.json'), []);

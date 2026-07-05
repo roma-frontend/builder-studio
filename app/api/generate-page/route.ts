@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { makeNode, newId, type BuilderNode, type NodeType } from '@/lib/builder/types';
+import { requireUser, unauthorized } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 
@@ -114,6 +115,8 @@ async function llmBlocks(brief: string): Promise<BuilderNode[] | null> {
 }
 
 export async function POST(request: Request) {
+  // May call the configured LLM on the server's key — signed-in users only.
+  if (!(await requireUser())) return unauthorized();
   let brief = '';
   let title = 'Новая страница';
   let path = '';

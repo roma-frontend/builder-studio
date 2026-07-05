@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { requireStaff, forbidden } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 // This route shells out to the media pipeline (ffmpeg + optional muapi.ai call
@@ -55,6 +56,8 @@ function argsFrom(body: GenerateBody): string[] {
 }
 
 export async function POST(request: Request) {
+  // Spawns the media pipeline and spends the server's MUAPI credits — staff only.
+  if (!(await requireStaff())) return forbidden();
   let body: GenerateBody;
   try {
     body = (await request.json()) as GenerateBody;

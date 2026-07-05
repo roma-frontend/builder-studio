@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { THEMES, pickTheme, getTheme } from '@/lib/themes';
+import { requireUser, unauthorized } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 
@@ -50,6 +51,8 @@ async function classifyWithLLM(brief: string): Promise<string | null> {
 }
 
 export async function POST(request: Request) {
+  // May call the configured LLM on the server's key — signed-in users only.
+  if (!(await requireUser())) return unauthorized();
   let brief = '';
   try {
     const body = await request.json();

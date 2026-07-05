@@ -80,6 +80,8 @@ export function createSiteUser(
     emailNotify: true,
     marketing: false,
     locale: '',
+    failedAttempts: 0,
+    lockedUntil: null,
     createdAt: now,
     updatedAt: now,
     lastLoginAt: now,
@@ -92,6 +94,33 @@ export function verifySiteCredentials(siteId: string, email: string, password: s
   const user = getSiteUserByEmail(siteId, email);
   if (!user) return null;
   return verifyPassword(password, user.passwordHash) ? user : null;
+}
+
+// ── Brute-force lockout for site end-users (5 fails → 15 min, like platform) ──
+const MAX_LOGIN_FAILURES = 5;
+const LOCKOUT_MS = 15 * 60 * 1000;
+
+/** Milliseconds until the account unlocks, or 0 when not locked. */
+export function siteLockRemainingMs(user: { lockedUntil: Date | null }): number {
+  const until = user.lockedUntil?.getTime() ?? 0;
+  return until > Date.now() ? until - Date.now() : 0;
+}
+
+/** Count a failed login; lock at the threshold. Returns true when just locked. */
+export function recordSiteLoginFailure(user: { id: string; failedAttempts: number }): boolean {
+  const failures = user.failedAttempts + 1;
+  const locked = failures >= MAX_LOGIN_FAILURES;
+  getDb()
+    .update(siteUsers)
+    .set(locked ? { failedAttempts: 0, lockedUntil: new Date(Date.now() + LOCKOUT_MS) } : { failedAttempts: failures })
+    .where(eq(siteUsers.id, user.id))
+    .run();
+  return locked;
+}
+
+export function clearSiteLoginFailures(user: { id: string; failedAttempts: number; lockedUntil: Date | null }): void {
+  if (user.failedAttempts === 0 && !user.lockedUntil) return;
+  getDb().update(siteUsers).set({ failedAttempts: 0, lockedUntil: null }).where(eq(siteUsers.id, user.id)).run();
 }
 
 /** Issue a session for a site end-user and set the isolated cookie. */

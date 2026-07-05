@@ -191,6 +191,11 @@ function createDb(): DB {
   };
   addColumn('users', 'role', `role TEXT NOT NULL DEFAULT 'customer'`);
   addColumn('users', 'is_active', `is_active INTEGER NOT NULL DEFAULT 1`);
+  // Brute-force lockout counters (both auth realms).
+  addColumn('users', 'failed_attempts', `failed_attempts INTEGER NOT NULL DEFAULT 0`);
+  addColumn('users', 'locked_until', `locked_until INTEGER`);
+  addColumn('site_users', 'failed_attempts', `failed_attempts INTEGER NOT NULL DEFAULT 0`);
+  addColumn('site_users', 'locked_until', `locked_until INTEGER`);
   addColumn('sessions', 'last_active_at', `last_active_at INTEGER`);
   addColumn('sessions', 'user_agent', `user_agent TEXT NOT NULL DEFAULT ''`);
   addColumn('sessions', 'ip', `ip TEXT NOT NULL DEFAULT ''`);

@@ -16,6 +16,10 @@ export const users = sqliteTable(
     role: text('role').notNull().default('customer'),
     /** Suspend switch: a blocked user cannot log in and all their sessions stop validating. */
     isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+    /** Brute-force lockout: consecutive failed logins; reset on success. */
+    failedAttempts: integer('failed_attempts').notNull().default(0),
+    /** Login refused until this moment after too many failed attempts. */
+    lockedUntil: integer('locked_until', { mode: 'timestamp_ms' }),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [uniqueIndex('users_email_idx').on(t.email)],
@@ -114,6 +118,10 @@ export const siteUsers = sqliteTable(
     marketing: integer('marketing', { mode: 'boolean' }).notNull().default(false),
     /** Preferred UI language, e.g. 'ru' | 'en' ('' = site default). */
     locale: text('locale').notNull().default(''),
+    /** Brute-force lockout: consecutive failed logins; reset on success. */
+    failedAttempts: integer('failed_attempts').notNull().default(0),
+    /** Login refused until this moment after too many failed attempts. */
+    lockedUntil: integer('locked_until', { mode: 'timestamp_ms' }),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
     lastLoginAt: integer('last_login_at', { mode: 'timestamp_ms' }),

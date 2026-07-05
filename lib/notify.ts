@@ -15,6 +15,7 @@ const CRITICAL_ACTIONS: Record<string, string> = {
   'site.delete': '🗑 Удалён сайт',
   'db.export': '💾 Скачан файл БД',
   'data.snapshot': '💾 Снят JSON-снапшот БД',
+  'auth.lockout': '🔐 Аккаунт заблокирован на 15 мин (перебор пароля)',
 };
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

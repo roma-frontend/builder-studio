@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { optimizeUpload, ACCEPTED_TYPES } from '@/lib/media-optimize';
+import { requireUser, unauthorized } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 // Large enough for short videos; images are far smaller.
@@ -10,6 +11,9 @@ export const maxDuration = 120;
 const MAX = 64 * 1024 * 1024; // 64 MB source cap
 
 export async function POST(request: Request) {
+  // Uploads burn ffmpeg CPU and disk — signed-in platform users only.
+  if (!(await requireUser())) return unauthorized();
+
   let file: File | null = null;
   try {
     const form = await request.formData();

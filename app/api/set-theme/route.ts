@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { THEMES } from '@/lib/themes';
+import { requireStaff, forbidden } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 
@@ -11,6 +12,7 @@ export const runtime = 'nodejs';
 const VALID = new Set(['auto', ...THEMES.map((t) => t.id)]);
 
 export async function POST(request: Request) {
+  if (!(await requireStaff())) return forbidden();
   let theme = 'auto';
   try {
     const body = await request.json();

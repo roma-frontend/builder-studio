@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { requireStaff, forbidden } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,7 @@ interface Edit {
 }
 
 export async function POST(request: Request) {
+  if (!(await requireStaff())) return forbidden();
   let edits: Edit[] = [];
   let order: string[] | undefined;
   let remove: string[] = [];

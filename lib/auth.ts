@@ -163,6 +163,8 @@ export function createUser(email: string, password: string, name: string): User 
     passwordHash: hashPassword(password),
     role,
     isActive: true,
+    failedAttempts: 0,
+    lockedUntil: null,
     createdAt: new Date(),
   };
   db.insert(users).values(user).run();
@@ -180,6 +182,38 @@ export function isSuperadmin(user: { role?: string } | null | undefined): boolea
 
 export function findUserByEmail(email: string): User | null {
   return getDb().select().from(users).where(eq(users.email, normalizeEmail(email))).get() ?? null;
+}
+
+// ---- brute-force account lockout (mirrors hr-project: 5 fails → 15 min) ----
+export const MAX_LOGIN_FAILURES = 5;
+export const LOCKOUT_MS = 15 * 60 * 1000;
+
+/** A scrypt hash of nothing in particular — verified against when the account
+ *  doesn't exist, so both branches cost the same (no enumeration timing oracle). */
+export const DUMMY_HASH = 'scrypt:16384:8:1:AAAAAAAAAAAAAAAAAAAAAA==:AA==';
+
+/** Milliseconds until the account unlocks, or 0 when not locked. */
+export function lockRemainingMs(user: { lockedUntil: Date | null }): number {
+  const until = user.lockedUntil?.getTime() ?? 0;
+  return until > Date.now() ? until - Date.now() : 0;
+}
+
+/** Count a failed login; lock the account when the threshold is reached.
+ *  Returns true when this failure triggered a lockout. */
+export function recordLoginFailure(user: { id: string; failedAttempts: number }): boolean {
+  const failures = user.failedAttempts + 1;
+  const locked = failures >= MAX_LOGIN_FAILURES;
+  getDb()
+    .update(users)
+    .set(locked ? { failedAttempts: 0, lockedUntil: new Date(Date.now() + LOCKOUT_MS) } : { failedAttempts: failures })
+    .where(eq(users.id, user.id))
+    .run();
+  return locked;
+}
+
+export function clearLoginFailures(user: { id: string; failedAttempts: number; lockedUntil: Date | null }): void {
+  if (user.failedAttempts === 0 && !user.lockedUntil) return;
+  getDb().update(users).set({ failedAttempts: 0, lockedUntil: null }).where(eq(users.id, user.id)).run();
 }
 
 // ---- tiny in-memory rate limiter for the auth endpoints ----

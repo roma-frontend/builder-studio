@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { requireStaff, forbidden } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 
@@ -8,6 +9,7 @@ export const runtime = 'nodejs';
 // The whole content object is replaced (merged shallow with what's on disk so a
 // partial payload still keeps the other sections).
 export async function POST(request: Request) {
+  if (!(await requireStaff())) return forbidden();
   let incoming: Record<string, unknown>;
   try {
     const body = await request.json();
