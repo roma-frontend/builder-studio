@@ -4,7 +4,7 @@
 
 import { notFound } from 'next/navigation';
 import { getSiteByHostname, parseDoc, rebaseDoc } from '@/lib/sites';
-import { SiteRenderer, findPageByPath } from '@/components/builder/site-renderer';
+import { SiteRenderer, SiteAuthPage, AUTH_PATHS, findPageByPath } from '@/components/builder/site-renderer';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,11 @@ export default async function CustomDomainPage({ params }: Props) {
   const { domain, slug } = await params;
   const resolved = resolve(domain);
   if (!resolved) notFound();
-  const page = findPageByPath(resolved.doc, slug ?? []);
+  const parts = slug ?? [];
+  if (parts.length === 1 && AUTH_PATHS.has(parts[0])) {
+    return <SiteAuthPage doc={resolved.doc} mode={parts[0] as 'login' | 'register' | 'account'} />;
+  }
+  const page = findPageByPath(resolved.doc, parts);
   if (!page) notFound();
   return <SiteRenderer doc={resolved.doc} page={page} />;
 }

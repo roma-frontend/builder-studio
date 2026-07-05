@@ -5,6 +5,7 @@
 // talk to /api/site-auth, which is fully isolated from the platform auth.
 
 import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 
 const SiteAuthContext = createContext<string>('');
@@ -12,6 +13,33 @@ export function SiteAuthProvider({ siteId, children }: { siteId: string; childre
   return <SiteAuthContext.Provider value={siteId}>{children}</SiteAuthContext.Provider>;
 }
 const useSiteId = () => useContext(SiteAuthContext);
+
+/** Auto header/footer auth buttons. Not editable in the builder — they always
+ *  point at the site's built-in /login and /register pages, and switch to a
+ *  «Кабинет» link once the visitor is signed in. */
+export function SiteAuthButtons({ base, size = 'sm' }: { base: string; size?: 'sm' | 'md' }) {
+  const siteId = useSiteId();
+  const { user, loading } = useCurrentUser(siteId);
+  const pad = size === 'md' ? 'px-4 py-2 text-sm' : 'px-3 py-1.5 text-sm';
+  if (loading) return <span className="inline-block h-8 w-24" aria-hidden />;
+  if (user) {
+    return (
+      <Link href={`${base}/account`} className={`inline-flex items-center rounded-lg bg-primary ${pad} font-semibold text-primary-foreground transition-opacity hover:opacity-90`}>
+        Кабинет
+      </Link>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <Link href={`${base}/login`} className={`inline-flex items-center rounded-lg border border-border ${pad} font-medium text-foreground transition-colors hover:bg-muted`}>
+        Войти
+      </Link>
+      <Link href={`${base}/register`} className={`inline-flex items-center rounded-lg bg-primary ${pad} font-semibold text-primary-foreground transition-opacity hover:opacity-90`}>
+        Начать бесплатно
+      </Link>
+    </div>
+  );
+}
 
 type PublicUser = { id: string; email: string; name: string };
 

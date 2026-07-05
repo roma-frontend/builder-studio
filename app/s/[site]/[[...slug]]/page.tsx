@@ -6,7 +6,7 @@
 import { notFound } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { getSiteBySlug, parseDoc, rebaseDoc } from '@/lib/sites';
-import { SiteRenderer, findPageByPath } from '@/components/builder/site-renderer';
+import { SiteRenderer, SiteAuthPage, AUTH_PATHS, findPageByPath } from '@/components/builder/site-renderer';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +44,12 @@ export default async function TenantSitePage({ params, searchParams }: Props) {
   const { edit, draft } = await searchParams;
   const resolved = await resolve(siteSlug, draft === '1');
   if (!resolved) notFound();
-  const page = findPageByPath(resolved.doc, slug ?? []);
+  const parts = slug ?? [];
+  // Reserved built-in auth pages — not editable in the builder.
+  if (parts.length === 1 && AUTH_PATHS.has(parts[0])) {
+    return <SiteAuthPage doc={resolved.doc} mode={parts[0] as 'login' | 'register' | 'account'} />;
+  }
+  const page = findPageByPath(resolved.doc, parts);
   if (!page) notFound();
   return <SiteRenderer doc={resolved.doc} page={page} edit={edit === '1' && draft === '1'} />;
 }

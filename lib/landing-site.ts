@@ -100,6 +100,7 @@ function seedLandingDoc(): BuilderDoc {
     headerBehavior: 'sticky',
     footerVariant: 'columns',
     asideVariant: 'none',
+    authButtons: 'false', // platform landing uses its own nav links, not tenant auth
     nav: [
       { label: 'Темы', href: '/themes' },
       { label: 'Конструктор', href: '/studio/builder' },

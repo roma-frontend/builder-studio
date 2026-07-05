@@ -61,6 +61,9 @@ export interface BuilderDoc {
   footerVariant?: string;
   asideVariant?: string;
   asideStyle?: string;
+  /** Show the built-in auth buttons (Войти / Начать бесплатно / Кабинет) in the
+   *  header + footer. Default on for tenant sites; 'false' hides them. */
+  authButtons?: string;
   /** Transient link base set by rebaseDoc for tenant rendering (e.g. '/s/slug').
    *  Absent for the legacy /site route. Used by chrome for brand/CTA links. */
   base?: string;
