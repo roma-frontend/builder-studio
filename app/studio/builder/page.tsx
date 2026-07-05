@@ -128,6 +128,19 @@ const FIELDS: Record<NodeType, Field[]> = {
 };
 
 const PALETTE: NodeType[] = ['section', 'stack', 'row', 'grid', 'card', 'heading', 'text', 'list', 'button', 'image', 'video', 'input', 'textarea', 'form', 'pricing', 'testimonial', 'socials', 'faq', 'tabs', 'divider', 'spacer'];
+
+// Styling controls available for EVERY element (rendered under a divider).
+const COMMON: Field[] = [
+  { k: 'fontSize', label: 'Размер шрифта', opts: ['—', 'xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl'] },
+  { k: 'fontWeight', label: 'Насыщенность', opts: ['—', 'normal', 'medium', 'semibold', 'bold'] },
+  { k: 'textColor', label: 'Цвет текста', opts: ['—', 'default', 'foreground', 'primary', 'muted', 'white'] },
+  { k: 'animate', label: 'Анимация появления', opts: ['—', 'none', 'fade', 'slide-up', 'zoom'] },
+  { k: 'hover', label: 'Эффект при наведении', opts: ['—', 'none', 'lift', 'grow', 'glow', 'bright'] },
+  { k: 'radius', label: 'Скругление', opts: ['—', 'none', 'sm', 'lg', 'xl', 'full'] },
+  { k: 'shadow', label: 'Тень', opts: ['—', 'none', 'sm', 'md', 'lg', 'xl'] },
+  { k: 'mt', label: 'Отступ сверху', opts: ['—', 'none', 'sm', 'md', 'lg'] },
+  { k: 'mb', label: 'Отступ снизу', opts: ['—', 'none', 'sm', 'md', 'lg'] },
+];
 const DEVICE = { full: '100%', tablet: '768px', mobile: '390px' } as const;
 
 export default function BuilderEditor() {
@@ -210,6 +223,18 @@ export default function BuilderEditor() {
   const canUndo = past.current.length > 0;
   const canRedo = future.current.length > 0;
   void histTick;
+
+  // Click-to-select coming from the live preview iframe (edit mode).
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.source === 'builder-preview' && e.data.type === 'select' && e.data.id) {
+        setSelectedId(e.data.id as string);
+        setTab('blocks');
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
 
   const page: BuilderPage | undefined = useMemo(
     () => doc.pages.find((p) => p.id === pageId) ?? doc.pages[0],
@@ -557,6 +582,22 @@ export default function BuilderEditor() {
                     <input ref={uploadRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], selected.id)} />
                   </div>
                 )}
+
+                {/* Styling for every element */}
+                <div className="border-t border-border/60 pt-2.5">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Оформление</p>
+                  <div className="space-y-2.5">
+                    {COMMON.map((f) => (
+                      <div key={f.k}>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">{f.label}</label>
+                        <Select value={selected.props[f.k] || '—'} onValueChange={(v) => patch(selected.id, { [f.k]: v === '—' ? '' : v })}>
+                          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                          <SelectContent>{f.opts!.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">Выберите элемент в структуре, чтобы редактировать.</p>
@@ -597,7 +638,7 @@ export default function BuilderEditor() {
           </div>
           <Card className="overflow-hidden bg-muted/30 p-0">
             <div className="mx-auto transition-all" style={{ width: DEVICE[device] }}>
-              <iframe key={previewKey} src={previewSrc} title="Предпросмотр" className="h-[80vh] w-full border-0 bg-background" />
+              <iframe key={previewKey} src={`${previewSrc}?edit=1`} title="Предпросмотр" className="h-[80vh] w-full border-0 bg-background" />
             </div>
           </Card>
           <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5" /> Изменения появятся после «Сохранить».</p>

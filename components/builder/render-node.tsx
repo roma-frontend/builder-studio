@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { cloneElement, isValidElement, type ReactElement } from 'react';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { BuilderForm } from './builder-form';
@@ -40,6 +41,37 @@ const HEADING_SIZE = { '1': 'text-4xl sm:text-6xl', '2': 'text-3xl sm:text-4xl',
 const TEXT_SIZE = { sm: 'text-sm', base: 'text-base', lg: 'text-lg sm:text-xl' } as const;
 const SPACE = { sm: 'h-6', md: 'h-12', lg: 'h-20' } as const;
 
+// ---- common styling applied to EVERY node (via cloneElement) ----
+const WEIGHT: Record<string, string> = { normal: 'font-normal', medium: 'font-medium', semibold: 'font-semibold', bold: 'font-bold' };
+const TXT_COLOR: Record<string, string> = { default: '', primary: 'text-primary', muted: 'text-muted-foreground', white: 'text-white', foreground: 'text-foreground' };
+const HOVER_FX: Record<string, string> = {
+  none: '',
+  lift: 'transition-transform duration-300 hover:-translate-y-1',
+  grow: 'transition-transform duration-300 hover:scale-[1.03]',
+  glow: 'transition-shadow duration-300 hover:shadow-xl hover:shadow-primary/25',
+  bright: 'transition-opacity duration-300 hover:opacity-80',
+};
+const ANIM_FX: Record<string, string> = { none: '', fade: 'b-anim-fade', 'slide-up': 'b-anim-slide', zoom: 'b-anim-zoom' };
+const RADIUS: Record<string, string> = { none: '', sm: 'rounded-md', lg: 'rounded-xl', xl: 'rounded-3xl', full: 'rounded-full' };
+const SHADOW: Record<string, string> = { none: '', sm: 'shadow-sm', md: 'shadow-md', lg: 'shadow-lg', xl: 'shadow-2xl' };
+const MT: Record<string, string> = { none: '', sm: 'mt-3', md: 'mt-6', lg: 'mt-12' };
+const MB: Record<string, string> = { none: '', sm: 'mb-3', md: 'mb-6', lg: 'mb-12' };
+const FONT_SIZE: Record<string, string> = { xs: 'text-xs', sm: 'text-sm', base: 'text-base', lg: 'text-lg', xl: 'text-xl', '2xl': 'text-2xl', '3xl': 'text-3xl', '4xl': 'text-4xl' };
+
+function commonClasses(p: Record<string, string>): string {
+  return cn(
+    p.fontWeight && WEIGHT[p.fontWeight],
+    p.textColor && TXT_COLOR[p.textColor],
+    p.fontSize && FONT_SIZE[p.fontSize],
+    p.hover && HOVER_FX[p.hover],
+    p.animate && ANIM_FX[p.animate],
+    p.radius && RADIUS[p.radius],
+    p.shadow && SHADOW[p.shadow],
+    p.mt && MT[p.mt],
+    p.mb && MB[p.mb],
+  );
+}
+
 const pick = <T extends Record<string, string>>(map: T, key: string | undefined, fallback: keyof T): string =>
   map[(key ?? '') as keyof T] ?? map[fallback];
 
@@ -70,6 +102,17 @@ function Field({ node }: { node: BuilderNode }) {
 }
 
 export function RenderNode({ node }: { node: BuilderNode }) {
+  const el = renderInner(node);
+  if (!isValidElement(el)) return el;
+  const extra = commonClasses(node.props ?? {});
+  const current = (el.props as { className?: string }).className;
+  return cloneElement(el as ReactElement<{ className?: string; 'data-nid'?: string }>, {
+    'data-nid': node.id,
+    className: cn(current, extra),
+  });
+}
+
+function renderInner(node: BuilderNode) {
   const p = node.props ?? {};
   const kids = node.children ?? [];
 

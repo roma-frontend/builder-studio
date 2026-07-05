@@ -198,3 +198,16 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-disabled);
 }
+
+
+/* Builder element entrance animations */
+@keyframes b-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes b-slide { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes b-zoom { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+.b-anim-fade { animation: b-fade 0.7s ease both; }
+.b-anim-slide { animation: b-slide 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.b-anim-zoom { animation: b-zoom 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Builder edit-mode: highlight selectable elements on hover */
+.builder-edit [data-nid] { cursor: pointer; }
+.builder-edit [data-nid]:hover { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 2px; }
