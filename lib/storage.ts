@@ -81,3 +81,10 @@ export function contentTypeFor(name: string): string {
   const ext = (name.split('.').pop() || '').toLowerCase();
   return CT[ext] || 'application/octet-stream';
 }
+
+/** Non-secret storage status for the admin UI. */
+export function storageInfo(): { mode: 'r2'; bucket: string; publicBase: string } | { mode: 'local' } {
+  return r2Configured()
+    ? { mode: 'r2', bucket: R2_BUCKET as string, publicBase: R2_PUBLIC_BASE }
+    : { mode: 'local' };
+}
