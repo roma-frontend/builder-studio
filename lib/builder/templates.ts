@@ -415,3 +415,62 @@ export const LANDINGS: TemplateDef[] = [
     ], 'Эко-лендинг натурального бренда.'),
   },
 ];
+
+
+
+// ---- hero variants ----
+const heroSplit = (): BuilderNode =>
+  mk('section', { padding: 'lg', bg: 'none', width: 'wide' }, [
+    mk('grid', { gap: 'lg', columns: '2' }, [
+      mk('stack', { gap: 'md', align: 'start' }, [
+        mk('heading', { text: 'Растите быстрее с нами', level: '1', align: 'left' }),
+        mk('text', { text: 'Понятное решение для вашего бизнеса. Запуск за считанные минуты.', align: 'left', muted: 'true', size: 'lg' }),
+        mk('row', { gap: 'sm', align: 'center', justify: 'start', wrap: 'wrap' }, [
+          mk('button', { text: 'Начать', href: '/site/contact', variant: 'default', size: 'lg', align: 'left', type: 'link' }),
+          mk('button', { text: 'Подробнее', href: '#', variant: 'outline', size: 'lg', align: 'left', type: 'link' }),
+        ]),
+      ]),
+      mk('image', { src: '', alt: 'Иллюстрация', rounded: 'xl', ratio: '4/3' }),
+    ]),
+  ]);
+
+const heroImage = (): BuilderNode =>
+  mk('section', { padding: 'lg', bg: 'none', width: 'normal' }, [
+    mk('stack', { gap: 'md', align: 'center' }, [
+      mk('image', { src: '', alt: 'Обложка', rounded: 'xl', ratio: '21/9' }),
+      mk('heading', { text: 'Заголовок поверх изображения', level: '1', align: 'center' }),
+      mk('text', { text: 'Короткое описание вашего продукта или услуги.', align: 'center', muted: 'true', size: 'lg' }),
+      mk('button', { text: 'Хочу так же', href: '/site/contact', variant: 'default', size: 'lg', align: 'center', type: 'link' }),
+    ]),
+  ]);
+
+const contactSection = (): BuilderNode =>
+  mk('section', { padding: 'lg', bg: 'muted', width: 'narrow' }, [
+    mk('heading', { text: 'Свяжитесь с нами', level: '2', align: 'left' }),
+    mk('spacer', { height: 'sm' }),
+    mk('form', { formId: 'contact', submitText: 'Отправить', successMsg: 'Спасибо! Мы свяжемся с вами.' }, [
+      mk('input', { name: 'name', label: 'Имя', placeholder: 'Ваше имя', type: 'text' }),
+      mk('input', { name: 'email', label: 'Email', placeholder: 'you@example.com', type: 'email' }),
+      mk('textarea', { name: 'message', label: 'Сообщение', placeholder: 'Ваше сообщение…' }),
+    ]),
+  ]);
+
+export interface SectionPreset {
+  id: string;
+  label: string;
+  build: () => BuilderNode;
+}
+
+export const SECTION_PRESETS: SectionPreset[] = [
+  { id: 'hero-center', label: 'Hero · по центру', build: () => heroCenter('Заголовок по центру', 'Короткое описание вашего предложения.', 'Начать', 'Подробнее', 'primary') },
+  { id: 'hero-split', label: 'Hero · сплит', build: heroSplit },
+  { id: 'hero-image', label: 'Hero · с картинкой', build: heroImage },
+  { id: 'features', label: 'Преимущества (3)', build: () => featureGrid('Возможности', '3', [['Быстро', 'Молниеносный запуск.'], ['Гибко', 'Собирайте из блоков.'], ['Надёжно', 'Данные под защитой.']]) },
+  { id: 'stats', label: 'Статистика', build: () => statsRow([['10K+', 'клиентов'], ['99.9%', 'аптайм'], ['4.9★', 'рейтинг']]) },
+  { id: 'pricing', label: 'Тарифы', build: () => pricingSection('none') },
+  { id: 'testimonials', label: 'Отзывы', build: () => testimonialsSection('card') },
+  { id: 'faq', label: 'FAQ', build: () => faqSection('bordered') },
+  { id: 'gallery', label: 'Галерея', build: () => gallerySection('Галерея') },
+  { id: 'cta', label: 'Призыв к действию', build: () => ctaSection('Готовы начать?', 'Оставить заявку') },
+  { id: 'contact', label: 'Форма контактов', build: contactSection },
+];

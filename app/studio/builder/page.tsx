@@ -10,16 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   ArrowUp, ArrowDown, X, Plus, Save, Loader2, Monitor, Tablet, Smartphone,
   ExternalLink, Trash2, FileText, LayoutTemplate, ChevronRight, Copy, Upload, Wand2, Palette,
-  Undo2, Redo2, LayoutGrid,
+  Undo2, Redo2, LayoutGrid, ChevronDown,
 } from 'lucide-react';
 import seed from '@/data/builder.json';
 import { THEMES } from '@/lib/themes';
-import { TEMPLATES, LANDINGS } from '@/lib/builder/templates';
+import { TEMPLATES, LANDINGS, SECTION_PRESETS } from '@/lib/builder/templates';
 import {
   type BuilderDoc, type BuilderNode, type NodeType, type BuilderPage,
   NODE_LABELS, isContainer, makeNode, newId,
 } from '@/lib/builder/types';
-import { updateProps, removeNode, insertChild, moveNode, findNode, duplicateNode, moveRelative, insertAfter, ancestorTypes, ancestorPath } from '@/lib/builder/tree';
+import { updateProps, removeNode, insertChild, moveNode, findNode, duplicateNode, moveTo, insertAfter, ancestorTypes, ancestorPath } from '@/lib/builder/tree';
 
 type Field = { k: string; label: string; kind?: 'text' | 'textarea'; opts?: string[] };
 
@@ -183,6 +183,15 @@ export default function BuilderEditor() {
   const [device, setDevice] = useState<keyof typeof DEVICE>('full');
   const [tab, setTab] = useState<'pages' | 'blocks' | 'design'>('pages');
   const [previewWidth, setPreviewWidth] = useState(520);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [dropHint, setDropHint] = useState<{ id: string; pos: 'before' | 'after' } | null>(null);
+  const toggleCollapse = (id: string) =>
+    setCollapsed((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   const startResize = () => {
     const onMove = (e: MouseEvent) => setPreviewWidth(Math.min(1100, Math.max(300, window.innerWidth - e.clientX)));
     const onUp = () => {
@@ -351,27 +360,9 @@ export default function BuilderEditor() {
     if (nid) setSelectedId(nid);
   };
 
-  // Drag-and-drop within the structure tree — handles both moving existing
-  // nodes and dropping a NEW element dragged from the palette.
+  // Drag-and-drop within the structure tree.
   const dragId = useRef<string | null>(null);
   const paletteDrag = useRef<NodeType | null>(null);
-  const onTreeDrop = (targetId: string) => {
-    const pType = paletteDrag.current;
-    const from = dragId.current;
-    paletteDrag.current = null;
-    dragId.current = null;
-    if (!page) return;
-    if (pType) {
-      const target = findNode(page.blocks, targetId);
-      const node = makeNode(pType);
-      // Drop INTO the target if it's a container, else place right after it.
-      if (target && isContainer(target.type)) setBlocks(insertChild(page.blocks, targetId, node));
-      else setBlocks(insertAfter(page.blocks, targetId, node));
-      setSelectedId(node.id);
-      return;
-    }
-    if (from) setBlocks(moveRelative(page.blocks, from, targetId));
-  };
   // Drop a palette element onto the empty page area (append to root).
   const onRootDrop = () => {
     const pType = paletteDrag.current;
@@ -470,6 +461,14 @@ export default function BuilderEditor() {
     if (t.themeId) setDoc((d) => ({ ...d, themeId: t.themeId! }));
     setMsg(`Добавлено: «${t.label}»${t.themeId ? ' (тема применена)' : ''}. Не забудьте «Сохранить».`);
   };
+  const addSectionPreset = (id: string) => {
+    const s = SECTION_PRESETS.find((x) => x.id === id);
+    if (!s || !page) return;
+    const node = s.build();
+    setBlocks([...page.blocks, node]);
+    setSelectedId(node.id);
+    setMsg(`Секция «${s.label}» добавлена в конец страницы.`);
+  };
 
   // ---- nav / footer / brand ----
   const setNavLink = (i: number, key: 'label' | 'href', val: string) =>
@@ -557,9 +556,10 @@ export default function BuilderEditor() {
             <p className="mb-2 text-xs text-muted-foreground">Выберите лендинг — добавится как страница с подходящей темой, дальше меняйте под себя.</p>
             <div className="grid grid-cols-2 gap-1.5">
               {LANDINGS.map((t) => (
-                <button key={t.id} onClick={() => addTemplate(t.id)} className="rounded-lg border border-border/60 p-2 text-left transition-colors hover:border-primary/60 hover:bg-muted/50">
-                  <span className="block text-xs font-semibold">{t.label}</span>
-                  <span className="block text-[10px] leading-tight text-muted-foreground">{t.description}</span>
+                <button key={t.id} onClick={() => addTemplate(t.id)} className="overflow-hidden rounded-lg border border-border/60 text-left transition-colors hover:border-primary/60">
+                  <LandingThumb def={t} />
+                  <span className="block px-2 pt-1.5 text-xs font-semibold">{t.label}</span>
+                  <span className="block px-2 pb-2 text-[10px] leading-tight text-muted-foreground">{t.description}</span>
                 </button>
               ))}
             </div>
@@ -638,16 +638,30 @@ export default function BuilderEditor() {
             </div>
           </Card>
 
+          {/* Section presets */}
+          <Card className="p-3">
+            <p className="mb-2 text-sm font-semibold">Готовые секции</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {SECTION_PRESETS.map((s) => (
+                <Button key={s.id} size="sm" variant="outline" className="justify-start gap-1 text-xs" onClick={() => addSectionPreset(s.id)}>
+                  <Plus className="h-3.5 w-3.5" /> {s.label}
+                </Button>
+              ))}
+            </div>
+          </Card>
+
           {/* Tree */}
           <Card className="p-3" onDragOver={(e) => e.preventDefault()} onDrop={onRootDrop}>
             <p className="mb-1 text-sm font-semibold">Структура</p>
             <p className="mb-2 text-xs text-muted-foreground">Перетащите элемент из палитры сюда или на нужный блок.</p>
             {page && page.blocks.length > 0 ? (
               <Tree nodes={page.blocks} depth={0} selectedId={selectedId} onSelect={setSelectedId}
+                collapsed={collapsed} onToggle={toggleCollapse}
+                dropHint={dropHint} setDropHint={setDropHint}
                 onMove={(id, dir) => setBlocks(moveNode(page.blocks, id, dir))}
                 onDuplicate={duplicate}
                 onDragStartId={(id) => { dragId.current = id; }}
-                onDrop={onTreeDrop}
+                onDropRow={(id, pos) => { if (dragId.current) setBlocks(moveTo(page.blocks, dragId.current, id, pos)); dragId.current = null; setDropHint(null); }}
                 onDelete={(id) => { setBlocks(removeNode(page.blocks, id)); if (selectedId === id) setSelectedId(null); }} />
             ) : (
               <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">Пусто — добавьте элемент из палитры.</p>
@@ -796,9 +810,40 @@ export default function BuilderEditor() {
   );
 }
 
+// Schematic mini-preview of a landing (colored bars per top-level section).
+const THEME_ACCENT: Record<string, string> = {
+  'tech-saas': '#6366f1',
+  'modern-clean': '#0ea5e9',
+  'neon-night': '#a855f7',
+  'editorial-coffee': '#b45309',
+  'sport-dynamic': '#dc2626',
+  'luxury-dark': '#c9a227',
+  'nature-fresh': '#16a34a',
+};
+
+function LandingThumb({ def }: { def: { themeId?: string; build: () => { blocks: BuilderNode[] } } }) {
+  const blocks = useMemo(() => def.build().blocks, [def]);
+  const accent = THEME_ACCENT[def.themeId ?? ''] ?? '#6366f1';
+  return (
+    <div className="flex flex-col gap-1 bg-muted/40 p-2">
+      {blocks.slice(0, 6).map((b, i) => {
+        const primary = b.props?.bg === 'primary';
+        return (
+          <div
+            key={i}
+            className="rounded-sm"
+            style={{ height: i === 0 ? 16 : 7, background: primary ? accent : 'var(--border)', opacity: primary ? 1 : 0.55 }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 // Recursive tree view
 function Tree({
-  nodes, depth, selectedId, onSelect, onMove, onDelete, onDuplicate, onDragStartId, onDrop,
+  nodes, depth, selectedId, onSelect, onMove, onDelete, onDuplicate, onDragStartId, onDropRow,
+  collapsed, onToggle, dropHint, setDropHint,
 }: {
   nodes: BuilderNode[];
   depth: number;
@@ -808,36 +853,58 @@ function Tree({
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDragStartId: (id: string) => void;
-  onDrop: (targetId: string) => void;
+  onDropRow: (id: string, pos: 'before' | 'after') => void;
+  collapsed: Set<string>;
+  onToggle: (id: string) => void;
+  dropHint: { id: string; pos: 'before' | 'after' } | null;
+  setDropHint: (h: { id: string; pos: 'before' | 'after' } | null) => void;
 }) {
   return (
     <div className="space-y-1">
-      {nodes.map((n, i) => (
-        <div key={n.id}>
-          <div
-            draggable
-            onDragStart={(e) => { e.stopPropagation(); onDragStartId(n.id); }}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDrop(n.id); }}
-            className={`flex items-center gap-0.5 rounded-md py-1 pr-1 text-sm ${selectedId === n.id ? 'bg-primary/15' : 'hover:bg-muted'}`}
-            style={{ paddingLeft: depth * 12 + 6 }}
-          >
-            <span className="cursor-grab text-muted-foreground/50 active:cursor-grabbing" aria-hidden>⋮⋮</span>
-            <button className="min-w-0 flex-1 truncate text-left" onClick={() => onSelect(n.id)}>
-              <span className="text-muted-foreground">{isContainer(n.type) ? '▸ ' : '• '}</span>
-              {NODE_LABELS[n.type]}
-              {n.props.text ? <span className="text-muted-foreground"> — {n.props.text.slice(0, 18)}</span> : null}
-            </button>
-            <button onClick={() => onMove(n.id, -1)} disabled={i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Вверх"><ArrowUp className="h-3.5 w-3.5" /></button>
-            <button onClick={() => onMove(n.id, 1)} disabled={i === nodes.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Вниз"><ArrowDown className="h-3.5 w-3.5" /></button>
-            <button onClick={() => onDuplicate(n.id)} className="text-muted-foreground hover:text-foreground" aria-label="Дублировать"><Copy className="h-3.5 w-3.5" /></button>
-            <button onClick={() => onDelete(n.id)} className="text-muted-foreground hover:text-red-500" aria-label="Удалить"><X className="h-3.5 w-3.5" /></button>
+      {nodes.map((n, i) => {
+        const hasKids = !!n.children && n.children.length > 0;
+        const isCollapsed = collapsed.has(n.id);
+        const container = isContainer(n.type);
+        const hint = dropHint?.id === n.id ? dropHint.pos : null;
+        return (
+          <div key={n.id}>
+            {hint === 'before' && <div className="my-0.5 h-0.5 rounded bg-primary" style={{ marginLeft: depth * 12 + 6 }} />}
+            <div
+              draggable
+              onDragStart={(e) => { e.stopPropagation(); onDragStartId(n.id); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                const r = e.currentTarget.getBoundingClientRect();
+                setDropHint({ id: n.id, pos: e.clientY < r.top + r.height / 2 ? 'before' : 'after' });
+              }}
+              onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDropRow(n.id, dropHint?.id === n.id ? dropHint.pos : 'after'); }}
+              className={`flex items-center gap-0.5 rounded-md py-1 pr-1 text-sm ${selectedId === n.id ? 'bg-primary/15' : 'hover:bg-muted'}`}
+              style={{ paddingLeft: depth * 12 + 2 }}
+            >
+              {container && hasKids ? (
+                <button onClick={() => onToggle(n.id)} className="text-muted-foreground hover:text-foreground" aria-label={isCollapsed ? 'Развернуть' : 'Свернуть'}>
+                  {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+              ) : (
+                <span className="w-3.5" />
+              )}
+              <span className="cursor-grab text-muted-foreground/50 active:cursor-grabbing" aria-hidden>⋮⋮</span>
+              <button className="min-w-0 flex-1 truncate text-left" onClick={() => onSelect(n.id)}>
+                {NODE_LABELS[n.type]}
+                {n.props.text ? <span className="text-muted-foreground"> — {n.props.text.slice(0, 16)}</span> : null}
+              </button>
+              <button onClick={() => onMove(n.id, -1)} disabled={i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Вверх"><ArrowUp className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onMove(n.id, 1)} disabled={i === nodes.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Вниз"><ArrowDown className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onDuplicate(n.id)} className="text-muted-foreground hover:text-foreground" aria-label="Дублировать"><Copy className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onDelete(n.id)} className="text-muted-foreground hover:text-red-500" aria-label="Удалить"><X className="h-3.5 w-3.5" /></button>
+            </div>
+            {hint === 'after' && <div className="my-0.5 h-0.5 rounded bg-primary" style={{ marginLeft: depth * 12 + 6 }} />}
+            {hasKids && !isCollapsed && (
+              <Tree nodes={n.children!} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onMove={onMove} onDelete={onDelete} onDuplicate={onDuplicate} onDragStartId={onDragStartId} onDropRow={onDropRow} collapsed={collapsed} onToggle={onToggle} dropHint={dropHint} setDropHint={setDropHint} />
+            )}
           </div>
-          {n.children && n.children.length > 0 && (
-            <Tree nodes={n.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onMove={onMove} onDelete={onDelete} onDuplicate={onDuplicate} onDragStartId={onDragStartId} onDrop={onDrop} />
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

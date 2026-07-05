@@ -88,6 +88,16 @@ export function insertAfter(nodes: BuilderNode[], targetId: string, node: Builde
   return out;
 }
 
+// Inserts `node` immediately BEFORE the node with `targetId`, at that level.
+export function insertBefore(nodes: BuilderNode[], targetId: string, node: BuilderNode): BuilderNode[] {
+  const out: BuilderNode[] = [];
+  for (const n of nodes) {
+    if (n.id === targetId) out.push(node);
+    out.push(n.children ? { ...n, children: insertBefore(n.children, targetId, node) } : n);
+  }
+  return out;
+}
+
 // Returns the types of all ancestors of `id` (nearest first). Empty if at root.
 export function ancestorTypes(nodes: BuilderNode[], id: string): string[] {
   let result: string[] = [];
@@ -135,4 +145,14 @@ export function moveRelative(nodes: BuilderNode[], dragId: string, targetId: str
   if (!dragged) return nodes;
   if (isDescendant(dragged, targetId)) return nodes; // can't drop into own subtree
   return insertAfter(removeNode(nodes, dragId), targetId, dragged);
+}
+
+// Move `dragId` to be a sibling before/after `targetId` (precise ordering).
+export function moveTo(nodes: BuilderNode[], dragId: string, targetId: string, pos: 'before' | 'after'): BuilderNode[] {
+  if (dragId === targetId) return nodes;
+  const dragged = findNode(nodes, dragId);
+  if (!dragged) return nodes;
+  if (isDescendant(dragged, targetId)) return nodes;
+  const without = removeNode(nodes, dragId);
+  return pos === 'before' ? insertBefore(without, targetId, dragged) : insertAfter(without, targetId, dragged);
 }
