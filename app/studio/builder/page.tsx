@@ -466,7 +466,7 @@ export default function BuilderEditor() {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="w-[27rem] shrink-0 overflow-y-auto border-r border-border/60 p-3">
+        <aside className="flex-1 min-w-0 overflow-y-auto border-r border-border/60 p-3">
           {/* Tabs */}
           <div className="mb-3 grid grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1">
             {([['pages', 'Страницы'], ['blocks', 'Блоки'], ['design', 'Сайт']] as const).map(([id, label]) => (
@@ -534,7 +534,8 @@ export default function BuilderEditor() {
           </div>{/* end Страницы */}
 
           {/* TAB: Блоки */}
-          <div className={tab === 'blocks' ? 'space-y-4' : 'hidden'}>
+          <div className={tab === 'blocks' ? 'grid items-start gap-4 lg:grid-cols-2' : 'hidden'}>
+          <div className="space-y-4">
           {/* Palette */}
           <Card className="p-3">
             <p className="mb-1 text-sm font-semibold">Добавить элемент</p>
@@ -563,8 +564,10 @@ export default function BuilderEditor() {
               <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">Пусто — добавьте элемент из палитры.</p>
             )}
           </Card>
+          </div>{/* col A */}
 
           {/* Properties */}
+          <div className="space-y-4">
           <Card className="p-3">
             <p className="mb-2 text-sm font-semibold">Свойства</p>
             {selected ? (
@@ -615,6 +618,7 @@ export default function BuilderEditor() {
               <p className="text-xs text-muted-foreground">Выберите элемент в структуре, чтобы редактировать.</p>
             )}
           </Card>
+          </div>{/* col B */}
           </div>{/* end Блоки */}
 
           {/* TAB: Сайт */}
@@ -643,7 +647,7 @@ export default function BuilderEditor() {
         </aside>
 
         {/* Live preview canvas */}
-        <div className="flex min-w-0 flex-1 flex-col bg-muted/20">
+        <div className="flex w-[34rem] shrink-0 flex-col border-l border-border/60 bg-muted/20 xl:w-[40rem]">
           <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground">
             <ChevronRight className="h-4 w-4 text-primary" />
             <span className="truncate">{previewSrc}</span>
