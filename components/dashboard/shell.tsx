@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Film, LayoutDashboard, Globe, Inbox, UserCircle, Users, LayoutList,
-  LogOut, Menu, X, ExternalLink, Crown, ShieldCheck, Plus, Search,
+  LogOut, Menu, X, ExternalLink, Crown, ShieldCheck, Plus, Search, Building2,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard/account', label: 'Аккаунт', icon: UserCircle },
   { href: '/dashboard/users', label: 'Пользователи', icon: Users, staff: true },
   { href: '/dashboard/all-sites', label: 'Все сайты', icon: LayoutList, staff: true },
+  { href: '/dashboard/organizations', label: 'Организации', icon: Building2, super: true },
   { href: '/dashboard/control', label: 'Центр контроля', icon: Crown, super: true },
 ];
 
