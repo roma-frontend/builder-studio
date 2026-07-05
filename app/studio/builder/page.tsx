@@ -557,11 +557,11 @@ export default function BuilderEditor() {
             <p className="mb-2 text-xs text-muted-foreground">Выберите лендинг — добавится как страница с подходящей темой, дальше меняйте под себя.</p>
             <div className="grid grid-cols-2 gap-1.5">
               {LANDINGS.map((t) => (
-                <button key={t.id} onClick={() => addTemplate(t.id)} className="overflow-hidden rounded-lg border border-border/60 text-left transition-colors hover:border-primary/60">
+                <div key={t.id} role="button" tabIndex={0} onClick={() => addTemplate(t.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addTemplate(t.id); } }} className="cursor-pointer overflow-hidden rounded-lg border border-border/60 text-left transition-colors hover:border-primary/60">
                   <LandingThumb def={t} />
                   <span className="block px-2 pt-1.5 text-xs font-semibold">{t.label}</span>
                   <span className="block px-2 pb-2 text-[10px] leading-tight text-muted-foreground">{t.description}</span>
-                </button>
+                </div>
               ))}
             </div>
           </Card>
