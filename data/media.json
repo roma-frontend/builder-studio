@@ -1,0 +1,23 @@
+[
+  {
+    "id": "hero-demo",
+    "title": "Engineered to Stop",
+    "section": "hero",
+    "subtitle": "Performance",
+    "ctaLabel": "Shop now",
+    "ctaHref": "/products",
+    "src": "/media/generated/hero-demo.webm",
+    "poster": "/media/generated/hero-demo-poster.jpg",
+    "aspectRatio": "16:9",
+    "createdAt": "2026-07-05T07:34:42.494Z"
+  },
+  {
+    "id": "card-brakes",
+    "title": "Brake Discs",
+    "section": "card",
+    "src": "/media/generated/card-brakes.webm",
+    "poster": "/media/generated/card-brakes-poster.jpg",
+    "aspectRatio": "16:9",
+    "createdAt": "2026-07-05T07:36:37.001Z"
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "name": "cinematic-web-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Next.js starter for building modern web projects with AI-generated cinematic video sections (hero, backgrounds, cards). Includes a media pipeline: generate → optimize (.webm) → auto-import into data.json → render.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "media": "node scripts/media-pipeline/run.mjs",
+    "media:list": "node scripts/media-pipeline/list.mjs"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.42.2",
+    "lucide-react": "^0.468.0",
+    "next": "16.2.6",
+    "next-themes": "^0.4.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "ffmpeg-static": "5.2.0",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5"
+  },
+  "allowScripts": {
+    "ffmpeg-static@5.2.0": true
+  }
+}

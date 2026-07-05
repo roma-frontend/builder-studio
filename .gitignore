@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+build
+.DS_Store
+*.log
+.env
+.env.local
+# Raw (pre-optimization) generated clips — the optimized .webm in public/ is what ships.
+scripts/media-pipeline/.raw

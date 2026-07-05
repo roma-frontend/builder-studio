@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.15 0.01 260);
+  --card: oklch(0.99 0 0);
+  --card-foreground: oklch(0.15 0.01 260);
+  --primary: oklch(0.55 0.18 265);
+  --primary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.96 0.005 260);
+  --muted-foreground: oklch(0.5 0.01 260);
+  --border: oklch(0.9 0.005 260);
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: oklch(0.16 0.008 265);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.2 0.01 265);
+  --card-foreground: oklch(0.97 0 0);
+  --primary: oklch(0.68 0.16 265);
+  --primary-foreground: oklch(0.16 0.008 265);
+  --muted: oklch(0.26 0.01 265);
+  --muted-foreground: oklch(0.7 0.01 265);
+  --border: oklch(1 0 0 / 0.1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+  --container-max: 80rem;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scroll indicator */
+.scroll-line {
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+
+/* Hide scrollbar on mobile while keeping scroll functional */
+@media (max-width: 1023px) {
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.scroll-indicator-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  /* border-radius: 9999px; */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-disabled);
+}
