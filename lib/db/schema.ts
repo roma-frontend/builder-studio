@@ -171,6 +171,28 @@ export const siteMaterials = sqliteTable(
 );
 export type SiteMaterial = typeof siteMaterials.$inferSelect;
 
+// Per-member notifications (join approved/rejected/suspended, new material, …).
+// Scoped by siteId + siteUserId — a member only ever sees their own.
+export const siteNotifications = sqliteTable(
+  'site_notifications',
+  {
+    id: text('id').primaryKey(),
+    siteId: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    siteUserId: text('site_user_id')
+      .notNull()
+      .references(() => siteUsers.id, { onDelete: 'cascade' }),
+    type: text('type').notNull().default('info'),
+    title: text('title').notNull().default(''),
+    message: text('message').notNull().default(''),
+    read: integer('read', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('site_notifications_user_idx').on(t.siteUserId), index('site_notifications_site_idx').on(t.siteId)],
+);
+export type SiteNotification = typeof siteNotifications.$inferSelect;
+
 export const submissions = sqliteTable(
   'submissions',
   {

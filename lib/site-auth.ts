@@ -2,7 +2,7 @@ import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { and, desc, eq, gt, ne, or, sql } from 'drizzle-orm';
-import { getDb, newId, siteUsers, siteSessions, submissions, type SiteUser } from '@/lib/db';
+import { getDb, newId, siteUsers, siteSessions, submissions, siteNotifications, type SiteUser } from '@/lib/db';
 import { hashPassword, verifyPassword } from '@/lib/auth';
 
 // Per-tenant END-USER auth — fully isolated from the platform's own auth
@@ -278,7 +278,6 @@ export interface SiteUserRow {
   status: string;
   createdAt: Date;
 }
-
 /** All end-users registered on a site, newest first (for the owner's dashboard). */
 export function listSiteUsers(siteId: string, limit = 500): SiteUserRow[] {
   return getDb()
@@ -292,4 +291,41 @@ export function listSiteUsers(siteId: string, limit = 500): SiteUserRow[] {
 
 export function countSiteUsers(siteId: string): number {
   return listSiteUsers(siteId, 100000).length;
+}
+
+// ── Member notifications ────────────────────────────────────────────────────
+
+export interface SiteNotificationRow {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: Date;
+}
+
+export function listNotifications(siteId: string, userId: string, limit = 50): SiteNotificationRow[] {
+  return getDb()
+    .select({ id: siteNotifications.id, type: siteNotifications.type, title: siteNotifications.title, message: siteNotifications.message, read: siteNotifications.read, createdAt: siteNotifications.createdAt })
+    .from(siteNotifications)
+    .where(and(eq(siteNotifications.siteId, siteId), eq(siteNotifications.siteUserId, userId)))
+    .orderBy(desc(siteNotifications.createdAt))
+    .limit(limit)
+    .all();
+}
+
+export function countUnreadNotifications(siteId: string, userId: string): number {
+  return getDb()
+    .select({ id: siteNotifications.id })
+    .from(siteNotifications)
+    .where(and(eq(siteNotifications.siteId, siteId), eq(siteNotifications.siteUserId, userId), eq(siteNotifications.read, false)))
+    .all().length;
+}
+
+export function markNotificationsRead(siteId: string, userId: string): void {
+  getDb()
+    .update(siteNotifications)
+    .set({ read: true })
+    .where(and(eq(siteNotifications.siteId, siteId), eq(siteNotifications.siteUserId, userId)))
+    .run();
 }

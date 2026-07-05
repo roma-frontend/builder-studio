@@ -15,6 +15,9 @@ import {
   revokeOtherSiteSessions,
   deleteSiteUser,
   listSiteUserSubmissions,
+  listNotifications,
+  countUnreadNotifications,
+  markNotificationsRead,
 } from '@/lib/site-auth';
 import { listPublishedMaterials } from '@/lib/site-membership';
 
@@ -53,6 +56,7 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
   if (resource === 'sessions') return NextResponse.json({ sessions: await listSiteSessions(siteId, user.id) });
   if (resource === 'submissions') return NextResponse.json({ submissions: listSiteUserSubmissions(siteId, user.id, user.email) });
+  if (resource === 'notifications') return NextResponse.json({ notifications: listNotifications(siteId, user.id), unread: countUnreadNotifications(siteId, user.id) });
   if (resource === 'materials') {
     // Org-isolation: only APPROVED members of THIS site can read its materials.
     if (user.status !== 'approved') return NextResponse.json({ error: 'Доступ только для участников' }, { status: 403 });
@@ -147,6 +151,11 @@ export async function POST(request: Request) {
 
   if (action === 'revoke-others') {
     await revokeOtherSiteSessions(siteId, me.id);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === 'mark-notifications-read') {
+    markNotificationsRead(siteId, me.id);
     return NextResponse.json({ ok: true });
   }
 

@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import {
   User, Shield, FileText, Settings, LogOut, Loader2, Check, Mail, Phone, Lock,
   Eye, EyeOff, Monitor, Smartphone, Trash2, Save, CalendarDays, ShieldCheck, X,
-  Store, Menu, ExternalLink, Library, Clock, Ban, LinkIcon,
+  Store, Menu, ExternalLink, Library, Clock, Ban, LinkIcon, Bell,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,6 +93,7 @@ function Toggle({ checked, onChange, label, desc }: { checked: boolean; onChange
 const TABS = [
   { id: 'profile', label: 'Профиль', icon: User },
   { id: 'materials', label: 'Материалы', icon: Library },
+  { id: 'notifications', label: 'Уведомления', icon: Bell },
   { id: 'security', label: 'Безопасность', icon: Shield },
   { id: 'activity', label: 'Обращения', icon: FileText },
   { id: 'settings', label: 'Настройки', icon: Settings },
@@ -106,13 +107,25 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
   const [tab, setTab] = useState<TabId>('profile');
   const [loggingOut, setLoggingOut] = useState(false);
   const [open, setOpen] = useState(false); // mobile sidebar
+  const [unread, setUnread] = useState(0);
 
   const refresh = useCallback(() => {
     return fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}`)
       .then((r) => r.json()).then((d) => setMe(d.user ?? null)).catch(() => {});
   }, [siteId]);
 
+  const loadUnread = useCallback(() => {
+    fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}&resource=notifications`)
+      .then((r) => r.json()).then((d) => setUnread(d.unread ?? 0)).catch(() => {});
+  }, [siteId]);
+
   useEffect(() => { refresh().finally(() => setLoading(false)); }, [refresh]);
+  useEffect(() => { loadUnread(); }, [loadUnread]);
+
+  const openTab = (id: TabId) => {
+    setTab(id); setOpen(false);
+    if (id === 'notifications' && unread > 0) { api('mark-notifications-read', { siteId }); setUnread(0); }
+  };
 
   const logout = async () => { setLoggingOut(true); await api('logout', { siteId }); router.push(`${base}/login`); router.refresh(); };
 
@@ -160,13 +173,16 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
           return (
             <button
               key={t.id}
-              onClick={() => { setTab(t.id); setOpen(false); }}
+              onClick={() => openTab(t.id)}
               className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                 on ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
               <span className="truncate">{t.label}</span>
+              {t.id === 'notifications' && unread > 0 && (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground">{unread}</span>
+              )}
             </button>
           );
         })}
@@ -233,6 +249,7 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
             <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm sm:p-6">
               {tab === 'profile' && <ProfileTab siteId={siteId} me={me} onSaved={setMe} />}
               {tab === 'materials' && <MaterialsTab siteId={siteId} />}
+              {tab === 'notifications' && <NotificationsTab siteId={siteId} />}
               {tab === 'security' && <SecurityTab siteId={siteId} />}
               {tab === 'activity' && <ActivityTab siteId={siteId} />}
               {tab === 'settings' && <SettingsTab siteId={siteId} base={base} me={me} onSaved={setMe} router={router} />}
@@ -240,6 +257,47 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
           </div>
         </main>
       </div>
+    </div>
+  );
+}
+
+type Notif = { id: string; type: string; title: string; message: string; read: boolean; createdAt: string | number | Date };
+
+function NotificationsTab({ siteId }: { siteId: string }) {
+  const [items, setItems] = useState<Notif[] | null>(null);
+  useEffect(() => {
+    fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}&resource=notifications`)
+      .then((r) => r.json()).then((d) => setItems(d.notifications ?? [])).catch(() => setItems([]));
+  }, [siteId]);
+
+  const dot = (t: string) => t === 'join_approved' || t === 'material' ? 'bg-green-500' : t === 'join_rejected' || t === 'suspended' ? 'bg-red-500' : 'bg-primary';
+
+  return (
+    <div>
+      <SectionTitle title="Уведомления" desc="Сообщения о вашем членстве и новых материалах." />
+      {!items ? (
+        <div className="py-6 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border py-10 text-center">
+          <Bell className="mx-auto h-8 w-8 text-muted-foreground/50" />
+          <p className="mt-2 text-sm text-muted-foreground">Уведомлений пока нет.</p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {items.map((n) => (
+            <li key={n.id} className="flex items-start gap-3 rounded-xl border border-border bg-background/60 p-4">
+              <span className={`mt-1.5 h-2 w-2 flex-none rounded-full ${dot(n.type)}`} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold">{n.title}</p>
+                  <span className="flex-none text-xs text-muted-foreground">{fmtDate(n.createdAt)}</span>
+                </div>
+                {n.message && <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

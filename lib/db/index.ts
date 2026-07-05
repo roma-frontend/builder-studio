@@ -127,6 +127,19 @@ CREATE TABLE IF NOT EXISTS site_materials (
   updated_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS site_materials_site_idx ON site_materials (site_id);
+
+CREATE TABLE IF NOT EXISTS site_notifications (
+  id TEXT PRIMARY KEY,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  site_user_id TEXT NOT NULL REFERENCES site_users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL DEFAULT 'info',
+  title TEXT NOT NULL DEFAULT '',
+  message TEXT NOT NULL DEFAULT '',
+  read INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS site_notifications_user_idx ON site_notifications (site_user_id);
+CREATE INDEX IF NOT EXISTS site_notifications_site_idx ON site_notifications (site_id);
 `;
 
 type DB = BetterSQLite3Database<typeof schema>;

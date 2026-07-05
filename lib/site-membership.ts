@@ -1,6 +1,6 @@
 import 'server-only';
 import { and, desc, eq } from 'drizzle-orm';
-import { getDb, newId, sites, siteUsers, siteMaterials, type SiteMaterial, type User } from '@/lib/db';
+import { getDb, newId, sites, siteUsers, siteMaterials, siteNotifications, type SiteMaterial, type User } from '@/lib/db';
 import { isSuperadmin } from '@/lib/auth';
 
 // Org-isolation (variant A): a tenant SITE is an organization, its owner (the
@@ -48,6 +48,11 @@ export function listMembers(siteId: string): MemberRow[] {
     .all();
 }
 
+/** Insert a notification for one member of a site. */
+export function notifyMember(siteId: string, siteUserId: string, type: string, title: string, message: string): void {
+  getDb().insert(siteNotifications).values({ id: newId('ntf'), siteId, siteUserId, type, title, message, read: false, createdAt: new Date() }).run();
+}
+
 /** Set a member's status. Scoped by siteId so a cross-site id can't be touched. */
 export function setMemberStatus(
   siteId: string,
@@ -64,6 +69,11 @@ export function setMemberStatus(
   }
   if (status === 'rejected' || status === 'suspended') set.rejectionReason = reason.slice(0, 300);
   getDb().update(siteUsers).set(set).where(and(eq(siteUsers.id, memberId), eq(siteUsers.siteId, siteId))).run();
+
+  // Notify the affected member (join-request loop, like the reference project).
+  if (status === 'approved') notifyMember(siteId, memberId, 'join_approved', 'Заявка одобрена', 'Добро пожаловать! Ваш доступ к материалам открыт.');
+  else if (status === 'rejected') notifyMember(siteId, memberId, 'join_rejected', 'Заявка отклонена', reason ? `Причина: ${reason}` : 'Ваша заявка на вступление отклонена.');
+  else if (status === 'suspended') notifyMember(siteId, memberId, 'suspended', 'Доступ приостановлен', reason ? `Причина: ${reason}` : 'Ваш доступ временно приостановлен.');
 }
 
 // ── Materials (admin CRUD) ──────────────────────────────────────────────────
@@ -86,6 +96,11 @@ export function createMaterial(siteId: string, adminUserId: string, data: { titl
     updatedAt: now,
   };
   getDb().insert(siteMaterials).values(row).run();
+  // Notify approved members that new material is available.
+  if (row.published) {
+    const members = getDb().select({ id: siteUsers.id }).from(siteUsers).where(and(eq(siteUsers.siteId, siteId), eq(siteUsers.status, 'approved'))).all();
+    for (const m of members) notifyMember(siteId, m.id, 'material', 'Новый материал', row.title || 'Опубликован новый материал.');
+  }
   return row;
 }
 
