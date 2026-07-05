@@ -1,6 +1,35 @@
 import type { BuilderNode } from './types';
+import { newId } from './types';
 
 // Pure, immutable operations on a BuilderNode[] tree (a page's blocks).
+
+function cloneWithNewIds(node: BuilderNode): BuilderNode {
+  return {
+    ...node,
+    id: newId(node.type),
+    props: { ...node.props },
+    children: node.children?.map(cloneWithNewIds),
+  };
+}
+
+// Inserts a deep copy (fresh ids) right after the node with `id`, wherever it is.
+export function duplicateNode(nodes: BuilderNode[], id: string): { nodes: BuilderNode[]; newId: string | null } {
+  let created: string | null = null;
+  const walk = (list: BuilderNode[]): BuilderNode[] => {
+    const out: BuilderNode[] = [];
+    for (const n of list) {
+      const next = n.children ? { ...n, children: walk(n.children) } : n;
+      out.push(next);
+      if (n.id === id && created === null) {
+        const copy = cloneWithNewIds(n);
+        created = copy.id;
+        out.push(copy);
+      }
+    }
+    return out;
+  };
+  return { nodes: walk(nodes), newId: created };
+}
 
 export function updateProps(nodes: BuilderNode[], id: string, patch: Record<string, string>): BuilderNode[] {
   return nodes.map((n) => {
@@ -46,4 +75,29 @@ export function findNode(nodes: BuilderNode[], id: string): BuilderNode | null {
     }
   }
   return null;
+}
+
+// Inserts `node` immediately after the node with `targetId`, at that level.
+export function insertAfter(nodes: BuilderNode[], targetId: string, node: BuilderNode): BuilderNode[] {
+  const out: BuilderNode[] = [];
+  for (const n of nodes) {
+    const next = n.children ? { ...n, children: insertAfter(n.children, targetId, node) } : n;
+    out.push(next);
+    if (n.id === targetId) out.push(node);
+  }
+  return out;
+}
+
+export function isDescendant(node: BuilderNode, id: string): boolean {
+  if (node.id === id) return true;
+  return (node.children ?? []).some((c) => isDescendant(c, id));
+}
+
+// Drag-and-drop move: relocate `dragId` to be a sibling right after `targetId`.
+export function moveRelative(nodes: BuilderNode[], dragId: string, targetId: string): BuilderNode[] {
+  if (dragId === targetId) return nodes;
+  const dragged = findNode(nodes, dragId);
+  if (!dragged) return nodes;
+  if (isDescendant(dragged, targetId)) return nodes; // can't drop into own subtree
+  return insertAfter(removeNode(nodes, dragId), targetId, dragged);
 }

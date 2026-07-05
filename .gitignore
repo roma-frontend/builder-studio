@@ -8,3 +8,4 @@ build
 .env.local
 # Raw (pre-optimization) generated clips — the optimized .webm in public/ is what ships.
 scripts/media-pipeline/.raw
+/public/uploads/

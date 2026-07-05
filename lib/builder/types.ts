@@ -9,13 +9,21 @@ export type NodeType =
   | 'stack'
   | 'row'
   | 'grid'
+  | 'card'
   | 'heading'
   | 'text'
+  | 'list'
   | 'button'
   | 'image'
+  | 'video'
   | 'input'
   | 'textarea'
   | 'form'
+  | 'pricing'
+  | 'testimonial'
+  | 'socials'
+  | 'faq'
+  | 'tabs'
   | 'divider'
   | 'spacer';
 
@@ -47,7 +55,7 @@ export interface BuilderDoc {
 }
 
 /** Which node types accept children in the editor + renderer. */
-export const CONTAINER_TYPES: NodeType[] = ['section', 'stack', 'row', 'grid', 'form'];
+export const CONTAINER_TYPES: NodeType[] = ['section', 'stack', 'row', 'grid', 'card', 'form'];
 export const isContainer = (t: NodeType) => CONTAINER_TYPES.includes(t);
 
 /** Human labels for the palette / tree. */
@@ -56,13 +64,21 @@ export const NODE_LABELS: Record<NodeType, string> = {
   stack: 'Колонка (stack)',
   row: 'Ряд (row)',
   grid: 'Сетка (grid)',
+  card: 'Карточка',
   heading: 'Заголовок',
   text: 'Текст',
+  list: 'Список',
   button: 'Кнопка',
   image: 'Картинка',
+  video: 'Видео',
   input: 'Поле ввода',
   textarea: 'Многострочное поле',
   form: 'Форма',
+  pricing: 'Тариф (прайс)',
+  testimonial: 'Отзыв',
+  socials: 'Соцсети',
+  faq: 'FAQ / аккордеон',
+  tabs: 'Вкладки',
   divider: 'Разделитель',
   spacer: 'Отступ',
 };
@@ -84,20 +100,36 @@ export function defaultProps(type: NodeType): Record<string, string> {
       return { gap: 'md', align: 'center', justify: 'start', wrap: 'wrap' };
     case 'grid':
       return { gap: 'md', columns: '3' };
+    case 'card':
+      return { padding: 'md', bg: 'card', border: 'true', gap: 'sm' };
     case 'heading':
       return { text: 'Заголовок', level: '2', align: 'left' };
     case 'text':
       return { text: 'Немного описательного текста для вашего сайта.', align: 'left', muted: 'true' };
+    case 'list':
+      return { items: 'Первый пункт\nВторой пункт\nТретий пункт', ordered: 'false', marker: 'true' };
     case 'button':
       return { text: 'Кнопка', href: '/site', variant: 'default', size: 'default', align: 'left' };
     case 'image':
       return { src: '', alt: '', rounded: 'lg', ratio: '16/9' };
+    case 'video':
+      return { src: '', ratio: '16/9', rounded: 'lg' };
     case 'input':
       return { name: 'field', label: 'Метка', placeholder: 'Введите…', type: 'text' };
     case 'textarea':
       return { name: 'message', label: 'Сообщение', placeholder: 'Ваше сообщение…' };
     case 'form':
       return { formId: 'contact', submitText: 'Отправить', successMsg: 'Спасибо! Мы свяжемся с вами.' };
+    case 'pricing':
+      return { plan: 'Pro', price: '990₽', period: '/мес', features: 'Всё из Base\nПриоритетная поддержка\nБез ограничений', cta: 'Выбрать', href: '/site/contact', featured: 'false' };
+    case 'testimonial':
+      return { quote: 'Отличный продукт — собрали сайт за вечер!', author: 'Анна Иванова', role: 'CEO, Acme' };
+    case 'socials':
+      return { links: 'Telegram|https://t.me\nGitHub|https://github.com\nEmail|mailto:hi@example.com', align: 'left' };
+    case 'faq':
+      return { items: 'Как это работает?::Собираете страницу из блоков в конструкторе.\nЕсть ли адаптив?::Да, всё адаптивно из коробки.', align: 'left' };
+    case 'tabs':
+      return { items: 'Обзор::Краткое описание продукта.\nВозможности::Список ключевых функций.\nЦены::Информация о тарифах.' };
     case 'divider':
       return {};
     case 'spacer':

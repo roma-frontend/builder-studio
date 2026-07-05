@@ -10,8 +10,8 @@ export function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-[var(--container-max)] items-center justify-between px-6 sm:px-10">
         <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
           <Film className="h-5 w-5 text-primary" />
-          <span className="hidden sm:inline">Кинематографический кит</span>
-          <span className="sm:hidden">Кит</span>
+          <span className="hidden sm:inline">Лого</span>
+          <span className="sm:hidden">Лого</span>
         </Link>
         <nav className="flex items-center gap-1 sm:gap-2">
           <Link href="/themes">

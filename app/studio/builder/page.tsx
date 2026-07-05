@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,15 @@ import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowUp, ArrowDown, X, Plus, Save, Loader2, Check, Monitor, Tablet, Smartphone,
-  ExternalLink, Trash2, FileText, LayoutTemplate, ChevronRight,
+  ExternalLink, Trash2, FileText, LayoutTemplate, ChevronRight, Copy, Upload, Wand2, Palette,
 } from 'lucide-react';
 import seed from '@/data/builder.json';
+import { THEMES } from '@/lib/themes';
 import {
   type BuilderDoc, type BuilderNode, type NodeType, type BuilderPage,
   NODE_LABELS, isContainer, makeNode, newId,
 } from '@/lib/builder/types';
-import { updateProps, removeNode, insertChild, moveNode, findNode } from '@/lib/builder/tree';
+import { updateProps, removeNode, insertChild, moveNode, findNode, duplicateNode, moveRelative } from '@/lib/builder/tree';
 
 type Field = { k: string; label: string; kind?: 'text' | 'textarea'; opts?: string[] };
 
@@ -40,6 +41,12 @@ const FIELDS: Record<NodeType, Field[]> = {
     { k: 'columns', label: 'Колонок', opts: ['1', '2', '3', '4'] },
     { k: 'gap', label: 'Промежуток', opts: ['none', 'sm', 'md', 'lg'] },
   ],
+  card: [
+    { k: 'padding', label: 'Внутр. отступ', opts: ['none', 'sm', 'md', 'lg'] },
+    { k: 'bg', label: 'Фон', opts: ['none', 'muted', 'card'] },
+    { k: 'gap', label: 'Промежуток', opts: ['none', 'sm', 'md', 'lg'] },
+    { k: 'border', label: 'Рамка', opts: ['true', 'false'] },
+  ],
   heading: [
     { k: 'text', label: 'Текст', kind: 'textarea' },
     { k: 'level', label: 'Уровень', opts: ['1', '2', '3', '4'] },
@@ -50,6 +57,11 @@ const FIELDS: Record<NodeType, Field[]> = {
     { k: 'size', label: 'Размер', opts: ['sm', 'base', 'lg'] },
     { k: 'align', label: 'Выравнивание', opts: ['left', 'center', 'right'] },
     { k: 'muted', label: 'Приглушить', opts: ['true', 'false'] },
+  ],
+  list: [
+    { k: 'items', label: 'Пункты (по строкам)', kind: 'textarea' },
+    { k: 'ordered', label: 'Нумерованный', opts: ['false', 'true'] },
+    { k: 'marker', label: 'Маркеры', opts: ['true', 'false'] },
   ],
   button: [
     { k: 'text', label: 'Текст' },
@@ -63,6 +75,11 @@ const FIELDS: Record<NodeType, Field[]> = {
     { k: 'alt', label: 'Alt-текст' },
     { k: 'rounded', label: 'Скругление', opts: ['none', 'lg', 'full'] },
     { k: 'ratio', label: 'Пропорции (напр. 16/9)' },
+  ],
+  video: [
+    { k: 'src', label: 'URL (YouTube/Vimeo/MP4)' },
+    { k: 'ratio', label: 'Пропорции (напр. 16/9)' },
+    { k: 'rounded', label: 'Скругление', opts: ['none', 'lg'] },
   ],
   input: [
     { k: 'name', label: 'Имя поля' },
@@ -80,11 +97,34 @@ const FIELDS: Record<NodeType, Field[]> = {
     { k: 'submitText', label: 'Текст кнопки' },
     { k: 'successMsg', label: 'Сообщение об успехе' },
   ],
+  pricing: [
+    { k: 'plan', label: 'Название плана' },
+    { k: 'price', label: 'Цена' },
+    { k: 'period', label: 'Период (напр. /мес)' },
+    { k: 'features', label: 'Фичи (по строкам)', kind: 'textarea' },
+    { k: 'cta', label: 'Текст кнопки' },
+    { k: 'href', label: 'Ссылка кнопки' },
+    { k: 'featured', label: 'Выделить', opts: ['false', 'true'] },
+  ],
+  testimonial: [
+    { k: 'quote', label: 'Цитата', kind: 'textarea' },
+    { k: 'author', label: 'Автор' },
+    { k: 'role', label: 'Должность / компания' },
+  ],
+  socials: [
+    { k: 'links', label: 'Ссылки «Текст|URL» (по строкам)', kind: 'textarea' },
+    { k: 'align', label: 'Выравнивание', opts: ['left', 'center', 'right'] },
+  ],
+  faq: [
+    { k: 'items', label: 'Вопрос::Ответ (по строкам)', kind: 'textarea' },
+    { k: 'align', label: 'Выравнивание', opts: ['left', 'center'] },
+  ],
+  tabs: [{ k: 'items', label: 'Вкладка::Содержимое (по строкам)', kind: 'textarea' }],
   divider: [],
   spacer: [{ k: 'height', label: 'Высота', opts: ['sm', 'md', 'lg'] }],
 };
 
-const PALETTE: NodeType[] = ['section', 'stack', 'row', 'grid', 'heading', 'text', 'button', 'image', 'input', 'textarea', 'form', 'divider', 'spacer'];
+const PALETTE: NodeType[] = ['section', 'stack', 'row', 'grid', 'card', 'heading', 'text', 'list', 'button', 'image', 'video', 'input', 'textarea', 'form', 'pricing', 'testimonial', 'socials', 'faq', 'tabs', 'divider', 'spacer'];
 const DEVICE = { full: '100%', tablet: '768px', mobile: '390px' } as const;
 
 export default function BuilderEditor() {
@@ -132,6 +172,76 @@ export default function BuilderEditor() {
   };
 
   const patch = (id: string, p: Record<string, string>) => page && setBlocks(updateProps(page.blocks, id, p));
+
+  const duplicate = (id: string) => {
+    if (!page) return;
+    const { nodes, newId: nid } = duplicateNode(page.blocks, id);
+    setBlocks(nodes);
+    if (nid) setSelectedId(nid);
+  };
+
+  // Drag-and-drop within the structure tree.
+  const dragId = useRef<string | null>(null);
+  const onTreeDrop = (targetId: string) => {
+    const from = dragId.current;
+    dragId.current = null;
+    if (page && from) setBlocks(moveRelative(page.blocks, from, targetId));
+  };
+
+  // Image upload for the selected image node.
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const uploadImage = async (file: File, nodeId: string) => {
+    setUploadBusy(true);
+    setMsg('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok) patch(nodeId, { src: data.url });
+      else setMsg(data.error || 'Ошибка загрузки');
+    } catch {
+      setMsg('Ошибка загрузки');
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  // Generate a whole page from a brief.
+  const [brief, setBrief] = useState('');
+  const [genBusy, setGenBusy] = useState(false);
+  const generatePage = async () => {
+    if (!brief.trim()) return;
+    setGenBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/generate-page', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brief, title: brief.trim().slice(0, 40), path: '' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.page) {
+        let np: BuilderPage = data.page;
+        // ensure unique path
+        let base = np.path || np.title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'page';
+        let path = base;
+        let i = 2;
+        while (doc.pages.some((p) => p.path === path)) path = `${base}-${i++}`;
+        np = { ...np, id: newId('page'), path };
+        setDoc((d) => ({ ...d, pages: [...d.pages, np] }));
+        setPageId(np.id);
+        setSelectedId(null);
+        setBrief('');
+        setMsg(`Страница создана (${data.source === 'llm' ? 'LLM' : 'шаблон'}). Не забудьте «Сохранить».`);
+      } else setMsg(data.error || 'Ошибка генерации');
+    } catch {
+      setMsg('Ошибка генерации');
+    } finally {
+      setGenBusy(false);
+    }
+  };
 
   // ---- pages ----
   const addPage = () => {
@@ -194,6 +304,16 @@ export default function BuilderEditor() {
           </Link>
           <div className="mx-2 h-6 w-px bg-border" />
           <Input value={doc.brand} onChange={(e) => setDoc((d) => ({ ...d, brand: e.target.value }))} className="h-8 w-44" aria-label="Название сайта" />
+          <div className="hidden items-center gap-1 sm:flex">
+            <Palette className="h-4 w-4 text-muted-foreground" />
+            <Select value={doc.themeId} onValueChange={(v) => { setDoc((d) => ({ ...d, themeId: v })); }}>
+              <SelectTrigger className="h-8 w-40"><SelectValue placeholder="Тема" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Авто</SelectItem>
+                {THEMES.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="ml-auto flex items-center gap-1 rounded-lg border border-border p-0.5">
             {(['full', 'tablet', 'mobile'] as const).map((dv) => {
               const Icon = dv === 'full' ? Monitor : dv === 'tablet' ? Tablet : Smartphone;
@@ -215,6 +335,15 @@ export default function BuilderEditor() {
       <div className="mx-auto grid max-w-[120rem] gap-4 p-4 xl:grid-cols-[19rem_20rem_minmax(0,1fr)]">
         {/* Column 1 — pages + palette + tree */}
         <div className="space-y-4">
+          {/* Generate page from brief */}
+          <Card className="p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><Wand2 className="h-4 w-4 text-primary" /> Сгенерировать страницу</p>
+            <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} rows={2} placeholder="Опишите сайт: напр. «лендинг кофейни с меню и формой заявки»" className="mb-2" />
+            <Button size="sm" onClick={generatePage} disabled={genBusy || !brief.trim()} className="w-full gap-1.5">
+              {genBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} Создать по брифу
+            </Button>
+          </Card>
+
           {/* Pages */}
           <Card className="p-3">
             <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><FileText className="h-4 w-4 text-primary" /> Страницы</p>
@@ -267,6 +396,9 @@ export default function BuilderEditor() {
             {page && page.blocks.length > 0 ? (
               <Tree nodes={page.blocks} depth={0} selectedId={selectedId} onSelect={setSelectedId}
                 onMove={(id, dir) => setBlocks(moveNode(page.blocks, id, dir))}
+                onDuplicate={duplicate}
+                onDragStartId={(id) => { dragId.current = id; }}
+                onDrop={onTreeDrop}
                 onDelete={(id) => { setBlocks(removeNode(page.blocks, id)); if (selectedId === id) setSelectedId(null); }} />
             ) : (
               <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">Пусто — добавьте элемент из палитры.</p>
@@ -297,6 +429,14 @@ export default function BuilderEditor() {
                     )}
                   </div>
                 ))}
+                {selected.type === 'image' && (
+                  <div className="border-t border-border/60 pt-2">
+                    <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={uploadBusy} onClick={() => uploadRef.current?.click()}>
+                      {uploadBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Загрузить картинку
+                    </Button>
+                    <input ref={uploadRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], selected.id)} />
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">Выберите элемент в структуре, чтобы редактировать.</p>
@@ -345,7 +485,7 @@ export default function BuilderEditor() {
 
 // Recursive tree view
 function Tree({
-  nodes, depth, selectedId, onSelect, onMove, onDelete,
+  nodes, depth, selectedId, onSelect, onMove, onDelete, onDuplicate, onDragStartId, onDrop,
 }: {
   nodes: BuilderNode[];
   depth: number;
@@ -353,26 +493,35 @@ function Tree({
   onSelect: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onDragStartId: (id: string) => void;
+  onDrop: (targetId: string) => void;
 }) {
   return (
     <div className="space-y-1">
       {nodes.map((n, i) => (
         <div key={n.id}>
           <div
-            className={`flex items-center gap-1 rounded-md py-1 pr-1 text-sm ${selectedId === n.id ? 'bg-primary/15' : 'hover:bg-muted'}`}
+            draggable
+            onDragStart={(e) => { e.stopPropagation(); onDragStartId(n.id); }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDrop(n.id); }}
+            className={`flex items-center gap-0.5 rounded-md py-1 pr-1 text-sm ${selectedId === n.id ? 'bg-primary/15' : 'hover:bg-muted'}`}
             style={{ paddingLeft: depth * 12 + 6 }}
           >
+            <span className="cursor-grab text-muted-foreground/50 active:cursor-grabbing" aria-hidden>⋮⋮</span>
             <button className="min-w-0 flex-1 truncate text-left" onClick={() => onSelect(n.id)}>
               <span className="text-muted-foreground">{isContainer(n.type) ? '▸ ' : '• '}</span>
               {NODE_LABELS[n.type]}
-              {n.props.text ? <span className="text-muted-foreground"> — {n.props.text.slice(0, 20)}</span> : null}
+              {n.props.text ? <span className="text-muted-foreground"> — {n.props.text.slice(0, 18)}</span> : null}
             </button>
             <button onClick={() => onMove(n.id, -1)} disabled={i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Вверх"><ArrowUp className="h-3.5 w-3.5" /></button>
             <button onClick={() => onMove(n.id, 1)} disabled={i === nodes.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Вниз"><ArrowDown className="h-3.5 w-3.5" /></button>
+            <button onClick={() => onDuplicate(n.id)} className="text-muted-foreground hover:text-foreground" aria-label="Дублировать"><Copy className="h-3.5 w-3.5" /></button>
             <button onClick={() => onDelete(n.id)} className="text-muted-foreground hover:text-red-500" aria-label="Удалить"><X className="h-3.5 w-3.5" /></button>
           </div>
           {n.children && n.children.length > 0 && (
-            <Tree nodes={n.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onMove={onMove} onDelete={onDelete} />
+            <Tree nodes={n.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onMove={onMove} onDelete={onDelete} onDuplicate={onDuplicate} onDragStartId={onDragStartId} onDrop={onDrop} />
           )}
         </div>
       ))}
