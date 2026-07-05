@@ -3,7 +3,7 @@
 // <slug>.APP_HOST) or by attached custom domain.
 
 import 'server-only';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { getDb, newId, sites, domains, submissions, type Site, type Domain } from '@/lib/db';
 import { DEFAULT_DOC, type BuilderDoc, type BuilderNode } from '@/lib/builder/types';
 import { starterPage } from '@/lib/builder/templates';
@@ -88,6 +88,15 @@ export function getSiteForUser(userId: string, siteId: string): Site | null {
 
 export function getSiteBySlug(slug: string): Site | null {
   return getDb().select().from(sites).where(eq(sites.slug, slug)).get() ?? null;
+}
+
+/** All published sites (publishedDoc present) — for the public sitemap. */
+export function listPublishedSites(): { slug: string; publishedAt: Date | null; updatedAt: Date }[] {
+  return getDb()
+    .select({ slug: sites.slug, publishedAt: sites.publishedAt, updatedAt: sites.updatedAt })
+    .from(sites)
+    .where(isNotNull(sites.publishedDoc))
+    .all();
 }
 
 export function getSiteByHostname(hostname: string): Site | null {

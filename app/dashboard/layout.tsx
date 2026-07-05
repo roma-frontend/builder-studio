@@ -8,6 +8,9 @@ import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner
 import { PageHeader } from '@/components/dashboard/ui';
 import { OrgOnboarding } from '@/components/dashboard/org-onboarding';
 
+// Private area — keep it out of search indexes.
+export const metadata = { title: 'Дашборд', robots: { index: false, follow: false } };
+
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

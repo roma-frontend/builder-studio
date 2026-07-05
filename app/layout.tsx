@@ -1,16 +1,61 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Playfair_Display, Montserrat } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Analytics } from '@/components/analytics';
+import {
+  SITE_NAME,
+  DEFAULT_DESCRIPTION,
+  KEYWORDS,
+  APP_URL,
+  OG_LOCALE,
+  DEFAULT_LOCALE,
+} from '@/lib/seo';
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'], variable: '--font-sans' });
 const playfair = Playfair_Display({ subsets: ['latin', 'cyrillic'], variable: '--font-serif' });
 const montserrat = Montserrat({ subsets: ['latin', 'cyrillic'], variable: '--font-grotesk' });
 
 export const metadata: Metadata = {
-  title: 'Cinematic Web Kit',
-  description: 'Build modern web projects with AI-generated cinematic video sections.',
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: `${SITE_NAME} — кинематографичный конструктор сайтов`,
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: KEYWORDS,
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    url: '/',
+    title: `${SITE_NAME} — кинематографичный конструктор сайтов`,
+    description: DEFAULT_DESCRIPTION,
+    locale: OG_LOCALE[DEFAULT_LOCALE],
+    alternateLocale: [OG_LOCALE.en],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${SITE_NAME} — кинематографичный конструктор сайтов`,
+    description: DEFAULT_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
+  },
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -4,9 +4,11 @@
 // (the studio preview iframe uses ?draft=1&edit=1).
 
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { getCurrentUser } from '@/lib/auth';
 import { getSiteBySlug, parseDoc, rebaseDoc, APP_HOST } from '@/lib/sites';
+import { subdomainUrl } from '@/lib/seo';
 import { SiteRenderer, SiteAuthPage, AUTH_PATHS, findPageByPath } from '@/components/builder/site-renderer';
 
 export const dynamic = 'force-dynamic';
@@ -40,15 +42,26 @@ async function resolve(siteSlug: string, wantDraft: boolean) {
   return { site, doc: { ...rebaseDoc(doc, base), siteId: site.id } };
 }
 
-export async function generateMetadata({ params, searchParams }: Props) {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { site: siteSlug, slug } = await params;
   const { draft } = await searchParams;
-  const resolved = await resolve(siteSlug, draft === '1');
-  if (!resolved) return { title: 'Сайт не найден' };
+  const isDraft = draft === '1';
+  const resolved = await resolve(siteSlug, isDraft);
+  if (!resolved) return { title: 'Сайт не найден', robots: { index: false, follow: false } };
   const page = findPageByPath(resolved.doc, slug ?? []);
+  const title = page ? `${page.title} — ${resolved.doc.brand}` : resolved.doc.brand;
+  const description = page?.description || undefined;
+  const canonical = subdomainUrl(resolved.site.slug, (slug ?? []).join('/'));
   return {
-    title: page ? `${page.title} — ${resolved.doc.brand}` : resolved.doc.brand,
-    description: page?.description || undefined,
+    title,
+    description,
+    // Canonicalize to the site's own subdomain so the /s/<slug> mirror on the
+    // main host doesn't create duplicate content.
+    alternates: { canonical },
+    // Drafts (owner preview) must never be indexed.
+    robots: isDraft ? { index: false, follow: false } : { index: true, follow: true },
+    openGraph: { type: 'website', title, description, url: canonical, siteName: resolved.doc.brand },
+    twitter: { card: 'summary_large_image', title, description },
   };
 }
 
