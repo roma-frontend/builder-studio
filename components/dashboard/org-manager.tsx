@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 type SiteLite = { id: string; name: string; slug: string; ownerName: string; ownerEmail: string; published: boolean };
+type PlatformUser = { id: string; name: string; email: string; role: string };
 type Overview = {
   id: string; name: string; slug: string; published: boolean; publishedAt: string | null; memberApproval: boolean; createdAt: string;
   owner: { id: string; name: string; email: string; role: string } | null;
@@ -20,7 +21,7 @@ type Overview = {
 
 const KEY = 'cwk-org-selector';
 
-export function OrgManager({ sites }: { sites: SiteLite[] }) {
+export function OrgManager({ sites, users }: { sites: SiteLite[]; users: PlatformUser[] }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(false);
@@ -78,7 +79,7 @@ export function OrgManager({ sites }: { sites: SiteLite[] }) {
         ) : !overview ? (
           <div className="flex h-40 items-center justify-center rounded-2xl border border-border/60 text-sm text-muted-foreground">Выберите организацию.</div>
         ) : (
-          <OrgDetail overview={overview} onReload={() => selected && load(selected)} />
+          <OrgDetail overview={overview} users={users} onReload={() => selected && load(selected)} />
         )}
       </div>
     </div>
@@ -94,18 +95,27 @@ function Stat({ icon: Icon, label, value }: { icon: React.ComponentType<{ classN
   );
 }
 
-function OrgDetail({ overview, onReload }: { overview: Overview; onReload: () => void }) {
-  const [email, setEmail] = useState('');
+function OrgDetail({ overview, users, onReload }: { overview: Overview; users: PlatformUser[]; onReload: () => void }) {
+  const [query, setQuery] = useState('');
+  const [picked, setPicked] = useState<PlatformUser | null>(null);
+  const [openList, setOpenList] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? users.filter((u) => u.id !== overview.owner?.id && `${u.name} ${u.email}`.toLowerCase().includes(q)).slice(0, 6)
+    : [];
+
   const assign = async () => {
+    const email = picked?.email ?? query.trim();
+    if (!email) return;
     setBusy(true); setMsg(null);
     const res = await fetch('/api/admin/orgs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign-admin', siteId: overview.id, email }) });
     const d = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) { setMsg({ ok: false, text: d.error || 'Ошибка' }); return; }
-    setMsg({ ok: true, text: `Админом назначен ${d.owner?.email}` }); setEmail(''); onReload();
+    setMsg({ ok: true, text: `Админом назначен ${d.owner?.email}` }); setQuery(''); setPicked(null); onReload();
   };
 
   return (
@@ -143,13 +153,39 @@ function OrgDetail({ overview, onReload }: { overview: Overview; onReload: () =>
           </div>
         ) : <p className="mb-4 text-sm text-muted-foreground">Админ не назначен.</p>}
 
-        <label className="mb-1.5 block text-sm font-medium">Назначить нового админа организации «{overview.name}» (email пользователя платформы)</label>
+        <label className="mb-1.5 block text-sm font-medium">Назначить нового админа организации «{overview.name}»</label>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" type="email" className="h-11 flex-1" />
-          <Button onClick={assign} disabled={busy || !email.trim()} size="lg" className="gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setPicked(null); setOpenList(true); }}
+              onFocus={() => setOpenList(true)}
+              placeholder="Поиск по имени или email"
+              className="h-11 pl-10"
+            />
+            {openList && matches.length > 0 && !picked && (
+              <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-border bg-background shadow-2xl">
+                {matches.map((u) => (
+                  <li key={u.id}>
+                    <button type="button" onClick={() => { setPicked(u); setQuery(u.email); setOpenList(false); }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted">
+                      <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{(u.name || u.email).charAt(0).toUpperCase()}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{u.name || 'Без имени'}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{u.email} · {u.role}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <Button onClick={assign} disabled={busy || (!picked && !query.trim())} size="lg" className="gap-2">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Назначить
           </Button>
         </div>
+        {picked && <p className="mt-2 text-xs text-muted-foreground">Выбран: <span className="font-medium text-foreground">{picked.name || picked.email}</span> ({picked.email})</p>}
         {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-green-600' : 'text-red-500'}`}>{msg.text}</p>}
         <p className="mt-2 text-xs text-muted-foreground">Владение сайтом перейдёт этому пользователю; роль customer будет повышена до admin.</p>
       </div>

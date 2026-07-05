@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser, isSuperadmin } from '@/lib/auth';
-import { listAllSites } from '@/lib/admin';
+import { listAllSites, listUsers } from '@/lib/admin';
 import { PageHeader, EmptyState } from '@/components/dashboard/ui';
 import { OrgManager } from '@/components/dashboard/org-manager';
 import { OrgRequests } from '@/components/dashboard/org-requests';
@@ -24,11 +24,13 @@ export default async function OrganizationsPage() {
     published: s.published,
   }));
 
+  const users = listUsers().map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role }));
+
   return (
     <>
       <PageHeader title="Организации" description="Выберите организацию, чтобы увидеть её данные и назначить администратора." />
       <div className="mb-6"><OrgRequests /></div>
-      {sites.length === 0 ? <EmptyState icon={Building2} title="Организаций пока нет" /> : <OrgManager sites={sites} />}
+      {sites.length === 0 ? <EmptyState icon={Building2} title="Организаций пока нет" /> : <OrgManager sites={sites} users={users} />}
 
       <section className="mt-10">
         <h2 className="mb-1 text-lg font-semibold tracking-tight">Пользователи тенантов</h2>
