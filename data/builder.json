@@ -1,0 +1,136 @@
+{
+  "brand": "Nova Studio",
+  "themeId": "auto",
+  "nav": [
+    { "label": "Главная", "href": "/site" },
+    { "label": "О нас", "href": "/site/about" },
+    { "label": "Контакты", "href": "/site/contact" }
+  ],
+  "footer": {
+    "text": "© 2025 Nova Studio. Сделано в визуальном конструкторе.",
+    "links": [
+      { "label": "О нас", "href": "/site/about" },
+      { "label": "Контакты", "href": "/site/contact" }
+    ]
+  },
+  "pages": [
+    {
+      "id": "page-home",
+      "path": "",
+      "title": "Главная",
+      "blocks": [
+        {
+          "id": "s-hero",
+          "type": "section",
+          "props": { "padding": "lg", "bg": "primary", "width": "normal" },
+          "children": [
+            {
+              "id": "h-stack",
+              "type": "stack",
+              "props": { "gap": "md", "align": "center" },
+              "children": [
+                { "id": "h-title", "type": "heading", "props": { "text": "Создайте сайт, который впечатляет", "level": "1", "align": "center" } },
+                { "id": "h-sub", "type": "text", "props": { "text": "Собирайте страницы из секций, текстов, кнопок и форм — без кода. Полный адаптив из коробки.", "align": "center", "muted": "false", "size": "lg" } },
+                {
+                  "id": "h-row",
+                  "type": "row",
+                  "props": { "gap": "sm", "align": "center", "justify": "center", "wrap": "wrap" },
+                  "children": [
+                    { "id": "h-cta1", "type": "button", "props": { "text": "Начать бесплатно", "href": "/site/contact", "variant": "default", "size": "lg", "align": "center" } },
+                    { "id": "h-cta2", "type": "button", "props": { "text": "Узнать больше", "href": "/site/about", "variant": "outline", "size": "lg", "align": "center" } }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "s-features",
+          "type": "section",
+          "props": { "padding": "lg", "bg": "none", "width": "wide" },
+          "children": [
+            { "id": "f-title", "type": "heading", "props": { "text": "Всё, что нужно для сайта", "level": "2", "align": "center" } },
+            { "id": "f-spacer", "type": "spacer", "props": { "height": "md" } },
+            {
+              "id": "f-grid",
+              "type": "grid",
+              "props": { "gap": "md", "columns": "3" },
+              "children": [
+                {
+                  "id": "f-c1",
+                  "type": "stack",
+                  "props": { "gap": "sm", "align": "start" },
+                  "children": [
+                    { "id": "f-c1h", "type": "heading", "props": { "text": "Секции и блоки", "level": "3", "align": "left" } },
+                    { "id": "f-c1t", "type": "text", "props": { "text": "Стройте страницу из готовых секций, рядов и сеток с адаптивом.", "align": "left", "muted": "true" } }
+                  ]
+                },
+                {
+                  "id": "f-c2",
+                  "type": "stack",
+                  "props": { "gap": "sm", "align": "start" },
+                  "children": [
+                    { "id": "f-c2h", "type": "heading", "props": { "text": "Формы и логика", "level": "3", "align": "left" } },
+                    { "id": "f-c2t", "type": "text", "props": { "text": "Добавляйте поля и формы — заявки уходят на сервер и обрабатываются.", "align": "left", "muted": "true" } }
+                  ]
+                },
+                {
+                  "id": "f-c3",
+                  "type": "stack",
+                  "props": { "gap": "sm", "align": "start" },
+                  "children": [
+                    { "id": "f-c3h", "type": "heading", "props": { "text": "Много страниц", "level": "3", "align": "left" } },
+                    { "id": "f-c3t", "type": "text", "props": { "text": "Хедер, футер и маршруты страниц генерируются автоматически.", "align": "left", "muted": "true" } }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "page-about",
+      "path": "about",
+      "title": "О нас",
+      "blocks": [
+        {
+          "id": "a-sec",
+          "type": "section",
+          "props": { "padding": "lg", "bg": "none", "width": "normal" },
+          "children": [
+            { "id": "a-title", "type": "heading", "props": { "text": "О нас", "level": "1", "align": "left" } },
+            { "id": "a-text", "type": "text", "props": { "text": "Мы делаем инструменты, которые позволяют кому угодно собрать настоящий сайт: секции, тексты, кнопки, формы — всё редактируется визуально и адаптируется под любой экран.", "align": "left", "muted": "false", "size": "lg" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "page-contact",
+      "path": "contact",
+      "title": "Контакты",
+      "blocks": [
+        {
+          "id": "c-sec",
+          "type": "section",
+          "props": { "padding": "lg", "bg": "muted", "width": "narrow" },
+          "children": [
+            { "id": "c-title", "type": "heading", "props": { "text": "Свяжитесь с нами", "level": "1", "align": "left" } },
+            { "id": "c-sub", "type": "text", "props": { "text": "Оставьте заявку — ответим в течение дня.", "align": "left", "muted": "true" } },
+            { "id": "c-spacer", "type": "spacer", "props": { "height": "sm" } },
+            {
+              "id": "c-form",
+              "type": "form",
+              "props": { "formId": "contact", "submitText": "Отправить заявку", "successMsg": "Спасибо! Мы свяжемся с вами." },
+              "children": [
+                { "id": "c-name", "type": "input", "props": { "name": "name", "label": "Имя", "placeholder": "Как вас зовут?", "type": "text" } },
+                { "id": "c-email", "type": "input", "props": { "name": "email", "label": "Email", "placeholder": "you@example.com", "type": "email" } },
+                { "id": "c-msg", "type": "textarea", "props": { "name": "message", "label": "Сообщение", "placeholder": "Расскажите о задаче…" } }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

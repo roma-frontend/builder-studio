@@ -1,4 +1,9 @@
 {
   "theme": "editorial-coffee",
-  "layout": null
+  "layout": [
+    "hero",
+    "background",
+    "cards",
+    "sticky"
+  ]
 }
