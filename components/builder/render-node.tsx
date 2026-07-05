@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cloneElement, isValidElement, type ReactElement } from 'react';
+import { cloneElement, isValidElement, type ReactElement, type CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { BuilderForm } from './builder-form';
@@ -42,8 +42,6 @@ const TEXT_SIZE = { sm: 'text-sm', base: 'text-base', lg: 'text-lg sm:text-xl' }
 const SPACE = { sm: 'h-6', md: 'h-12', lg: 'h-20' } as const;
 
 // ---- common styling applied to EVERY node (via cloneElement) ----
-const WEIGHT: Record<string, string> = { normal: 'font-normal', medium: 'font-medium', semibold: 'font-semibold', bold: 'font-bold' };
-const TXT_COLOR: Record<string, string> = { default: '', primary: 'text-primary', muted: 'text-muted-foreground', white: 'text-white', foreground: 'text-foreground' };
 const HOVER_FX: Record<string, string> = {
   none: '',
   lift: 'transition-transform duration-300 hover:-translate-y-1',
@@ -56,13 +54,9 @@ const RADIUS: Record<string, string> = { none: '', sm: 'rounded-md', lg: 'rounde
 const SHADOW: Record<string, string> = { none: '', sm: 'shadow-sm', md: 'shadow-md', lg: 'shadow-lg', xl: 'shadow-2xl' };
 const MT: Record<string, string> = { none: '', sm: 'mt-3', md: 'mt-6', lg: 'mt-12' };
 const MB: Record<string, string> = { none: '', sm: 'mb-3', md: 'mb-6', lg: 'mb-12' };
-const FONT_SIZE: Record<string, string> = { xs: 'text-xs', sm: 'text-sm', base: 'text-base', lg: 'text-lg', xl: 'text-xl', '2xl': 'text-2xl', '3xl': 'text-3xl', '4xl': 'text-4xl' };
 
 function commonClasses(p: Record<string, string>): string {
   return cn(
-    p.fontWeight && WEIGHT[p.fontWeight],
-    p.textColor && TXT_COLOR[p.textColor],
-    p.fontSize && FONT_SIZE[p.fontSize],
     p.hover && HOVER_FX[p.hover],
     p.animate && ANIM_FX[p.animate],
     p.radius && RADIUS[p.radius],
@@ -70,6 +64,20 @@ function commonClasses(p: Record<string, string>): string {
     p.mt && MT[p.mt],
     p.mb && MB[p.mb],
   );
+}
+
+// Typography via INLINE styles so they always win over Tailwind classes
+// (e.g. a button's variant color, a heading's default bold) and update live.
+const COLOR_VAR: Record<string, string> = { primary: 'var(--primary)', foreground: 'var(--foreground)', muted: 'var(--muted-foreground)', white: '#ffffff' };
+const WEIGHT_VAL: Record<string, number> = { normal: 400, medium: 500, semibold: 600, bold: 700 };
+const SIZE_VAL: Record<string, string> = { xs: '0.75rem', sm: '0.875rem', base: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem', '4xl': '2.25rem' };
+
+function typoStyle(p: Record<string, string>): CSSProperties {
+  const s: CSSProperties = {};
+  if (p.textColor && COLOR_VAR[p.textColor]) s.color = COLOR_VAR[p.textColor];
+  if (p.fontWeight && WEIGHT_VAL[p.fontWeight]) s.fontWeight = WEIGHT_VAL[p.fontWeight];
+  if (p.fontSize && SIZE_VAL[p.fontSize]) s.fontSize = SIZE_VAL[p.fontSize];
+  return s;
 }
 
 const pick = <T extends Record<string, string>>(map: T, key: string | undefined, fallback: keyof T): string =>
@@ -104,12 +112,16 @@ function Field({ node }: { node: BuilderNode }) {
 export function RenderNode({ node }: { node: BuilderNode }) {
   const el = renderInner(node);
   if (!isValidElement(el)) return el;
-  const extra = commonClasses(node.props ?? {});
-  const current = (el.props as { className?: string }).className;
-  return cloneElement(el as ReactElement<{ className?: string; 'data-nid'?: string }>, {
+  const p = node.props ?? {};
+  const extra = commonClasses(p);
+  const ts = typoStyle(p);
+  const elProps = el.props as { className?: string; style?: CSSProperties };
+  const merged: { 'data-nid': string; className: string; style?: CSSProperties } = {
     'data-nid': node.id,
-    className: cn(current, extra),
-  });
+    className: cn(elProps.className, extra),
+  };
+  if (Object.keys(ts).length) merged.style = { ...(elProps.style ?? {}), ...ts };
+  return cloneElement(el as ReactElement<typeof merged>, merged);
 }
 
 function renderInner(node: BuilderNode) {
@@ -192,13 +204,14 @@ function renderInner(node: BuilderNode) {
       type Variant = 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive' | 'link';
       const cls = cn(buttonVariants({ variant: (p.variant as Variant) || 'default', size: (p.size as 'default' | 'sm' | 'lg') || 'default' }));
       const wrap = pick(TEXT_ALIGN, p.align, 'left');
+      const ts = typoStyle(p);
       const inner =
         p.type === 'submit' || p.type === 'reset' ? (
-          <button type={p.type} className={cls}>
+          <button type={p.type} className={cls} style={ts}>
             {p.text}
           </button>
         ) : (
-          <Link href={p.href || '#'} className={cls}>
+          <Link href={p.href || '#'} className={cls} style={ts}>
             {p.text}
           </Link>
         );

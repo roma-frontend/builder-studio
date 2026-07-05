@@ -149,6 +149,18 @@ export default function BuilderEditor() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [device, setDevice] = useState<keyof typeof DEVICE>('full');
   const [tab, setTab] = useState<'pages' | 'blocks' | 'design'>('pages');
+  const [previewWidth, setPreviewWidth] = useState(520);
+  const startResize = () => {
+    const onMove = (e: MouseEvent) => setPreviewWidth(Math.min(1100, Math.max(300, window.innerWidth - e.clientX)));
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+    };
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
   const [previewKey, setPreviewKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
@@ -646,8 +658,15 @@ export default function BuilderEditor() {
           </div>{/* end Сайт */}
         </aside>
 
+        {/* Resizable splitter */}
+        <div
+          onMouseDown={startResize}
+          className="w-1.5 shrink-0 cursor-col-resize bg-border/60 transition-colors hover:bg-primary/60"
+          title="Потяните, чтобы изменить ширину"
+        />
+
         {/* Live preview canvas */}
-        <div className="flex w-[34rem] shrink-0 flex-col border-l border-border/60 bg-muted/20 xl:w-[40rem]">
+        <div className="flex shrink-0 flex-col border-l border-border/60 bg-muted/20" style={{ width: previewWidth }}>
           <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground">
             <ChevronRight className="h-4 w-4 text-primary" />
             <span className="truncate">{previewSrc}</span>

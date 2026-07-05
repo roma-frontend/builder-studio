@@ -86,7 +86,7 @@
                       "props": {
                         "text": "Начать бесплатно",
                         "href": "/site/contact",
-                        "variant": "default",
+                        "variant": "secondary",
                         "size": "lg",
                         "align": "center",
                         "fontWeight": "bold",
