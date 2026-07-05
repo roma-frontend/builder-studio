@@ -15,11 +15,16 @@ interface Incoming {
   doc: BuilderDoc;
   pageId: string;
   selectedId: string | null;
+  previewDark?: boolean;
 }
 
 export default function BuilderPreview() {
   const [state, setState] = useState<Incoming | null>(null);
 
+  useEffect(() => {
+    if (state?.previewDark === false) document.documentElement.classList.remove('dark');
+    else document.documentElement.classList.add('dark');
+  }, [state?.previewDark]);
   useEffect(() => {
     document.body.classList.add('builder-edit');
     const onMsg = (e: MessageEvent) => {

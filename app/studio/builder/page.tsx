@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   ArrowUp, ArrowDown, X, Plus, Save, Loader2, Monitor, Tablet, Smartphone,
   ExternalLink, Trash2, FileText, LayoutTemplate, ChevronRight, Copy, Upload, Wand2, Palette,
-  Undo2, Redo2, LayoutGrid, ChevronDown, Maximize2, Minimize2,
+  Undo2, Redo2, LayoutGrid, ChevronDown, Maximize2, Minimize2, Sun, Moon,
 } from 'lucide-react';
 import seed from '@/data/builder.json';
 import { THEMES, getTheme, themeCss } from '@/lib/themes';
@@ -199,6 +199,7 @@ export default function BuilderEditor() {
   const [tab, setTab] = useState<'pages' | 'blocks' | 'design'>('pages');
   const [previewWidth, setPreviewWidth] = useState(520);
   const [fullscreen, setFullscreen] = useState(false);
+  const [previewDark, setPreviewDark] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dropHint, setDropHint] = useState<{ id: string; pos: 'before' | 'after' } | null>(null);
   const toggleCollapse = (id: string) =>
@@ -296,8 +297,8 @@ export default function BuilderEditor() {
 
   // Click-to-select coming from the live preview iframe (edit mode).
   const previewRef = useRef<HTMLIFrameElement>(null);
-  const stateRef = useRef({ doc, pageId, selectedId });
-  stateRef.current = { doc, pageId, selectedId };
+  const stateRef = useRef({ doc, pageId, selectedId, previewDark });
+  stateRef.current = { doc, pageId, selectedId, previewDark };
   const postPreview = useCallback(() => {
     previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', ...stateRef.current }, '*');
   }, []);
@@ -331,7 +332,7 @@ export default function BuilderEditor() {
   // Push live state to the preview on every change — instant, no save needed.
   useEffect(() => {
     postPreview();
-  }, [doc, pageId, selectedId, postPreview]);
+  }, [doc, pageId, selectedId, previewDark, postPreview]);
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.data?.source !== 'builder-preview') return;
@@ -857,6 +858,10 @@ export default function BuilderEditor() {
             <span className="truncate">{previewSrc}</span>
             <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">в реальном времени</span>
             <div className="ml-auto flex items-center gap-1">
+              <button onClick={() => setPreviewDark((v) => !v)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title="Светлая / тёмная тема предпросмотра">
+                {previewDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {previewDark ? 'Светлая' : 'Тёмная'}
+              </button>
               <button onClick={() => setPreviewKey((k) => k + 1)} className="rounded-md px-2 py-1 hover:bg-muted">Перезагрузить</button>
               <button onClick={() => setFullscreen((f) => !f)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title="Полноэкранный предпросмотр">
                 {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
