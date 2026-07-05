@@ -91,7 +91,9 @@ const FIELDS: Record<NodeType, Field[]> = {
   image: [
     { k: 'src', label: 'URL картинки' },
     { k: 'alt', label: 'Alt-текст' },
-    { k: 'imgMode', label: 'Режим показа', opts: ['inline', 'cover', 'background', 'glow', 'overlay', 'duotone', 'framed'] },
+    { k: 'imgMode', label: 'Режим (моб.)', opts: ['inline', 'cover', 'background', 'glow', 'overlay', 'duotone', 'framed'] },
+    { k: 'imgModeTablet', label: 'Режим (планшет)', opts: ['—', 'inline', 'cover', 'background', 'glow', 'overlay', 'duotone', 'framed'] },
+    { k: 'imgModeDesktop', label: 'Режим (десктоп)', opts: ['—', 'inline', 'cover', 'background', 'glow', 'overlay', 'duotone', 'framed'] },
     { k: 'rounded', label: 'Скругление', opts: ['none', 'lg', 'full'] },
     { k: 'ratio', label: 'Пропорции (напр. 16/9)' },
   ],

@@ -23,28 +23,38 @@ const parsePairs = (s: string | undefined): [string, string][] =>
 const lines = (s: string | undefined): string[] =>
   (s ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
 
-// Finds the first descendant image in 'background' mode and returns it plus a
-// copy of the tree with that node pruned — used to hoist a hero image to fill
-// the whole section (full-bleed) regardless of how deeply it's nested.
-function extractBgImage(nodes: BuilderNode[]): { bg: BuilderNode | null; rest: BuilderNode[] } {
-  let bg: BuilderNode | null = null;
-  const walk = (list: BuilderNode[]): BuilderNode[] => {
-    const out: BuilderNode[] = [];
-    for (const n of list) {
-      if (!bg && n.type === 'image' && n.props?.imgMode === 'background' && n.props?.src) {
-        bg = n;
-        continue; // drop it from the flow
-      }
-      if (n.children && n.children.length) {
-        out.push({ ...n, children: walk(n.children) });
-      } else {
-        out.push(n);
-      }
-    }
-    return out;
-  };
-  const rest = walk(nodes);
-  return { bg, rest };
+// Per-breakpoint image display modes. An image can render differently on
+// mobile / tablet / desktop (e.g. full-bleed 'background' on mobile, 'cover'
+// on desktop). Tablet inherits mobile; desktop inherits tablet when unset.
+const BP_SHOW = { mobile: 'md:hidden', tablet: 'max-md:hidden lg:hidden', desktop: 'max-lg:hidden' } as const;
+type BP = keyof typeof BP_SHOW;
+function imgModes(p: Record<string, string>): Record<BP, string> {
+  const base = p.imgMode || 'inline';
+  const tablet = p.imgModeTablet && p.imgModeTablet !== '—' ? p.imgModeTablet : base;
+  const desktop = p.imgModeDesktop && p.imgModeDesktop !== '—' ? p.imgModeDesktop : tablet;
+  return { mobile: base, tablet, desktop };
+}
+function bgBreakpoints(p: Record<string, string>): Set<BP> {
+  const m = imgModes(p);
+  const s = new Set<BP>();
+  (['mobile', 'tablet', 'desktop'] as BP[]).forEach((b) => { if (m[b] === 'background') s.add(b); });
+  return s;
+}
+/** Tailwind classes to show an element only on the given breakpoints. */
+function showOnly(bps: Set<BP>): string {
+  const hide: string[] = [];
+  if (!bps.has('mobile')) hide.push('max-md:hidden');
+  if (!bps.has('tablet')) hide.push('md:max-lg:hidden');
+  if (!bps.has('desktop')) hide.push('lg:hidden');
+  return hide.join(' ');
+}
+/** First descendant image that uses 'background' on any breakpoint (not pruned). */
+function findBgImage(nodes: BuilderNode[]): BuilderNode | null {
+  for (const n of nodes) {
+    if (n.type === 'image' && n.props?.src && bgBreakpoints(n.props).size > 0) return n;
+    if (n.children) { const f = findBgImage(n.children); if (f) return f; }
+  }
+  return null;
 }
 
 // Recursively renders a BuilderNode tree into responsive Tailwind markup.
@@ -208,15 +218,15 @@ function renderInner(node: BuilderNode) {
   switch (node.type) {
     case 'section': {
       const gradient = p.bg === 'gradient';
-      // A descendant image in 'background' mode is hoisted to fill the whole
-      // section (full-bleed height+width) with the text rendered on top.
-      const { bg: bgChild, rest: sectionKids } = extractBgImage(kids);
-      const bgImageSrc = p.bgImage || bgChild?.props?.src;
-      const bgChildOverlay = bgChild?.props?.overlay;
-      // The hoisted background respects the image's own responsive visibility,
-      // so you can show a full-bleed image background only on mobile while
-      // placing inline images for tablet/desktop as separate blocks.
-      const bgShow = bgChild?.props?.showOn && SHOW_ON[bgChild.props.showOn];
+      // A descendant image using 'background' (on any breakpoint) becomes the
+      // section's full-bleed backdrop, shown only on those breakpoints. The
+      // image node itself renders its non-background variants inline for the
+      // other breakpoints (handled in the 'image' case), so it stays in flow.
+      const bgNode = findBgImage(kids);
+      const bgImageSrc = p.bgImage || bgNode?.props?.src;
+      const bgChildOverlay = bgNode?.props?.overlay;
+      const bgVis = bgNode && !p.bgImage ? showOnly(bgBreakpoints(bgNode.props)) : '';
+      const sectionKids = kids;
       const hasMedia = !!(bgImageSrc || p.bgVideo);
       const gradStyle = gradient
         ? { backgroundImage: 'linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary) 45%, #000))', color: 'var(--primary-foreground)' }
@@ -227,7 +237,7 @@ function renderInner(node: BuilderNode) {
         bgMode === 'blur' ? 'blur(14px) saturate(1.15) brightness(0.9)'
         : bgMode === 'duotone' ? 'grayscale(1) contrast(1.05)'
         : undefined;
-      const mediaClass = cn('absolute inset-0 h-full w-full object-cover', bgMode === 'blur' && 'scale-110', bgShow);
+      const mediaClass = cn('absolute inset-0 h-full w-full object-cover', bgMode === 'blur' && 'scale-110', bgVis);
       const overlayBg: Record<string, string> = {
         cover: 'rgba(0,0,0,0.5)',
         blur: 'rgba(0,0,0,0.45)',
@@ -250,7 +260,7 @@ function renderInner(node: BuilderNode) {
               <img className={mediaClass} style={mediaFilter ? { filter: mediaFilter } : undefined} src={bgImageSrc} alt="" />
             )
           ) : null}
-          {hasMedia && <div className={cn('absolute inset-0', bgShow)} style={{ background: bgChildOverlay || (overlayBg[bgMode] ?? overlayBg.cover) }} />}
+          {hasMedia && <div className={cn('absolute inset-0', bgVis)} style={{ background: bgChildOverlay || (overlayBg[bgMode] ?? overlayBg.cover) }} />}
           <div className={cn('relative z-10 mx-auto w-full px-6', pick(WIDTH, p.width, 'wide'), hasMedia && 'text-white')}>
             {sectionKids.map((c) => (
               <RenderNode key={c.id} node={c} />
@@ -341,7 +351,6 @@ function renderInner(node: BuilderNode) {
       return <div className={wrap}>{inner}</div>;
     }
 
-    case 'image':
     case 'image': {
       if (!p.src) {
         return (
@@ -350,72 +359,74 @@ function renderInner(node: BuilderNode) {
           </div>
         );
       }
+      const src = p.src;
+      const alt = p.alt || '';
       const roundedCls = p.rounded === 'full' ? 'rounded-full' : p.rounded === 'none' ? '' : 'rounded-xl';
       const ratioStyle = p.ratio ? { aspectRatio: p.ratio.replace('/', ' / ') } : undefined;
-      const mode = p.imgMode || 'inline';
 
-      // Background: the image fills the block as a backdrop with a dark scrim;
-      // sibling text/buttons render on top (classic hero-over-image look).
-      if (mode === 'background') {
+      // Render one inline variant for a given mode. 'background' returns null —
+      // it's drawn as the section backdrop (see the 'section' case), so the
+      // image occupies no inline space on background breakpoints.
+      const variant = (mode: string): React.ReactNode => {
+        if (mode === 'background') return null;
+        if (mode === 'glow') {
+          return (
+            <div className="relative w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-105 object-cover opacity-60 blur-2xl" style={ratioStyle} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={alt} className={cn('relative w-full object-cover shadow-2xl', roundedCls)} style={ratioStyle} />
+            </div>
+          );
+        }
+        if (mode === 'overlay') {
+          return (
+            <div className={cn('relative w-full overflow-hidden', roundedCls)} style={ratioStyle}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={alt} className="h-full w-full object-cover" />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1) 60%)' }} />
+            </div>
+          );
+        }
+        if (mode === 'duotone') {
+          return (
+            <div className={cn('relative w-full overflow-hidden', roundedCls)} style={ratioStyle}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={alt} className="h-full w-full object-cover" style={{ filter: 'grayscale(1) contrast(1.05)' }} />
+              <div className="absolute inset-0 mix-blend-color" style={{ background: 'var(--primary)' }} />
+            </div>
+          );
+        }
+        if (mode === 'framed') {
+          return (
+            <div className="w-full rounded-2xl border border-border bg-card p-2 shadow-xl">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={alt} className={cn('w-full object-cover', roundedCls)} style={ratioStyle} />
+            </div>
+          );
+        }
+        // cover: tall banner; inline (default): natural flow.
+        const coverStyle = mode === 'cover' ? { aspectRatio: (p.ratio || '16/6').replace('/', ' / ') } : ratioStyle;
         return (
-          <div className="absolute inset-0 -z-10 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.src} alt={p.alt || ''} className="h-full w-full object-cover" />
-            <div className="absolute inset-0" style={{ background: p.overlay || 'rgba(0,0,0,0.5)' }} />
-          </div>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt={alt} className={cn('w-full object-cover', roundedCls, mode === 'cover' && 'shadow-lg')} style={coverStyle} />
         );
-      }
+      };
 
-      // Glow: a blurred copy sits behind for a soft, modern halo.
-      if (mode === 'glow') {
-        return (
-          <div className="relative w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-105 object-cover opacity-60 blur-2xl" style={ratioStyle} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.src} alt={p.alt || ''} className={cn('relative w-full object-cover shadow-2xl', roundedCls)} style={ratioStyle} />
-          </div>
-        );
+      const modes = imgModes(p);
+      const uniform = modes.mobile === modes.tablet && modes.tablet === modes.desktop;
+      if (uniform) {
+        // Single mode across breakpoints. 'background' → nothing inline.
+        return (variant(modes.mobile) as ReactElement) ?? <span className="hidden" data-img-bg="1" />;
       }
-      // Overlay: dark gradient across the image (good for captions/legibility).
-      if (mode === 'overlay') {
-        return (
-          <div className={cn('relative w-full overflow-hidden', roundedCls)} style={ratioStyle}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.src} alt={p.alt || ''} className="h-full w-full object-cover" />
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1) 60%)' }} />
-          </div>
-        );
-      }
-      // Duotone: brand-tinted grayscale for a cohesive editorial look.
-      if (mode === 'duotone') {
-        return (
-          <div className={cn('relative w-full overflow-hidden', roundedCls)} style={ratioStyle}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.src} alt={p.alt || ''} className="h-full w-full object-cover" style={{ filter: 'grayscale(1) contrast(1.05)' }} />
-            <div className="absolute inset-0 mix-blend-color" style={{ background: 'var(--primary)' }} />
-          </div>
-        );
-      }
-      // Framed: card-style with padding, border and shadow (polaroid feel).
-      if (mode === 'framed') {
-        return (
-          <div className="w-full rounded-2xl border border-border bg-card p-2 shadow-xl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.src} alt={p.alt || ''} className={cn('w-full object-cover', roundedCls)} style={ratioStyle} />
-          </div>
-        );
-      }
-      // cover: tall banner that fills its slot; inline (default): natural flow.
-      const coverStyle = mode === 'cover' ? { aspectRatio: (p.ratio || '16/6').replace('/', ' / ') } : ratioStyle;
+      // Different modes per breakpoint: render each visible in its own range.
       return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={p.src}
-          alt={p.alt || ''}
-          className={cn('w-full object-cover', roundedCls, mode === 'cover' && 'shadow-lg')}
-          style={coverStyle}
-        />
+        <div className="contents">
+          {(['mobile', 'tablet', 'desktop'] as BP[]).map((bp) => {
+            const v = variant(modes[bp]);
+            return v ? <div key={bp} className={BP_SHOW[bp]}>{v}</div> : null;
+          })}
+        </div>
       );
     }
 
