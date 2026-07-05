@@ -42,8 +42,8 @@ export function MobileNav({ links, authBase, showAuth }: { links: NavLink[]; aut
                 </Link>
               ))}
               {showAuth && authBase !== undefined && (
-                <div className="mt-2 flex items-center gap-2 border-t border-border/60 pt-3" onClick={() => setOpen(false)}>
-                  <SiteAuthButtons base={authBase} />
+                <div className="mt-2 flex flex-col gap-2 border-t border-border/60 pt-3" onClick={() => setOpen(false)}>
+                  <SiteAuthButtons base={authBase} stacked />
                 </div>
               )}
             </nav>
