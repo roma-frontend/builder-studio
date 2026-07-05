@@ -4,6 +4,7 @@ import { listAllSites } from '@/lib/admin';
 import { PageHeader, EmptyState } from '@/components/dashboard/ui';
 import { OrgManager } from '@/components/dashboard/org-manager';
 import { OrgRequests } from '@/components/dashboard/org-requests';
+import { TenantUsers } from '@/components/dashboard/tenant-users';
 import { Building2 } from 'lucide-react';
 
 export const metadata = { title: 'Организации — Cinematic Kit' };
@@ -28,6 +29,12 @@ export default async function OrganizationsPage() {
       <PageHeader title="Организации" description="Выберите организацию, чтобы увидеть её данные и назначить администратора." />
       <div className="mb-6"><OrgRequests /></div>
       {sites.length === 0 ? <EmptyState icon={Building2} title="Организаций пока нет" /> : <OrgManager sites={sites} />}
+
+      <section className="mt-10">
+        <h2 className="mb-1 text-lg font-semibold tracking-tight">Пользователи тенантов</h2>
+        <p className="mb-4 text-sm text-muted-foreground">Клиенты сайтов, зарегистрированные на организациях. Здесь можно присвоить пользователю организацию и статус (в т.ч. тем, кто регистрировался до появления организаций).</p>
+        <TenantUsers />
+      </section>
     </>
   );
 }

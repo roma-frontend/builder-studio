@@ -6,7 +6,7 @@ import 'server-only';
 import path from 'node:path';
 import { statSync } from 'node:fs';
 import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
-import { getDb, users, sites, submissions, sessions, domains, audit, siteUsers, siteMaterials, type User, type Role } from '@/lib/db';
+import { getDb, users, sites, submissions, sessions, domains, audit, siteUsers, siteSessions, siteMaterials, type User, type Role } from '@/lib/db';
 
 /** A user counts as online when a session heartbeat fired within this window. */
 const ONLINE_WINDOW_MS = 15 * 60 * 1000;
@@ -208,6 +208,70 @@ export function assignSiteAdmin(siteId: string, email: string): { id: string; em
   // Promote a plain customer to admin; never demote an existing admin/superadmin.
   if (target.role === 'customer') db.update(users).set({ role: 'admin' }).where(eq(users.id, target.id)).run();
   return { id: target.id, email: target.email, name: target.name };
+}
+
+// ── Tenant users (site_users) — superadmin global view + org assignment ──────
+
+export interface TenantUserRow {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  siteId: string;
+  siteName: string;
+  siteSlug: string;
+  createdAt: string;
+}
+
+export function listAllSiteUsers(limit = 1000): TenantUserRow[] {
+  const rows = getDb()
+    .select({ u: siteUsers, siteName: sites.name, siteSlug: sites.slug })
+    .from(siteUsers)
+    .innerJoin(sites, eq(siteUsers.siteId, sites.id))
+    .orderBy(desc(siteUsers.createdAt))
+    .limit(limit)
+    .all();
+  return rows.map(({ u, siteName, siteSlug }) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    status: u.status,
+    siteId: u.siteId,
+    siteName,
+    siteSlug,
+    createdAt: u.createdAt.toISOString(),
+  }));
+}
+
+/** Move a tenant user to another organization (site) and approve them. Throws
+ *  'EMAIL_TAKEN' if the target org already has that email. Clears their sessions
+ *  (sessions are org-scoped) so the move takes effect cleanly. */
+export function assignSiteUserOrg(siteUserId: string, targetSiteId: string): void {
+  const db = getDb();
+  const user = db.select().from(siteUsers).where(eq(siteUsers.id, siteUserId)).get();
+  if (!user) throw new Error('USER_NOT_FOUND');
+  const target = db.select({ id: sites.id }).from(sites).where(eq(sites.id, targetSiteId)).get();
+  if (!target) throw new Error('ORG_NOT_FOUND');
+  if (user.siteId !== targetSiteId) {
+    const clash = db
+      .select({ id: siteUsers.id })
+      .from(siteUsers)
+      .where(and(eq(siteUsers.siteId, targetSiteId), eq(siteUsers.email, user.email)))
+      .get();
+    if (clash) throw new Error('EMAIL_TAKEN');
+  }
+  db.update(siteUsers)
+    .set({ siteId: targetSiteId, status: 'approved', approvedAt: new Date(), rejectionReason: '', updatedAt: new Date() })
+    .where(eq(siteUsers.id, siteUserId))
+    .run();
+  db.delete(siteSessions).where(eq(siteSessions.siteUserId, siteUserId)).run();
+}
+
+/** Just set a tenant user's membership status (approve/suspend/etc.). */
+export function setSiteUserStatus(siteUserId: string, status: 'pending' | 'approved' | 'rejected' | 'suspended'): void {
+  const set: Record<string, unknown> = { status, updatedAt: new Date() };
+  if (status === 'approved') { set.approvedAt = new Date(); set.rejectionReason = ''; }
+  getDb().update(siteUsers).set(set).where(eq(siteUsers.id, siteUserId)).run();
 }
 
 // ─────────────────────────── Control Center ───────────────────────────
