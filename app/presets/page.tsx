@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
+import { ThemeStyle } from '@/components/theme-style';
+import { ThemeFX } from '@/components/theme-fx';
+import { siteTheme } from '@/lib/site-theme';
 import { LayoutTemplate, ArrowRight, Sparkles } from 'lucide-react';
 
 export const metadata = {
@@ -34,11 +37,13 @@ const PRESETS = [
 export default function PresetsIndex() {
   return (
     <main className="min-h-dvh">
+      <ThemeStyle theme={siteTheme()} />
+      <ThemeFX />
       <SiteHeader />
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-12 sm:px-10">
         <div className="mb-2 flex items-center gap-2">
           <LayoutTemplate className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-black tracking-tight">Пресеты страниц</h1>
+          <h1 className="font-display text-3xl font-black tracking-tight">Пресеты страниц</h1>
         </div>
         <p className="mb-8 max-w-2xl text-muted-foreground">
           Готовые композиции из наших кинематографических блоков. Открой пресет, чтобы увидеть его вживую на

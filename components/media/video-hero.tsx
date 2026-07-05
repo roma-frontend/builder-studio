@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Spotlight } from '@/components/fx/spotlight';
 import { Magnetic } from '@/components/fx/magnetic';
+import { KineticText } from '@/components/fx/kinetic-text';
 import type { MediaEntry } from '@/lib/media';
 
 /**
@@ -27,7 +28,7 @@ export function VideoHero({ entry }: { entry: MediaEntry }) {
             className="font-display max-w-3xl text-balance text-4xl font-black tracking-tight text-white sm:text-6xl"
             style={{ textShadow: '0 2px 24px rgba(0,0,0,0.55)' }}
           >
-            {entry.title}
+            <KineticText text={entry.title} />
           </h1>
           {entry.ctaHref && (
             <div className="mt-6">

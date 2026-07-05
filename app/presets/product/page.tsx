@@ -8,6 +8,9 @@ import { StickyShowcase } from '@/components/media/sticky-showcase';
 import { VideoMosaic } from '@/components/media/video-mosaic';
 import { VideoCardGrid } from '@/components/media/video-card';
 import { Reveal } from '@/components/reveal';
+import { ThemeStyle } from '@/components/theme-style';
+import { ThemeFX } from '@/components/theme-fx';
+import { pickTheme } from '@/lib/themes';
 
 export const metadata = {
   title: 'Пресет: продукт — Кинематографический кит',
@@ -46,8 +49,13 @@ export default function ProductPreset() {
   const beforeEntry = pool[0] ?? hero;
   const afterEntry = pool[1] ?? hero;
 
+  const brief = media.map((m) => `${m.title} ${m.subtitle ?? ''} ${m.prompt ?? ''}`).join(' ');
+  const theme = pickTheme(brief);
+
   return (
     <main className="min-h-dvh">
+      <ThemeStyle theme={theme} />
+      <ThemeFX />
       <SiteHeader />
 
       {/* 1 — Full-bleed hero */}

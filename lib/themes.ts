@@ -8,7 +8,7 @@
 
 export type DisplayFont = 'serif' | 'grotesk' | 'sans';
 export type Motion = 'soft' | 'snappy' | 'dramatic';
-export type LayoutBlock = 'hero' | 'split' | 'cards' | 'mosaic' | 'sticky' | 'background';
+export type LayoutBlock = 'hero' | 'split' | 'cards' | 'mosaic' | 'sticky' | 'background' | 'beams' | 'marquee';
 
 export interface Theme {
   id: string;
@@ -113,7 +113,7 @@ export const THEMES: Theme[] = [
   {
     id: 'sport-dynamic',
     label: 'Sport Dynamic',
-    layout: ['hero', 'mosaic', 'cards', 'sticky'],
+    layout: ['hero', 'marquee', 'mosaic', 'cards', 'beams', 'sticky'],
     keywords: ['матч', 'футбол', 'спорт', 'гол', 'чемпион', 'лига', 'турнир', 'стадион', 'команда', 'фитнес', 'зал', 'гонк', 'бег', 'баскетбол', 'хоккей', 'sport', 'football', 'soccer', 'match', 'goal', 'league', 'tournament', 'stadium', 'team', 'fitness', 'gym', 'race', 'running', 'basketball', 'hockey', 'esports'],
     radius: '0.25rem',
     fontDisplay: 'grotesk',
@@ -148,7 +148,7 @@ export const THEMES: Theme[] = [
   {
     id: 'tech-saas',
     label: 'Tech SaaS',
-    layout: ['split', 'cards', 'sticky', 'background'],
+    layout: ['split', 'marquee', 'cards', 'beams', 'sticky'],
     keywords: ['saas', 'стартап', 'startup', 'приложение', 'app', 'платформа', 'platform', 'технолог', 'tech', 'ai', 'ии', 'нейросет', 'dashboard', 'аналитик', 'crypto', 'крипто', 'финтех', 'fintech', 'облак', 'cloud', 'devtool', 'api'],
     radius: '0.75rem',
     fontDisplay: 'grotesk',
@@ -183,7 +183,7 @@ export const THEMES: Theme[] = [
   {
     id: 'luxury-dark',
     label: 'Luxury Dark',
-    layout: ['hero', 'sticky', 'background', 'cards'],
+    layout: ['hero', 'sticky', 'beams', 'background', 'cards'],
     keywords: ['люкс', 'luxury', 'премиум', 'premium', 'ювелир', 'jewelry', 'часы', 'watch', 'мода', 'fashion', 'бутик', 'boutique', 'отель', 'hotel', 'авто', 'car', 'яхт', 'yacht', 'парфюм', 'perfume', 'эксклюзив'],
     radius: '0.5rem',
     fontDisplay: 'serif',
@@ -213,6 +213,76 @@ export const THEMES: Theme[] = [
       muted: '0.22 0.012 70',
       'muted-foreground': '0.74 0.02 85',
       border: '1 0 0 / 0.12',
+    },
+  },
+  {
+    id: 'neon-night',
+    label: 'Neon Night',
+    layout: ['hero', 'beams', 'marquee', 'mosaic', 'cards', 'sticky'],
+    keywords: ['неон', 'neon', 'клуб', 'club', 'вечеринк', 'party', 'ночь', 'night', 'диджей', 'dj', 'музык', 'music', 'рейв', 'rave', 'киберпанк', 'cyberpunk', 'фестивал', 'festival', 'бар', 'bar', 'игр', 'gaming', 'game'],
+    radius: '0.5rem',
+    fontDisplay: 'grotesk',
+    motion: 'snappy',
+    light: {
+      background: '0.98 0.01 300',
+      foreground: '0.15 0.03 300',
+      card: '0.96 0.015 300',
+      'card-foreground': '0.15 0.03 300',
+      popover: '0.98 0.01 300',
+      'popover-foreground': '0.15 0.03 300',
+      primary: '0.62 0.26 330',
+      'primary-foreground': '0.99 0 0',
+      muted: '0.95 0.02 300',
+      'muted-foreground': '0.5 0.03 300',
+      border: '0.9 0.02 300',
+    },
+    dark: {
+      background: '0.11 0.02 285',
+      foreground: '0.97 0.01 320',
+      card: '0.15 0.03 285',
+      'card-foreground': '0.97 0.01 320',
+      popover: '0.15 0.03 285',
+      'popover-foreground': '0.97 0.01 320',
+      primary: '0.72 0.26 330',
+      'primary-foreground': '0.11 0.02 285',
+      muted: '0.22 0.03 285',
+      'muted-foreground': '0.74 0.03 320',
+      border: '1 0 0 / 0.14',
+    },
+  },
+  {
+    id: 'nature-fresh',
+    label: 'Nature Fresh',
+    keywords: ['природ', 'nature', 'эко', 'eco', 'зелен', 'green', 'органик', 'organic', 'ферм', 'farm', 'растен', 'plant', 'сад', 'garden', 'лес', 'forest', 'горы', 'mountain', 'путешеств', 'travel', 'туризм', 'outdoor', 'вода', 'water', 'йога', 'yoga', 'здоров', 'wellness'],
+    layout: ['hero', 'cards', 'marquee', 'background', 'sticky'],
+    radius: '1rem',
+    fontDisplay: 'sans',
+    motion: 'soft',
+    light: {
+      background: '0.99 0.012 150',
+      foreground: '0.2 0.03 155',
+      card: '0.975 0.015 150',
+      'card-foreground': '0.2 0.03 155',
+      popover: '0.99 0.01 150',
+      'popover-foreground': '0.2 0.03 155',
+      primary: '0.55 0.13 150',
+      'primary-foreground': '0.99 0.01 150',
+      muted: '0.95 0.018 150',
+      'muted-foreground': '0.45 0.03 155',
+      border: '0.88 0.02 150',
+    },
+    dark: {
+      background: '0.16 0.02 155',
+      foreground: '0.96 0.01 150',
+      card: '0.2 0.022 155',
+      'card-foreground': '0.96 0.01 150',
+      popover: '0.2 0.022 155',
+      'popover-foreground': '0.96 0.01 150',
+      primary: '0.7 0.15 150',
+      'primary-foreground': '0.16 0.02 155',
+      muted: '0.26 0.025 155',
+      'muted-foreground': '0.72 0.03 150',
+      border: '1 0 0 / 0.1',
     },
   },
 ];

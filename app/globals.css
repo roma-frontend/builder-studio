@@ -108,6 +108,52 @@ body {
   .theme-fx-glow { animation: none; }
 }
 
+/* ── Marquee ─────────────────────────────────────────────────────── */
+.marquee-row {
+  animation: marqueeScroll 26s linear infinite;
+  animation-direction: var(--marquee-dir, normal);
+}
+.group:hover .marquee-row {
+  animation-play-state: paused;
+}
+@keyframes marqueeScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+/* ── Beams ───────────────────────────────────────────────────────── */
+.beams-rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 180%;
+  width: 180%;
+  translate: -50% -50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in oklab, var(--primary) 22%, transparent) 12deg,
+    transparent 24deg,
+    transparent 60deg,
+    color-mix(in oklab, var(--primary) 16%, transparent) 72deg,
+    transparent 84deg
+  );
+  filter: blur(6px);
+  opacity: 0.6;
+  animation: beamsSpin 22s linear infinite;
+}
+.beams-core {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(60% 50% at 50% 50%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 70%);
+}
+@keyframes beamsSpin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-row, .beams-rays { animation: none; }
+}
+
 /* Scroll indicator */
 .scroll-line {
   animation: scrollPulse 2s ease-in-out infinite;

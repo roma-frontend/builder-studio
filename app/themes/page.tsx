@@ -1,5 +1,8 @@
 import { SiteHeader } from '@/components/site-header';
 import { THEMES, FONT_VAR, type Theme } from '@/lib/themes';
+import { ThemeStyle } from '@/components/theme-style';
+import { ThemeFX } from '@/components/theme-fx';
+import { siteTheme } from '@/lib/site-theme';
 import { Palette } from 'lucide-react';
 
 export const metadata = {
@@ -94,6 +97,8 @@ function ThemePreview({ theme }: { theme: Theme }) {
 export default function ThemesPage() {
   return (
     <main className="min-h-dvh">
+      <ThemeStyle theme={siteTheme()} />
+      <ThemeFX />
       <SiteHeader />
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-12 sm:px-10">
         <div className="mb-2 flex items-center gap-2">

@@ -1,5 +1,8 @@
 import { SiteHeader } from '@/components/site-header';
 import { WebVitals } from '@/components/web-vitals';
+import { ThemeStyle } from '@/components/theme-style';
+import { ThemeFX } from '@/components/theme-fx';
+import { siteTheme } from '@/lib/site-theme';
 import { Gauge } from 'lucide-react';
 
 export const metadata = {
@@ -10,6 +13,8 @@ export const metadata = {
 export default function VitalsPage() {
   return (
     <main className="min-h-dvh">
+      <ThemeStyle theme={siteTheme()} />
+      <ThemeFX />
       <SiteHeader />
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-12 sm:px-10">
         <div className="mb-2 flex items-center gap-2">
