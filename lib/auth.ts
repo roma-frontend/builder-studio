@@ -9,6 +9,8 @@ import { eq } from 'drizzle-orm';
 import { getDb, newId, users, sessions, type User, type Role } from '@/lib/db';
 
 export const SESSION_COOKIE = 'cwk_session';
+/** Holds the superadmin's own token while they impersonate another user. */
+export const ADMIN_RETURN_COOKIE = 'cwk_admin_return';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 /** Renew the session when less than this much lifetime remains. */
 const SESSION_RENEW_MS = SESSION_TTL_MS / 2;
@@ -84,6 +86,19 @@ export async function getCurrentUser(): Promise<User | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   return token ? getUserByToken(token) : null;
+}
+
+/** Raw session token from the request cookie (needed to stash it during impersonation). */
+export async function getSessionToken(): Promise<string | undefined> {
+  const jar = await cookies();
+  return jar.get(SESSION_COOKIE)?.value;
+}
+
+/** Expiry of an existing session by its raw token, or null if unknown. */
+export function getSessionExpiry(token: string): Date | null {
+  if (!token) return null;
+  const row = getDb().select({ expiresAt: sessions.expiresAt }).from(sessions).where(eq(sessions.id, hashToken(token))).get();
+  return row?.expiresAt ?? null;
 }
 
 export async function setSessionCookie(token: string, expiresAt: Date): Promise<void> {

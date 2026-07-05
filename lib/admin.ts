@@ -3,8 +3,10 @@
 // these — the functions themselves are pure reads/writes.
 
 import 'server-only';
+import path from 'node:path';
+import { statSync } from 'node:fs';
 import { desc, eq, sql } from 'drizzle-orm';
-import { getDb, users, sites, submissions, type User, type Role } from '@/lib/db';
+import { getDb, users, sites, submissions, sessions, type User, type Role } from '@/lib/db';
 
 export interface AdminUserRow {
   id: string;
@@ -99,4 +101,145 @@ export function platformStats(): PlatformStats {
     published: Number(p?.n ?? 0),
     submissions: Number(f?.n ?? 0),
   };
+}
+
+// ─────────────────────────── Control Center ───────────────────────────
+
+export interface SessionRow {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  role: Role;
+  createdAt: string;
+  expiresAt: string;
+  active: boolean;
+}
+
+/** All sessions across the platform, newest first, with owner + validity. */
+export function listSessions(limit = 200): SessionRow[] {
+  const now = Date.now();
+  const rows = getDb()
+    .select({ session: sessions, user: users })
+    .from(sessions)
+    .innerJoin(users, eq(sessions.userId, users.id))
+    .orderBy(desc(sessions.createdAt))
+    .limit(limit)
+    .all();
+  return rows.map(({ session, user }) => ({
+    id: session.id,
+    userId: user.id,
+    userName: user.name,
+    userEmail: user.email,
+    role: user.role as Role,
+    createdAt: session.createdAt.toISOString(),
+    expiresAt: session.expiresAt.toISOString(),
+    active: session.expiresAt.getTime() > now,
+  }));
+}
+
+export function countActiveSessions(): number {
+  const r = getDb()
+    .select({ n: sql<number>`count(*)` })
+    .from(sessions)
+    .where(sql`${sessions.expiresAt} > ${Date.now()}`)
+    .get();
+  return Number(r?.n ?? 0);
+}
+
+export function revokeSession(id: string): void {
+  getDb().delete(sessions).where(eq(sessions.id, id)).run();
+}
+
+export function revokeUserSessions(userId: string): number {
+  const res = getDb().delete(sessions).where(eq(sessions.userId, userId)).run();
+  return res.changes;
+}
+
+/** Delete a user and (via FK cascade) their sessions, sites and submissions. */
+export function deleteUser(id: string): void {
+  getDb().delete(users).where(eq(users.id, id)).run();
+}
+
+export function deleteSiteById(id: string): void {
+  getDb().delete(sites).where(eq(sites.id, id)).run();
+}
+
+export function unpublishSiteById(id: string): void {
+  getDb()
+    .update(sites)
+    .set({ publishedDoc: null, publishedAt: null, updatedAt: new Date() })
+    .where(eq(sites.id, id))
+    .run();
+}
+
+export function countSuperadmins(): number {
+  const r = getDb()
+    .select({ n: sql<number>`count(*)` })
+    .from(users)
+    .where(eq(users.role, 'superadmin'))
+    .get();
+  return Number(r?.n ?? 0);
+}
+
+export interface SystemInfo {
+  dbSizeKb: number;
+  activeSessions: number;
+  appHost: string;
+  node: string;
+  integrations: { muapi: boolean; llm: boolean; analytics: boolean; serverIp: boolean };
+}
+
+export function systemInfo(): SystemInfo {
+  const dbFile = process.env.DATABASE_FILE || path.join(process.cwd(), 'data', 'app.db');
+  let dbSizeKb = 0;
+  try { dbSizeKb = Math.round(statSync(dbFile).size / 1024); } catch { /* file may not exist yet */ }
+  return {
+    dbSizeKb,
+    activeSessions: countActiveSessions(),
+    appHost: (process.env.NEXT_PUBLIC_APP_HOST || 'localhost:3000').toLowerCase(),
+    node: process.version,
+    integrations: {
+      muapi: Boolean(process.env.MUAPI_KEY),
+      llm: Boolean(process.env.THEME_LLM_KEY),
+      analytics: Boolean(process.env.NEXT_PUBLIC_CF_BEACON_TOKEN),
+      serverIp: Boolean(process.env.SERVER_IP),
+    },
+  };
+}
+
+export type ActivityKind = 'user' | 'site' | 'publish' | 'submission';
+export interface ActivityEvent {
+  kind: ActivityKind;
+  at: string;
+  title: string;
+  subtitle: string;
+}
+
+/** Merged, newest-first feed of recent platform events. */
+export function recentActivity(limit = 20): ActivityEvent[] {
+  const db = getDb();
+  const events: ActivityEvent[] = [];
+
+  for (const u of db.select().from(users).orderBy(desc(users.createdAt)).limit(limit).all()) {
+    events.push({ kind: 'user', at: u.createdAt.toISOString(), title: 'Новый пользователь', subtitle: `${u.name || 'Без имени'} · ${u.email}` });
+  }
+  for (const s of db.select().from(sites).orderBy(desc(sites.createdAt)).limit(limit).all()) {
+    events.push({ kind: 'site', at: s.createdAt.toISOString(), title: 'Создан сайт', subtitle: `${s.name} · /s/${s.slug}` });
+    if (s.publishedAt) {
+      events.push({ kind: 'publish', at: s.publishedAt.toISOString(), title: 'Публикация сайта', subtitle: `${s.name} · /s/${s.slug}` });
+    }
+  }
+  const subs = db
+    .select({ sub: submissions, site: sites })
+    .from(submissions)
+    .leftJoin(sites, eq(submissions.siteId, sites.id))
+    .orderBy(desc(submissions.createdAt))
+    .limit(limit)
+    .all();
+  for (const { sub, site } of subs) {
+    events.push({ kind: 'submission', at: sub.createdAt.toISOString(), title: 'Новая заявка', subtitle: site ? `${site.name} · форма «${sub.formId}»` : `форма «${sub.formId}»` });
+  }
+
+  return events.sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
 }

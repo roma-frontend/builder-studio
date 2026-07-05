@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export function PageHeader({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
+export function PageHeader({ title, description, action }: { title: React.ReactNode; description?: string; action?: React.ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>

@@ -26,6 +26,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard/account', label: 'Аккаунт', icon: UserCircle },
   { href: '/dashboard/users', label: 'Пользователи', icon: Users, staff: true },
   { href: '/dashboard/all-sites', label: 'Все сайты', icon: LayoutList, staff: true },
+  { href: '/dashboard/control', label: 'Центр контроля', icon: Crown, super: true },
 ];
 
 const ROLE_META: Record<Role, { label: string; cls: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -34,7 +35,7 @@ const ROLE_META: Record<Role, { label: string; cls: string; icon: React.Componen
   customer: { label: 'Клиент', cls: 'bg-muted text-muted-foreground', icon: UserCircle },
 };
 
-export function DashboardShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
+export function DashboardShell({ user, banner, children }: { user: ShellUser; banner?: React.ReactNode; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -67,6 +68,21 @@ export function DashboardShell({ user, children }: { user: ShellUser; children: 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {visible.map((item) => {
           const on = active(item.href);
+          if (item.super) {
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                  on ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-gradient-to-r from-amber-500/10 to-primary/10 text-foreground hover:from-amber-500/20 hover:to-primary/20'
+                }`}
+              >
+                <item.icon className="h-4 w-4 shrink-0 text-amber-500" />
+                <span className="truncate">{item.label}</span>
+              </Link>
+            );
+          }
           return (
             <Link
               key={item.href}
@@ -150,8 +166,9 @@ export function DashboardShell({ user, children }: { user: ShellUser; children: 
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-6xl">{children}</div>
+        <main className="flex-1 overflow-y-auto">
+          {banner}
+          <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">{children}</div>
         </main>
       </div>
     </div>

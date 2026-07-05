@@ -1,0 +1,40 @@
+import { NextResponse } from 'next/server';
+import { getCurrentUser, isSuperadmin } from '@/lib/auth';
+import { deleteSiteById, unpublishSiteById } from '@/lib/admin';
+import { getDb, sites } from '@/lib/db';
+import { eq } from 'drizzle-orm';
+
+export const runtime = 'nodejs';
+
+function siteExists(id: string): boolean {
+  return Boolean(getDb().select({ id: sites.id }).from(sites).where(eq(sites.id, id)).get());
+}
+
+// Superadmin site control: DELETE removes any site; PATCH { action:'unpublish' }.
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const me = await getCurrentUser();
+  if (!me) return NextResponse.json({ error: 'Не авторизован.' }, { status: 401 });
+  if (!isSuperadmin(me)) return NextResponse.json({ error: 'Недостаточно прав.' }, { status: 403 });
+
+  const { id } = await params;
+  if (!siteExists(id)) return NextResponse.json({ error: 'Сайт не найден.' }, { status: 404 });
+  deleteSiteById(id);
+  return NextResponse.json({ ok: true, id });
+}
+
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const me = await getCurrentUser();
+  if (!me) return NextResponse.json({ error: 'Не авторизован.' }, { status: 401 });
+  if (!isSuperadmin(me)) return NextResponse.json({ error: 'Недостаточно прав.' }, { status: 403 });
+
+  const { id } = await params;
+  if (!siteExists(id)) return NextResponse.json({ error: 'Сайт не найден.' }, { status: 404 });
+
+  let body: { action?: string };
+  try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  if (body.action === 'unpublish') {
+    unpublishSiteById(id);
+    return NextResponse.json({ ok: true, id, published: false });
+  }
+  return NextResponse.json({ error: 'Неизвестное действие.' }, { status: 400 });
+}
