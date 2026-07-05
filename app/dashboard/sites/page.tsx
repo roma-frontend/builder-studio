@@ -1,0 +1,22 @@
+import { redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/auth';
+import { listSitesForUser } from '@/lib/sites';
+import { DashboardClient } from '@/components/dashboard/dashboard-client';
+
+export const metadata = { title: 'Мои сайты — Cinematic Kit' };
+export const dynamic = 'force-dynamic';
+
+export default async function SitesPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect('/login?next=/dashboard/sites');
+
+  const sites = listSitesForUser(user.id).map((s) => ({
+    id: s.id,
+    name: s.name,
+    slug: s.slug,
+    published: Boolean(s.publishedDoc),
+    updatedAt: s.updatedAt.toISOString(),
+  }));
+
+  return <DashboardClient initialSites={sites} />;
+}

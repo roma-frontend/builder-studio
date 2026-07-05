@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT NOT NULL,
   name TEXT NOT NULL DEFAULT '',
   password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'customer',
   created_at INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);
@@ -75,6 +76,11 @@ function createDb(): DB {
   sqlite.pragma('foreign_keys = ON');
   sqlite.pragma('busy_timeout = 5000');
   sqlite.exec(MIGRATIONS);
+  // Idempotent column additions for databases created before a column existed.
+  const userCols = sqlite.prepare(`PRAGMA table_info(users)`).all() as { name: string }[];
+  if (!userCols.some((c) => c.name === 'role')) {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'customer'`);
+  }
   return drizzle(sqlite, { schema });
 }
 

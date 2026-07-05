@@ -6,7 +6,7 @@ import 'server-only';
 import { scryptSync, timingSafeEqual, randomBytes, createHash } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
-import { getDb, newId, users, sessions, type User } from '@/lib/db';
+import { getDb, newId, users, sessions, type User, type Role } from '@/lib/db';
 
 export const SESSION_COOKIE = 'cwk_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -110,15 +110,28 @@ export function normalizeEmail(email: string): string {
 
 export function createUser(email: string, password: string, name: string): User {
   const db = getDb();
+  // The very first account becomes the superadmin (bootstrap the owner).
+  const existing = db.select({ id: users.id }).from(users).limit(1).get();
+  const role: Role = existing ? 'customer' : 'superadmin';
   const user: User = {
     id: newId('u'),
     email: normalizeEmail(email),
     name: name.trim(),
     passwordHash: hashPassword(password),
+    role,
     createdAt: new Date(),
   };
   db.insert(users).values(user).run();
   return user;
+}
+
+/** Staff = admin or superadmin (can access the admin sections). */
+export function isStaff(user: { role?: string } | null | undefined): boolean {
+  return user?.role === 'admin' || user?.role === 'superadmin';
+}
+
+export function isSuperadmin(user: { role?: string } | null | undefined): boolean {
+  return user?.role === 'superadmin';
 }
 
 export function findUserByEmail(email: string): User | null {

@@ -12,6 +12,8 @@ export const users = sqliteTable(
     email: text('email').notNull(),
     name: text('name').notNull().default(''),
     passwordHash: text('password_hash').notNull(),
+    /** Access role: 'customer' (default) | 'admin' | 'superadmin'. */
+    role: text('role').notNull().default('customer'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [uniqueIndex('users_email_idx').on(t.email)],
@@ -82,6 +84,7 @@ export const submissions = sqliteTable(
 );
 
 export type User = typeof users.$inferSelect;
+export type Role = 'customer' | 'admin' | 'superadmin';
 export type Session = typeof sessions.$inferSelect;
 export type Site = typeof sites.$inferSelect;
 export type Domain = typeof domains.$inferSelect;
