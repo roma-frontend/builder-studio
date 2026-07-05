@@ -10,10 +10,12 @@ import { useRouter } from 'next/navigation';
 import {
   User, Shield, FileText, Settings, LogOut, Loader2, Check, Mail, Phone, Lock,
   Eye, EyeOff, Monitor, Smartphone, Trash2, Save, CalendarDays, ShieldCheck, X,
+  Store, Menu, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { iconCls, passwordScore, StrengthMeter } from '@/components/auth/auth-ui';
+import { SiteThemeToggle } from '@/components/builder/site-theme-toggle';
 
 type Me = {
   id: string; email: string; name: string; phone: string; avatarColor: string;
@@ -102,6 +104,7 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabId>('profile');
   const [loggingOut, setLoggingOut] = useState(false);
+  const [open, setOpen] = useState(false); // mobile sidebar
 
   const refresh = useCallback(() => {
     return fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}`)
@@ -128,58 +131,109 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
   }
 
   const color = me.avatarColor || AVATAR_COLORS[0];
+  const activeLabel = TABS.find((t) => t.id === tab)?.label ?? 'Личный кабинет';
+
+  const SidebarBody = (
+    <>
+      <div className="flex h-16 items-center gap-2.5 border-b border-border/60 px-5">
+        <Link href={base || '/'} className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground shadow-lg shadow-primary/20">
+            <Store className="h-5 w-5" />
+          </span>
+          <span className="flex flex-col leading-none">
+            <span className="truncate text-sm font-black tracking-tight">{brand}</span>
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Кабинет</span>
+          </span>
+        </Link>
+      </div>
+
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const on = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => { setTab(t.id); setOpen(false); }}
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                on ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{t.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="border-t border-border/60 p-3">
+        <div className="mb-2 flex items-center gap-2.5 px-2">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: color }}>
+            {initials(me.name, me.email)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{me.name || 'Без имени'}</p>
+            <p className="truncate text-xs text-muted-foreground">{me.email}</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={logout} disabled={loggingOut}>
+          {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} Выйти
+        </Button>
+      </div>
+    </>
+  );
 
   return (
-    <main className="relative min-h-dvh overflow-hidden bg-background px-4 py-8 sm:py-12">
-      <div className="absolute inset-0 -z-10" aria-hidden>
-        <div className="absolute left-[-15%] top-[-20%] h-[500px] w-[500px] rounded-full" style={{ background: 'radial-gradient(circle, var(--primary), transparent 70%)', filter: 'blur(90px)', opacity: 0.25 }} />
-      </div>
-      <div className="mx-auto w-full max-w-4xl">
-        {/* Header */}
-        <div className="mb-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-border bg-background/80 p-5 shadow-xl backdrop-blur-md sm:flex-row sm:items-center sm:p-6">
-          <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 flex-none items-center justify-center rounded-2xl text-lg font-bold text-white shadow-lg" style={{ background: color }}>
-              {initials(me.name, me.email)}
-            </span>
-            <div className="min-w-0">
-              <h1 className="truncate text-xl font-bold tracking-tight">{me.name || 'Личный кабинет'}</h1>
-              <p className="truncate text-sm text-muted-foreground">{me.email}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{brand}</p>
+    <div className="flex h-dvh overflow-hidden bg-background">
+      {/* Desktop sidebar */}
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-border/60 bg-muted/30 lg:flex">
+        {SidebarBody}
+      </aside>
+
+      {/* Mobile slide-over */}
+      {open && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+          <aside className="absolute left-0 top-0 flex h-full w-72 flex-col border-r border-border/60 bg-background shadow-2xl">
+            <button onClick={() => setOpen(false)} aria-label="Закрыть" className="absolute right-3 top-4 rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+              <X className="h-5 w-5" />
+            </button>
+            {SidebarBody}
+          </aside>
+        </div>
+      )}
+
+      {/* Main column */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md sm:px-6">
+          <button
+            onClick={() => setOpen(true)}
+            aria-label="Меню"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-foreground lg:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <span className="text-sm font-semibold tracking-tight">{activeLabel}</span>
+          <div className="ml-auto flex items-center gap-2">
+            <Link href={base || '/'} className="hidden sm:block">
+              <Button size="sm" variant="outline" className="gap-1.5">На сайт <ExternalLink className="h-4 w-4" /></Button>
+            </Link>
+            <SiteThemeToggle />
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
+            <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm sm:p-6">
+              {tab === 'profile' && <ProfileTab siteId={siteId} me={me} onSaved={setMe} />}
+              {tab === 'security' && <SecurityTab siteId={siteId} />}
+              {tab === 'activity' && <ActivityTab siteId={siteId} />}
+              {tab === 'settings' && <SettingsTab siteId={siteId} base={base} me={me} onSaved={setMe} router={router} />}
             </div>
           </div>
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <Link href={base || '/'}><Button variant="ghost" size="sm">На сайт</Button></Link>
-            <Button onClick={logout} disabled={loggingOut} variant="outline" size="sm" className="gap-2">
-              {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} Выйти
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-6 sm:grid-cols-[220px_1fr]">
-          {/* Sidebar / tabs */}
-          <nav className="flex gap-2 overflow-x-auto rounded-2xl border border-border bg-background/80 p-2 shadow-sm backdrop-blur-md sm:h-max sm:flex-col sm:overflow-visible">
-            {TABS.map((t) => {
-              const Icon = t.icon;
-              const active = tab === t.id;
-              return (
-                <button key={t.id} onClick={() => setTab(t.id)}
-                  className={`flex flex-none items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors sm:w-full ${active ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-                  <Icon className="h-4 w-4" /> {t.label}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Content */}
-          <div className="rounded-2xl border border-border bg-background/80 p-5 shadow-xl backdrop-blur-md sm:p-6">
-            {tab === 'profile' && <ProfileTab siteId={siteId} me={me} onSaved={setMe} />}
-            {tab === 'security' && <SecurityTab siteId={siteId} />}
-            {tab === 'activity' && <ActivityTab siteId={siteId} />}
-            {tab === 'settings' && <SettingsTab siteId={siteId} base={base} me={me} onSaved={setMe} router={router} />}
-          </div>
-        </div>
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
 
