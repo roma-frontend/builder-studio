@@ -165,7 +165,7 @@ CREATE INDEX IF NOT EXISTS org_requests_requester_idx ON org_requests (requester
 type DB = BetterSQLite3Database<typeof schema>;
 
 // Survive Next.js dev-server module reloads without leaking connections.
-const globalForDb = globalThis as unknown as { __cwkDb?: DB };
+const globalForDb = globalThis as unknown as { __cwkDb?: DB; __cwkSqlite?: Database.Database };
 
 function createDb(): DB {
   mkdirSync(path.dirname(DB_FILE), { recursive: true });
@@ -202,12 +202,19 @@ function createDb(): DB {
   addColumn('site_users', 'approved_by', `approved_by TEXT`);
   addColumn('site_users', 'approved_at', `approved_at INTEGER`);
   addColumn('site_users', 'rejection_reason', `rejection_reason TEXT NOT NULL DEFAULT ''`);
+  globalForDb.__cwkSqlite = sqlite;
   return drizzle(sqlite, { schema });
 }
 
 export function getDb(): DB {
   if (!globalForDb.__cwkDb) globalForDb.__cwkDb = createDb();
   return globalForDb.__cwkDb;
+}
+
+/** Underlying better-sqlite3 handle (for the superadmin DB browser). */
+export function getRawDb(): Database.Database {
+  if (!globalForDb.__cwkSqlite) getDb();
+  return globalForDb.__cwkSqlite!;
 }
 
 /** URL-safe unique id, e.g. "u_hK3n9xPqZw4R". */
