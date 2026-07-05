@@ -37,9 +37,45 @@ export default function BuilderPreview() {
       window.parent?.postMessage({ source: 'builder-preview', type: 'select', id: el.getAttribute('data-nid') }, '*');
     };
     document.addEventListener('click', onClick, true);
+
+    // Drag a palette element from the editor directly onto the page, snapping
+    // to the nearest container so it joins the layout/grid correctly.
+    let lastTarget: HTMLElement | null = null;
+    const clearTarget = () => {
+      if (lastTarget) lastTarget.classList.remove('b-drop-target');
+      lastTarget = null;
+    };
+    const dropZone = (t: HTMLElement | null): HTMLElement | null =>
+      t?.closest('[data-container]') ?? t?.closest('[data-nid]') ?? null;
+    const onDragOver = (ev: DragEvent) => {
+      ev.preventDefault();
+      if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy';
+      const zone = dropZone(ev.target as HTMLElement);
+      if (zone !== lastTarget) {
+        clearTarget();
+        lastTarget = zone;
+        zone?.classList.add('b-drop-target');
+      }
+    };
+    const onDrop = (ev: DragEvent) => {
+      const type = ev.dataTransfer?.getData('text/builder-type');
+      clearTarget();
+      if (!type) return;
+      ev.preventDefault();
+      const zone = dropZone(ev.target as HTMLElement);
+      window.parent?.postMessage(
+        { source: 'builder-preview', type: 'drop', nodeType: type, targetId: zone?.getAttribute('data-nid') ?? null },
+        '*',
+      );
+    };
+    document.addEventListener('dragover', onDragOver);
+    document.addEventListener('drop', onDrop);
     return () => {
       window.removeEventListener('message', onMsg);
       document.removeEventListener('click', onClick, true);
+      document.removeEventListener('dragover', onDragOver);
+      document.removeEventListener('drop', onDrop);
+      clearTarget();
     };
   }, []);
 

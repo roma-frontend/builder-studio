@@ -88,6 +88,24 @@ export function insertAfter(nodes: BuilderNode[], targetId: string, node: Builde
   return out;
 }
 
+// Returns the types of all ancestors of `id` (nearest first). Empty if at root.
+export function ancestorTypes(nodes: BuilderNode[], id: string): string[] {
+  let result: string[] = [];
+  const walk = (list: BuilderNode[], trail: string[]): boolean => {
+    for (const n of list) {
+      if (n.id === id) {
+        result = trail;
+        return true;
+      }
+      if (n.children && walk(n.children, [n.type, ...trail])) return true;
+    }
+    return false;
+  };
+  walk(nodes, []);
+  return result;
+}
+
+
 export function isDescendant(node: BuilderNode, id: string): boolean {
   if (node.id === id) return true;
   return (node.children ?? []).some((c) => isDescendant(c, id));

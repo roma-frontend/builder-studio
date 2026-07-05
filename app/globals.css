@@ -211,3 +211,4 @@ body {
 /* Builder edit-mode: highlight selectable elements on hover */
 .builder-edit [data-nid] { cursor: pointer; }
 .builder-edit [data-nid]:hover { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 2px; }
+.b-drop-target { outline: 2px dashed var(--primary) !important; outline-offset: 3px; background-color: color-mix(in oklch, var(--primary) 8%, transparent); }

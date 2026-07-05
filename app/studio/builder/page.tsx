@@ -19,7 +19,7 @@ import {
   type BuilderDoc, type BuilderNode, type NodeType, type BuilderPage,
   NODE_LABELS, isContainer, makeNode, newId,
 } from '@/lib/builder/types';
-import { updateProps, removeNode, insertChild, moveNode, findNode, duplicateNode, moveRelative, insertAfter } from '@/lib/builder/tree';
+import { updateProps, removeNode, insertChild, moveNode, findNode, duplicateNode, moveRelative, insertAfter, ancestorTypes } from '@/lib/builder/tree';
 
 type Field = { k: string; label: string; kind?: 'text' | 'textarea'; opts?: string[] };
 
@@ -274,6 +274,33 @@ export default function BuilderEditor() {
   const postPreview = useCallback(() => {
     previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', ...stateRef.current }, '*');
   }, []);
+
+  // Insert an element dropped from the palette onto the live page, snapping it
+  // into the nearest container, with validation hints when placement is risky.
+  const dropOnPreview = useCallback((nodeType: NodeType, targetId: string | null) => {
+    const { doc: d, pageId: pid } = stateRef.current;
+    const pg = d.pages.find((p) => p.id === pid) ?? d.pages[0];
+    if (!pg) return;
+    const node = makeNode(nodeType);
+    const applyBlocks = (blocks: BuilderNode[]) =>
+      setDoc((prev) => ({ ...prev, pages: prev.pages.map((p) => (p.id === pg.id ? { ...p, blocks } : p)) }));
+    const target = targetId ? findNode(pg.blocks, targetId) : null;
+
+    if (nodeType === 'input' || nodeType === 'textarea') {
+      const anc = targetId ? ancestorTypes(pg.blocks, targetId) : [];
+      const insideForm = target?.type === 'form' || anc.includes('form');
+      if (!insideForm) setMsg('⚠ Поля ввода работают внутри «Формы». Добавьте блок «Форма» и перетащите поле в неё — иначе данные не отправятся.');
+    }
+    if (target) {
+      if (isContainer(target.type)) applyBlocks(insertChild(pg.blocks, target.id, node));
+      else applyBlocks(insertAfter(pg.blocks, target.id, node));
+    } else {
+      applyBlocks([...pg.blocks, node]);
+      if (nodeType !== 'section') setMsg('💡 Совет: на верхнем уровне лучше сначала добавить «Секцию», а элементы помещать внутрь неё.');
+    }
+    setSelectedId(node.id);
+    setTab('blocks');
+  }, []);
   // Push live state to the preview on every change — instant, no save needed.
   useEffect(() => {
     postPreview();
@@ -285,11 +312,13 @@ export default function BuilderEditor() {
       else if (e.data.type === 'select' && e.data.id) {
         setSelectedId(e.data.id as string);
         setTab('blocks');
+      } else if (e.data.type === 'drop' && e.data.nodeType) {
+        dropOnPreview(e.data.nodeType as NodeType, (e.data.targetId as string | null) ?? null);
       }
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
-  }, [postPreview]);
+  }, [postPreview, dropOnPreview]);
 
   const page: BuilderPage | undefined = useMemo(
     () => doc.pages.find((p) => p.id === pageId) ?? doc.pages[0],
@@ -585,7 +614,7 @@ export default function BuilderEditor() {
             <p className="mb-2 text-xs text-muted-foreground">{selected && isContainer(selected.type) ? `Клик — внутрь: ${NODE_LABELS[selected.type]}` : 'Клик — в конец страницы'} · или перетащите на блок</p>
             <div className="grid grid-cols-2 gap-1.5">
               {PALETTE.map((t) => (
-                <Button key={t} size="sm" variant="outline" draggable onDragStart={() => { paletteDrag.current = t; }} className="cursor-grab justify-start gap-1 text-xs active:cursor-grabbing" onClick={() => addNode(t)}>
+                <Button key={t} size="sm" variant="outline" draggable onDragStart={(e) => { paletteDrag.current = t; e.dataTransfer.setData('text/builder-type', t); e.dataTransfer.effectAllowed = 'copy'; }} className="cursor-grab justify-start gap-1 text-xs active:cursor-grabbing" onClick={() => addNode(t)}>
                   <Plus className="h-3.5 w-3.5" /> {NODE_LABELS[t]}
                 </Button>
               ))}
@@ -646,15 +675,30 @@ export default function BuilderEditor() {
                   <div key={g.title} className="border-t border-border/60 pt-2.5">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.title}</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {g.fields.map((f) => (
-                        <div key={f.k}>
-                          <label className="mb-1 block text-[11px] font-medium text-muted-foreground">{f.label}</label>
-                          <Select value={selected.props[f.k] || '—'} onValueChange={(v) => patch(selected.id, { [f.k]: v === '—' ? '' : v })}>
-                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                            <SelectContent>{f.opts!.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                      ))}
+                      {g.fields.map((f) => {
+                        const isColor = f.k === 'textColor' || f.k === 'bgColor' || f.k === 'borderColor';
+                        const val = selected.props[f.k];
+                        return (
+                          <div key={f.k}>
+                            <label className="mb-1 block text-[11px] font-medium text-muted-foreground">{f.label}</label>
+                            <div className="flex gap-1">
+                              <Select value={val && !val.startsWith('#') ? val : '—'} onValueChange={(v) => patch(selected.id, { [f.k]: v === '—' ? '' : v })}>
+                                <SelectTrigger className="h-8 min-w-0 flex-1"><SelectValue placeholder={val?.startsWith('#') ? 'свой' : undefined} /></SelectTrigger>
+                                <SelectContent>{f.opts!.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                              </Select>
+                              {isColor && (
+                                <input
+                                  type="color"
+                                  value={val?.startsWith('#') ? val : '#000000'}
+                                  onChange={(e) => patch(selected.id, { [f.k]: e.target.value })}
+                                  title="Выбрать свой цвет"
+                                  className="h-8 w-8 shrink-0 cursor-pointer rounded-md border border-border bg-transparent p-0.5"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}

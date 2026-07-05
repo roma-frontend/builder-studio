@@ -5,6 +5,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { BuilderForm } from './builder-form';
 import { Accordion, Tabs } from './interactive';
 import type { BuilderNode } from '@/lib/builder/types';
+import { isContainer } from '@/lib/builder/types';
 
 // Parses "Title::Body" (one per line) into [title, body] pairs.
 const parsePairs = (s: string | undefined): [string, string][] =>
@@ -98,17 +99,18 @@ const RADIUS_VAL: Record<string, string> = { none: '0', sm: '0.375rem', lg: '0.7
 
 function surfaceStyle(p: Record<string, string>): CSSProperties {
   const s: CSSProperties = {};
-  if (p.textColor && COLOR_VAR[p.textColor]) s.color = COLOR_VAR[p.textColor];
+  if (p.textColor) s.color = p.textColor.startsWith('#') ? p.textColor : COLOR_VAR[p.textColor];
   if (p.fontWeight && WEIGHT_VAL[p.fontWeight]) s.fontWeight = WEIGHT_VAL[p.fontWeight];
-  if (p.fontSize && SIZE_VAL[p.fontSize]) s.fontSize = SIZE_VAL[p.fontSize];
+  if (p.fontSize) s.fontSize = SIZE_VAL[p.fontSize] ?? p.fontSize; // accept custom "20px"/"1.2rem"
   if (p.letterSpacing && LETTER[p.letterSpacing]) s.letterSpacing = LETTER[p.letterSpacing];
   if (p.lineHeight && LEADING[p.lineHeight]) s.lineHeight = LEADING[p.lineHeight];
   if (p.opacity && OPACITY[p.opacity] != null) s.opacity = OPACITY[p.opacity];
-  if (p.bgColor && BG_VAR[p.bgColor]) s.background = BG_VAR[p.bgColor];
+  if (p.bgColor) s.background = p.bgColor.startsWith('#') ? p.bgColor : BG_VAR[p.bgColor];
   if (p.borderWidth && p.borderWidth !== '0' && BORDER_W[p.borderWidth]) {
     s.borderStyle = 'solid';
     s.borderWidth = BORDER_W[p.borderWidth];
-    s.borderColor = BORDER_COLOR_VAR[p.borderColor || 'border'] || 'var(--border)';
+    const bc = p.borderColor || 'border';
+    s.borderColor = bc.startsWith('#') ? bc : BORDER_COLOR_VAR[bc] || 'var(--border)';
   }
   if (p.radius && RADIUS_VAL[p.radius] != null) s.borderRadius = RADIUS_VAL[p.radius];
   return s;
@@ -147,10 +149,11 @@ export function RenderNode({ node }: { node: BuilderNode }) {
   const p = node.props ?? {};
   const elProps = el.props as { className?: string; style?: CSSProperties };
   const self = SELF_STYLED.has(node.type);
-  const merged: { 'data-nid': string; className: string; style?: CSSProperties } = {
+  const merged: { 'data-nid': string; 'data-container'?: string; className: string; style?: CSSProperties } = {
     'data-nid': node.id,
     className: cn(elProps.className, motionClass(p), self ? '' : surfaceClass(p)),
   };
+  if (isContainer(node.type)) merged['data-container'] = '1';
   if (!self) {
     const st = surfaceStyle(p);
     if (Object.keys(st).length) merged.style = { ...(elProps.style ?? {}), ...st };
