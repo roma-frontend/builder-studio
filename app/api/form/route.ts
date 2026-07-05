@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSiteBySlug, getSiteByHostname, addSubmission, APP_HOST } from '@/lib/sites';
+import { getSiteUser } from '@/lib/site-auth';
 
 export const runtime = 'nodejs';
 
@@ -57,7 +58,10 @@ export async function POST(request: Request) {
   if (json.length > 32_000) return NextResponse.json({ error: 'Слишком большая форма.' }, { status: 400 });
 
   try {
-    addSubmission(resolveSiteId(request), formId, payload);
+    const siteId = resolveSiteId(request);
+    // Attach the logged-in end-user (if any) so it shows up in their account history.
+    const siteUserId = siteId ? (await getSiteUser(siteId))?.id ?? null : null;
+    addSubmission(siteId, formId, payload, siteUserId);
   } catch {
     // Non-fatal: still acknowledge so the visitor-facing UX succeeds.
   }

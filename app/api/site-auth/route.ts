@@ -1,39 +1,69 @@
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { getDb, sites } from '@/lib/db';
+import { getDb, sites, type SiteUser } from '@/lib/db';
 import {
   createSiteUser,
   verifySiteCredentials,
   createSiteSession,
   destroySiteSession,
   getSiteUser,
+  siteRequestMeta,
+  updateSiteProfile,
+  changeSitePassword,
+  listSiteSessions,
+  revokeSiteSession,
+  revokeOtherSiteSessions,
+  deleteSiteUser,
+  listSiteUserSubmissions,
 } from '@/lib/site-auth';
 
 export const runtime = 'nodejs';
 
-// Public per-tenant end-user auth. Every call is scoped to a concrete site id.
-// Completely separate from the platform auth in /api/auth (different cookie).
+// Public per-tenant end-user auth + account self-service. Every call is scoped
+// to a concrete site id and, for account actions, to the authenticated user of
+// THAT site. Completely separate from the platform auth in /api/auth.
 
 const siteExists = (siteId: string) => Boolean(getDb().select({ id: sites.id }).from(sites).where(eq(sites.id, siteId)).get());
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-const pub = (u: { id: string; email: string; name: string }) => ({ id: u.id, email: u.email, name: u.name });
+
+/** Public projection of a site user — never leaks the password hash. */
+const pub = (u: SiteUser) => ({
+  id: u.id,
+  email: u.email,
+  name: u.name,
+  phone: u.phone,
+  avatarColor: u.avatarColor,
+  emailNotify: u.emailNotify,
+  marketing: u.marketing,
+  locale: u.locale,
+  createdAt: u.createdAt,
+  lastLoginAt: u.lastLoginAt,
+});
 
 export async function GET(request: Request) {
-  const siteId = new URL(request.url).searchParams.get('site') ?? '';
+  const url = new URL(request.url);
+  const siteId = url.searchParams.get('site') ?? '';
+  const resource = url.searchParams.get('resource') ?? 'profile';
   if (!siteId) return NextResponse.json({ user: null });
   const user = await getSiteUser(siteId);
-  return NextResponse.json({ user: user ? pub(user) : null });
+  if (resource === 'profile') return NextResponse.json({ user: user ? pub(user) : null });
+  if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
+  if (resource === 'sessions') return NextResponse.json({ sessions: await listSiteSessions(siteId, user.id) });
+  if (resource === 'submissions') return NextResponse.json({ submissions: listSiteUserSubmissions(siteId, user.id, user.email) });
+  return NextResponse.json({ error: 'Неизвестный ресурс' }, { status: 400 });
 }
 
 export async function POST(request: Request) {
-  let body: { action?: string; siteId?: string; email?: string; password?: string; name?: string };
+  let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Некорректный запрос' }, { status: 400 });
   }
-  const { action } = body;
-  const siteId = (body.siteId ?? '').trim();
+  const action = typeof body.action === 'string' ? body.action : '';
+  const siteId = (typeof body.siteId === 'string' ? body.siteId : '').trim();
+  const str = (k: string) => (typeof body[k] === 'string' ? (body[k] as string) : '');
+  const bool = (k: string) => (typeof body[k] === 'boolean' ? (body[k] as boolean) : undefined);
 
   if (action === 'logout') {
     await destroySiteSession();
@@ -41,15 +71,16 @@ export async function POST(request: Request) {
   }
 
   if (!siteId || !siteExists(siteId)) return NextResponse.json({ error: 'Сайт не найден' }, { status: 404 });
-  const email = (body.email ?? '').trim();
-  const password = body.password ?? '';
 
+  // ── Unauthenticated actions ───────────────────────────────────────────
   if (action === 'register') {
+    const email = str('email').trim();
+    const password = str('password');
     if (!emailOk(email)) return NextResponse.json({ error: 'Введите корректный email' }, { status: 400 });
     if (password.length < 6) return NextResponse.json({ error: 'Пароль должен быть не короче 6 символов' }, { status: 400 });
     try {
-      const user = createSiteUser(siteId, email, password, body.name ?? '');
-      await createSiteSession(user.id, siteId);
+      const user = createSiteUser(siteId, email, password, str('name'));
+      await createSiteSession(user.id, siteId, siteRequestMeta(request));
       return NextResponse.json({ ok: true, user: pub(user) });
     } catch (e) {
       if (e instanceof Error && e.message === 'EMAIL_TAKEN') {
@@ -60,10 +91,56 @@ export async function POST(request: Request) {
   }
 
   if (action === 'login') {
-    const user = verifySiteCredentials(siteId, email, password);
+    const user = verifySiteCredentials(siteId, str('email').trim(), str('password'));
     if (!user) return NextResponse.json({ error: 'Неверный email или пароль' }, { status: 401 });
-    await createSiteSession(user.id, siteId);
+    await createSiteSession(user.id, siteId, siteRequestMeta(request));
     return NextResponse.json({ ok: true, user: pub(user) });
+  }
+
+  // ── Authenticated account actions ─────────────────────────────────────
+  const me = await getSiteUser(siteId);
+  if (!me) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
+
+  if (action === 'update-profile') {
+    const updated = updateSiteProfile(siteId, me.id, {
+      name: typeof body.name === 'string' ? (body.name as string) : undefined,
+      phone: typeof body.phone === 'string' ? (body.phone as string) : undefined,
+      avatarColor: typeof body.avatarColor === 'string' ? (body.avatarColor as string) : undefined,
+      emailNotify: bool('emailNotify'),
+      marketing: bool('marketing'),
+      locale: typeof body.locale === 'string' ? (body.locale as string) : undefined,
+    });
+    return NextResponse.json({ ok: true, user: updated ? pub(updated) : null });
+  }
+
+  if (action === 'change-password') {
+    const current = str('currentPassword');
+    const next = str('newPassword');
+    if (next.length < 6) return NextResponse.json({ error: 'Новый пароль должен быть не короче 6 символов' }, { status: 400 });
+    try {
+      changeSitePassword(siteId, me.id, current, next);
+      return NextResponse.json({ ok: true });
+    } catch (e) {
+      if (e instanceof Error && e.message === 'WRONG_PASSWORD') {
+        return NextResponse.json({ error: 'Текущий пароль неверный' }, { status: 403 });
+      }
+      return NextResponse.json({ error: 'Не удалось изменить пароль' }, { status: 500 });
+    }
+  }
+
+  if (action === 'revoke-session') {
+    revokeSiteSession(siteId, me.id, str('sessionId'));
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === 'revoke-others') {
+    await revokeOtherSiteSessions(siteId, me.id);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === 'delete-account') {
+    await deleteSiteUser(siteId, me.id);
+    return NextResponse.json({ ok: true });
   }
 
   return NextResponse.json({ error: 'Неизвестное действие' }, { status: 400 });

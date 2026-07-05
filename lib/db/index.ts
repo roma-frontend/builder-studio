@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL DEFAULT '',
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'customer',
+  is_active INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);
@@ -26,7 +27,10 @@ CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   expires_at INTEGER NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  last_active_at INTEGER,
+  user_agent TEXT NOT NULL DEFAULT '',
+  ip TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
 
@@ -57,6 +61,7 @@ CREATE INDEX IF NOT EXISTS domains_site_idx ON domains (site_id);
 CREATE TABLE IF NOT EXISTS submissions (
   id TEXT PRIMARY KEY,
   site_id TEXT REFERENCES sites(id) ON DELETE CASCADE,
+  site_user_id TEXT REFERENCES site_users(id) ON DELETE SET NULL,
   form_id TEXT NOT NULL DEFAULT 'contact',
   data TEXT NOT NULL,
   created_at INTEGER NOT NULL
@@ -80,7 +85,14 @@ CREATE TABLE IF NOT EXISTS site_users (
   email TEXT NOT NULL,
   name TEXT NOT NULL DEFAULT '',
   password_hash TEXT NOT NULL,
-  created_at INTEGER NOT NULL
+  phone TEXT NOT NULL DEFAULT '',
+  avatar_color TEXT NOT NULL DEFAULT '',
+  email_notify INTEGER NOT NULL DEFAULT 1,
+  marketing INTEGER NOT NULL DEFAULT 0,
+  locale TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER,
+  last_login_at INTEGER
 );
 CREATE UNIQUE INDEX IF NOT EXISTS site_users_site_email_idx ON site_users (site_id, email);
 CREATE INDEX IF NOT EXISTS site_users_site_idx ON site_users (site_id);
@@ -90,7 +102,10 @@ CREATE TABLE IF NOT EXISTS site_sessions (
   site_user_id TEXT NOT NULL REFERENCES site_users(id) ON DELETE CASCADE,
   site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
   expires_at INTEGER NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  last_active_at INTEGER,
+  user_agent TEXT NOT NULL DEFAULT '',
+  ip TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS site_sessions_user_idx ON site_sessions (site_user_id);
 CREATE INDEX IF NOT EXISTS site_sessions_site_idx ON site_sessions (site_id);
@@ -109,10 +124,27 @@ function createDb(): DB {
   sqlite.pragma('busy_timeout = 5000');
   sqlite.exec(MIGRATIONS);
   // Idempotent column additions for databases created before a column existed.
-  const userCols = sqlite.prepare(`PRAGMA table_info(users)`).all() as { name: string }[];
-  if (!userCols.some((c) => c.name === 'role')) {
-    sqlite.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'customer'`);
-  }
+  const addColumn = (table: string, column: string, ddl: string) => {
+    const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === column)) sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  };
+  addColumn('users', 'role', `role TEXT NOT NULL DEFAULT 'customer'`);
+  addColumn('users', 'is_active', `is_active INTEGER NOT NULL DEFAULT 1`);
+  addColumn('sessions', 'last_active_at', `last_active_at INTEGER`);
+  addColumn('sessions', 'user_agent', `user_agent TEXT NOT NULL DEFAULT ''`);
+  addColumn('sessions', 'ip', `ip TEXT NOT NULL DEFAULT ''`);
+  // Per-tenant end-user account fields (added after the initial site_users release).
+  addColumn('site_users', 'phone', `phone TEXT NOT NULL DEFAULT ''`);
+  addColumn('site_users', 'avatar_color', `avatar_color TEXT NOT NULL DEFAULT ''`);
+  addColumn('site_users', 'email_notify', `email_notify INTEGER NOT NULL DEFAULT 1`);
+  addColumn('site_users', 'marketing', `marketing INTEGER NOT NULL DEFAULT 0`);
+  addColumn('site_users', 'locale', `locale TEXT NOT NULL DEFAULT ''`);
+  addColumn('site_users', 'updated_at', `updated_at INTEGER`);
+  addColumn('site_users', 'last_login_at', `last_login_at INTEGER`);
+  addColumn('site_sessions', 'last_active_at', `last_active_at INTEGER`);
+  addColumn('site_sessions', 'user_agent', `user_agent TEXT NOT NULL DEFAULT ''`);
+  addColumn('site_sessions', 'ip', `ip TEXT NOT NULL DEFAULT ''`);
+  addColumn('submissions', 'site_user_id', `site_user_id TEXT`);
   return drizzle(sqlite, { schema });
 }
 

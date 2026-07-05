@@ -12,6 +12,7 @@ import { Mail, Lock, User, Loader2, Eye, EyeOff, ArrowRight, ArrowLeft, Check, S
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EMAIL_RE, iconCls, passwordScore, StrengthMeter, Stepper, Shell, Brand } from '@/components/auth/auth-ui';
+import { SiteAccount } from '@/components/builder/site-account';
 
 type Props = { siteId: string; base: string; brand: string; mode: 'login' | 'register' | 'account' };
 
@@ -207,40 +208,7 @@ function RegisterWizard({ siteId, base, brand }: Omit<Props, 'mode'>) {
 }
 
 function AccountView({ siteId, base, brand }: Omit<Props, 'mode'>) {
-  const router = useRouter();
-  const [user, setUser] = useState<{ email: string; name: string } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}`).then((r) => r.json()).then((d) => setUser(d.user ?? null)).catch(() => {}).finally(() => setLoading(false));
-  }, [siteId]);
-
-  const logout = async () => { setBusy(true); await siteAuth('logout', { siteId }); router.push(`${base}/login`); router.refresh(); };
-
-  return (
-    <Shell>
-      <Brand title="Личный кабинет" subtitle={brand} href={base || '/'} label={brand} icon={Store} />
-      {loading ? (
-        <div className="py-6 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>
-      ) : !user ? (
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground">Вы не вошли.</p>
-          <Link href={`${base}/login`} className="mt-3 inline-block font-medium text-primary hover:underline">Войти</Link>
-        </div>
-      ) : (
-        <>
-          <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
-            {user.name && <div className="flex items-center justify-between gap-2 py-1"><span className="text-muted-foreground">Имя</span><span className="truncate font-medium">{user.name}</span></div>}
-            <div className="flex items-center justify-between gap-2 py-1"><span className="text-muted-foreground">Email</span><span className="truncate font-medium">{user.email}</span></div>
-          </div>
-          <Button onClick={logout} disabled={busy} size="lg" variant="outline" className="mt-4 w-full gap-2">
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Выйти
-          </Button>
-        </>
-      )}
-    </Shell>
-  );
+  return <SiteAccount siteId={siteId} base={base} brand={brand} />;
 }
 
 export function SiteAuthClient({ siteId, base, brand, mode }: Props) {

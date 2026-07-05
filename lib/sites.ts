@@ -177,10 +177,10 @@ export function setDomainVerified(domainId: string, verified: boolean): void {
 
 // ---- submissions ----
 
-export function addSubmission(siteId: string | null, formId: string, data: Record<string, unknown>): void {
+export function addSubmission(siteId: string | null, formId: string, data: Record<string, unknown>, siteUserId: string | null = null): void {
   getDb()
     .insert(submissions)
-    .values({ id: newId('f'), siteId, formId, data: JSON.stringify(data), createdAt: new Date() })
+    .values({ id: newId('f'), siteId, siteUserId, formId, data: JSON.stringify(data), createdAt: new Date() })
     .run();
 }
 

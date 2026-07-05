@@ -14,6 +14,8 @@ export const users = sqliteTable(
     passwordHash: text('password_hash').notNull(),
     /** Access role: 'customer' (default) | 'admin' | 'superadmin'. */
     role: text('role').notNull().default('customer'),
+    /** Suspend switch: a blocked user cannot log in and all their sessions stop validating. */
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [uniqueIndex('users_email_idx').on(t.email)],
@@ -29,6 +31,11 @@ export const sessions = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    /** Presence heartbeat: bumped (throttled) on every validated request. */
+    lastActiveAt: integer('last_active_at', { mode: 'timestamp_ms' }),
+    /** Device fingerprint source captured at login. */
+    userAgent: text('user_agent').notNull().default(''),
+    ip: text('ip').notNull().default(''),
   },
   (t) => [index('sessions_user_idx').on(t.userId)],
 );
@@ -87,7 +94,19 @@ export const siteUsers = sqliteTable(
     email: text('email').notNull(),
     name: text('name').notNull().default(''),
     passwordHash: text('password_hash').notNull(),
+    /** Optional contact phone the customer can add in their account. */
+    phone: text('phone').notNull().default(''),
+    /** Avatar accent color (hex/oklch string); initials are derived from the name. */
+    avatarColor: text('avatar_color').notNull().default(''),
+    /** Transactional email opt-in (default on). */
+    emailNotify: integer('email_notify', { mode: 'boolean' }).notNull().default(true),
+    /** Marketing/newsletter opt-in (default off). */
+    marketing: integer('marketing', { mode: 'boolean' }).notNull().default(false),
+    /** Preferred UI language, e.g. 'ru' | 'en' ('' = site default). */
+    locale: text('locale').notNull().default(''),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+    lastLoginAt: integer('last_login_at', { mode: 'timestamp_ms' }),
   },
   (t) => [uniqueIndex('site_users_site_email_idx').on(t.siteId, t.email), index('site_users_site_idx').on(t.siteId)],
 );
@@ -106,6 +125,11 @@ export const siteSessions = sqliteTable(
       .references(() => sites.id, { onDelete: 'cascade' }),
     expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    /** Presence heartbeat: bumped (throttled) on every validated request. */
+    lastActiveAt: integer('last_active_at', { mode: 'timestamp_ms' }),
+    /** Device fingerprint source captured at login (for the sessions list). */
+    userAgent: text('user_agent').notNull().default(''),
+    ip: text('ip').notNull().default(''),
   },
   (t) => [index('site_sessions_user_idx').on(t.siteUserId), index('site_sessions_site_idx').on(t.siteId)],
 );
@@ -118,6 +142,8 @@ export const submissions = sqliteTable(
     id: text('id').primaryKey(),
     /** Nullable: submissions from the legacy /site preview have no tenant. */
     siteId: text('site_id').references(() => sites.id, { onDelete: 'cascade' }),
+    /** Set when a logged-in site end-user submitted the form (for their account history). */
+    siteUserId: text('site_user_id').references(() => siteUsers.id, { onDelete: 'set null' }),
     formId: text('form_id').notNull().default('contact'),
     /** Submitted fields as JSON. */
     data: text('data').notNull(),
