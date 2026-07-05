@@ -17,6 +17,12 @@ export function SiteHeader() {
           <Link href="/themes">
             <Button variant="ghost" size="sm">Темы</Button>
           </Link>
+          <Link href="/site">
+            <Button variant="ghost" size="sm">Сайт</Button>
+          </Link>
+          <Link href="/studio/builder">
+            <Button variant="ghost" size="sm">Конструктор</Button>
+          </Link>
           <Link href="/presets">
             <Button variant="ghost" size="sm">Пресеты</Button>
           </Link>

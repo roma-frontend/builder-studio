@@ -426,6 +426,9 @@ export default function StudioPage() {
           </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <Link href="/studio/builder">
+              <Button size="sm" className="gap-1.5"><LayoutList className="h-4 w-4" /> Конструктор сайта</Button>
+            </Link>
             <Link href="/">
               <Button size="sm" variant="outline" className="gap-1.5">На главную <ArrowRight className="h-4 w-4" /></Button>
             </Link>
