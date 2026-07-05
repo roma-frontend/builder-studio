@@ -455,6 +455,93 @@ const contactSection = (): BuilderNode =>
     ]),
   ]);
 
+const heroGradient = (): BuilderNode => heroCenter('Заголовок на градиенте', 'Яркий hero с плавным градиентным фоном.', 'Начать', 'Подробнее', 'gradient');
+
+const heroVideo = (): BuilderNode =>
+  mk('section', { padding: 'lg', bg: 'none', width: 'normal', bgVideo: '' }, [
+    mk('stack', { gap: 'md', align: 'center' }, [
+      mk('heading', { text: 'Заголовок поверх видео', level: '1', align: 'center', animate: 'slide-up' }),
+      mk('text', { text: 'Добавьте URL фонового видео (.mp4) в свойствах секции.', align: 'center', size: 'lg' }),
+      mk('button', { text: 'Смотреть', href: '/site/contact', variant: 'default', size: 'lg', align: 'center', type: 'link', hover: 'lift' }),
+    ]),
+  ]);
+
+const heroForm = (): BuilderNode =>
+  mk('section', { padding: 'lg', bg: 'none', width: 'wide' }, [
+    mk('grid', { gap: 'lg', columns: '2' }, [
+      mk('stack', { gap: 'md', align: 'start' }, [
+        mk('heading', { text: 'Оставьте заявку — перезвоним', level: '1', align: 'left', animate: 'slide-up' }),
+        mk('text', { text: 'Заполните форму, и мы свяжемся с вами в течение часа.', align: 'left', muted: 'true', size: 'lg' }),
+        mk('list', { items: 'Бесплатная консультация\nИндивидуальное предложение\nБез спама', listVariant: 'check' }),
+      ]),
+      mk('card', { cardVariant: 'elevated', padding: 'lg', gap: 'sm' }, [
+        mk('form', { formId: 'lead', submitText: 'Отправить заявку', successMsg: 'Спасибо! Скоро свяжемся.' }, [
+          mk('input', { name: 'name', label: 'Имя', placeholder: 'Ваше имя', type: 'text' }),
+          mk('input', { name: 'phone', label: 'Телефон', placeholder: '+7…', type: 'tel' }),
+        ]),
+      ]),
+    ]),
+  ]);
+
+const logosSection = (): BuilderNode =>
+  mk('section', { padding: 'md', bg: 'muted', width: 'wide' }, [
+    mk('text', { text: 'Нам доверяют', align: 'center', muted: 'true' }),
+    mk('spacer', { height: 'sm' }),
+    mk('grid', { gap: 'md', columns: '4' }, ['LOGO', 'BRAND', 'ACME', 'NOVA'].map((n) =>
+      mk('card', { cardVariant: 'soft', padding: 'md', gap: 'none' }, [mk('heading', { text: n, level: '3', align: 'center', textColor: 'muted' })]),
+    )),
+  ]);
+
+const stepsSection = (): BuilderNode =>
+  mk('section', { padding: 'lg', bg: 'none', width: 'wide' }, [
+    mk('heading', { text: 'Как это работает', level: '2', align: 'center' }),
+    mk('spacer', { height: 'md' }),
+    mk('grid', { gap: 'md', columns: '3' }, ([
+      ['01', 'Оставьте заявку', 'Заполните короткую форму на сайте.'],
+      ['02', 'Обсудим детали', 'Свяжемся и уточним ваши задачи.'],
+      ['03', 'Запускаем', 'Приступаем к работе и показываем результат.'],
+    ] as [string, string, string][]).map(([n, h, t]) =>
+      mk('card', { cardVariant: 'outline', padding: 'md', gap: 'sm', animate: 'slide-up' }, [
+        mk('heading', { text: n, level: '1', align: 'left', textColor: 'primary' }),
+        mk('heading', { text: h, level: '3', align: 'left' }),
+        mk('text', { text: t, align: 'left', muted: 'true' }),
+      ]),
+    )),
+  ]);
+
+const teamSection = (): BuilderNode =>
+  mk('section', { padding: 'lg', bg: 'none', width: 'wide' }, [
+    mk('heading', { text: 'Наша команда', level: '2', align: 'center' }),
+    mk('spacer', { height: 'md' }),
+    mk('grid', { gap: 'md', columns: '3' }, ([
+      ['Иван Смирнов', 'Основатель'],
+      ['Мария Кузнецова', 'Дизайн'],
+      ['Пётр Волков', 'Разработка'],
+    ] as [string, string][]).map(([name, role]) =>
+      mk('card', { cardVariant: 'plain', padding: 'sm', gap: 'sm', animate: 'fade' }, [
+        mk('image', { src: '', alt: name, rounded: 'full', ratio: '1/1' }),
+        mk('heading', { text: name, level: '3', align: 'center' }),
+        mk('text', { text: role, align: 'center', muted: 'true' }),
+      ]),
+    )),
+  ]);
+
+const timelineSection = (): BuilderNode =>
+  mk('section', { padding: 'lg', bg: 'muted', width: 'normal' }, [
+    mk('heading', { text: 'Наш путь', level: '2', align: 'left' }),
+    mk('spacer', { height: 'md' }),
+    mk('stack', { gap: 'md', align: 'stretch' }, ([
+      ['2021', 'Запуск проекта и первая версия продукта.'],
+      ['2023', 'Тысячи пользователей и новые возможности.'],
+      ['2025', 'Лидеры рынка и международная команда.'],
+    ] as [string, string][]).map(([year, text]) =>
+      mk('row', { gap: 'md', align: 'start', justify: 'start', wrap: 'nowrap' }, [
+        mk('heading', { text: year, level: '3', align: 'left', textColor: 'primary' }),
+        mk('text', { text, align: 'left', muted: 'true' }),
+      ]),
+    )),
+  ]);
+
 export interface SectionPreset {
   id: string;
   label: string;
@@ -465,6 +552,13 @@ export const SECTION_PRESETS: SectionPreset[] = [
   { id: 'hero-center', label: 'Hero · по центру', build: () => heroCenter('Заголовок по центру', 'Короткое описание вашего предложения.', 'Начать', 'Подробнее', 'primary') },
   { id: 'hero-split', label: 'Hero · сплит', build: heroSplit },
   { id: 'hero-image', label: 'Hero · с картинкой', build: heroImage },
+  { id: 'hero-gradient', label: 'Hero · градиент', build: heroGradient },
+  { id: 'hero-video', label: 'Hero · фон-видео', build: heroVideo },
+  { id: 'hero-form', label: 'Hero · с формой', build: heroForm },
+  { id: 'logos', label: 'Логотипы клиентов', build: logosSection },
+  { id: 'steps', label: 'Шаги / процесс', build: stepsSection },
+  { id: 'team', label: 'Команда', build: teamSection },
+  { id: 'timeline', label: 'Таймлайн', build: timelineSection },
   { id: 'features', label: 'Преимущества (3)', build: () => featureGrid('Возможности', '3', [['Быстро', 'Молниеносный запуск.'], ['Гибко', 'Собирайте из блоков.'], ['Надёжно', 'Данные под защитой.']]) },
   { id: 'stats', label: 'Статистика', build: () => statsRow([['10K+', 'клиентов'], ['99.9%', 'аптайм'], ['4.9★', 'рейтинг']]) },
   { id: 'pricing', label: 'Тарифы', build: () => pricingSection('none') },

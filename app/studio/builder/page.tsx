@@ -27,8 +27,10 @@ type Field = { k: string; label: string; kind?: 'text' | 'textarea'; opts?: stri
 const FIELDS: Record<NodeType, Field[]> = {
   section: [
     { k: 'padding', label: 'Отступы', opts: ['none', 'sm', 'md', 'lg'] },
-    { k: 'bg', label: 'Фон', opts: ['none', 'muted', 'card', 'primary'] },
+    { k: 'bg', label: 'Фон', opts: ['none', 'muted', 'card', 'primary', 'gradient'] },
     { k: 'width', label: 'Ширина', opts: ['narrow', 'normal', 'wide'] },
+    { k: 'bgImage', label: 'Фоновая картинка (URL)' },
+    { k: 'bgVideo', label: 'Фоновое видео (URL .mp4)' },
   ],
   stack: [
     { k: 'gap', label: 'Промежуток', opts: ['none', 'sm', 'md', 'lg'] },

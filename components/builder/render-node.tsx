@@ -166,16 +166,30 @@ function renderInner(node: BuilderNode) {
   const kids = node.children ?? [];
 
   switch (node.type) {
-    case 'section':
+    case 'section': {
+      const gradient = p.bg === 'gradient';
+      const hasMedia = !!(p.bgImage || p.bgVideo);
+      const gradStyle = gradient
+        ? { backgroundImage: 'linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary) 45%, #000))', color: 'var(--primary-foreground)' }
+        : undefined;
       return (
-        <section className={cn(pick(PAD, p.padding, 'lg'), pick(BG, p.bg, 'none'))}>
-          <div className={cn('mx-auto w-full px-6', pick(WIDTH, p.width, 'wide'))}>
+        <section className={cn('relative overflow-hidden', pick(PAD, p.padding, 'lg'), gradient ? '' : pick(BG, p.bg, 'none'))} style={gradStyle}>
+          {p.bgVideo ? (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video className="absolute inset-0 h-full w-full object-cover" src={p.bgVideo} autoPlay muted loop playsInline />
+          ) : p.bgImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="absolute inset-0 h-full w-full object-cover" src={p.bgImage} alt="" />
+          ) : null}
+          {hasMedia && <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} />}
+          <div className={cn('relative z-10 mx-auto w-full px-6', pick(WIDTH, p.width, 'wide'), hasMedia && 'text-white')}>
             {kids.map((c) => (
               <RenderNode key={c.id} node={c} />
             ))}
           </div>
         </section>
       );
+    }
 
     case 'stack':
       return (
