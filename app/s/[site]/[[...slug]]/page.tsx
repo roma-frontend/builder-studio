@@ -4,8 +4,9 @@
 // (the studio preview iframe uses ?draft=1&edit=1).
 
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { getCurrentUser } from '@/lib/auth';
-import { getSiteBySlug, parseDoc, rebaseDoc } from '@/lib/sites';
+import { getSiteBySlug, parseDoc, rebaseDoc, APP_HOST } from '@/lib/sites';
 import { SiteRenderer, SiteAuthPage, AUTH_PATHS, findPageByPath } from '@/components/builder/site-renderer';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,17 @@ type Props = {
   params: Promise<{ site: string; slug?: string[] }>;
   searchParams: Promise<{ edit?: string; draft?: string }>;
 };
+
+// Links rebase to '' (site root) when the site is opened on its own subdomain
+// (<slug>.APP_HOST) or a custom domain — there the site lives at '/'. Only the
+// path-based /s/<slug> access on the main host uses the '/s/<slug>' base.
+async function linkBase(slug: string): Promise<string> {
+  const h = await headers();
+  const host = (h.get('x-forwarded-host') || h.get('host') || '').toLowerCase().split(':')[0];
+  const appHostname = APP_HOST.split(':')[0];
+  if (host && host !== appHostname && host !== `www.${appHostname}`) return ''; // subdomain / custom domain → root
+  return `/s/${slug}`;
+}
 
 async function resolve(siteSlug: string, wantDraft: boolean) {
   const site = getSiteBySlug(decodeURIComponent(siteSlug));
@@ -24,7 +36,8 @@ async function resolve(siteSlug: string, wantDraft: boolean) {
     if (user && user.id === site.userId) doc = parseDoc(site.draftDoc) ?? doc;
   }
   if (!doc) return null;
-  return { site, doc: { ...rebaseDoc(doc, `/s/${site.slug}`), siteId: site.id } };
+  const base = await linkBase(site.slug);
+  return { site, doc: { ...rebaseDoc(doc, base), siteId: site.id } };
 }
 
 export async function generateMetadata({ params, searchParams }: Props) {
