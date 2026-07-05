@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LazyVideo } from '@/components/media/lazy-video';
 import { planFromBrief, composePrompt, STYLE_PRESETS, NEGATIVE_PROMPT, type Section, type StyleId, type PlanItem } from '@/lib/prompt-composer';
+import { THEMES } from '@/lib/themes';
 import { Sparkles, Upload, Wand2, Clapperboard, Copy, Check, Loader2, ArrowRight, ListVideo, Terminal, Palette } from 'lucide-react';
 
 type Status = 'idle' | 'running' | 'done' | 'error';
@@ -101,6 +102,50 @@ export default function StudioPage() {
   // Batch — whole-page plan
   const [batch, setBatch] = useState<BatchItem[]>([]);
   const [batchRunning, setBatchRunning] = useState(false);
+
+  // Site theme
+  const [siteTheme, setSiteTheme] = useState<string>('auto');
+  const [themeMsg, setThemeMsg] = useState('');
+  const [themeBusy, setThemeBusy] = useState(false);
+
+  const suggestTheme = async () => {
+    setThemeBusy(true);
+    setThemeMsg('');
+    try {
+      const res = await fetch('/api/pick-theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brief }),
+      });
+      const data = await res.json();
+      if (data.themeId) {
+        setSiteTheme(data.themeId);
+        setThemeMsg(`Подобрано: ${data.label} (${data.via === 'llm' ? 'LLM' : 'по ключевым словам'})`);
+      }
+    } catch {
+      setThemeMsg('Не удалось подобрать');
+    } finally {
+      setThemeBusy(false);
+    }
+  };
+
+  const applyTheme = async () => {
+    setThemeBusy(true);
+    setThemeMsg('');
+    try {
+      const res = await fetch('/api/set-theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: siteTheme }),
+      });
+      const data = await res.json();
+      setThemeMsg(res.ok ? `Тема сайта сохранена: ${data.theme}` : data.error || 'Ошибка');
+    } catch {
+      setThemeMsg('Ошибка сохранения');
+    } finally {
+      setThemeBusy(false);
+    }
+  };
 
   // Live pipeline logs (streamed from /api/generate).
   const [logs, setLogs] = useState<LogLine[]>([]);
@@ -307,6 +352,31 @@ export default function StudioPage() {
                 </Button>
               </div>
             </div>
+          </Card>
+        </motion.section>
+
+        {/* Site theme */}
+        <motion.section {...fade} transition={{ ...fade.transition, delay: 0.08 }} className="mb-6">
+          <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
+            <Palette className="h-4 w-4 text-primary" /> Тема сайта
+          </label>
+          <Card className="flex flex-wrap items-center gap-2 p-3">
+            <Select value={siteTheme} onValueChange={setSiteTheme}>
+              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Авто (по контенту)</SelectItem>
+                {THEMES.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline" onClick={suggestTheme} disabled={themeBusy || !brief.trim()} className="gap-1.5">
+              <Wand2 className="h-4 w-4" /> Подобрать по брифу
+            </Button>
+            <Button size="sm" onClick={applyTheme} disabled={themeBusy} className="gap-1.5">
+              {themeBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Применить к сайту
+            </Button>
+            {themeMsg && <span className="text-xs text-muted-foreground">{themeMsg}</span>}
           </Card>
         </motion.section>
 

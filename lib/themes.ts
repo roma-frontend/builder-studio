@@ -8,10 +8,13 @@
 
 export type DisplayFont = 'serif' | 'grotesk' | 'sans';
 export type Motion = 'soft' | 'snappy' | 'dramatic';
+export type LayoutBlock = 'hero' | 'split' | 'cards' | 'mosaic' | 'sticky' | 'background';
 
 export interface Theme {
   id: string;
   label: string;
+  /** Ordered section composition for this theme's page layout. */
+  layout: LayoutBlock[];
   /** Lowercase keywords (ru + en) that route a brief to this theme. */
   keywords: string[];
   /** CSS custom-property values (inside of `oklch(...)`) per color scheme. */
@@ -40,6 +43,7 @@ export const THEMES: Theme[] = [
   {
     id: 'modern-clean',
     label: 'Modern Clean',
+    layout: ['hero', 'cards', 'sticky', 'background'],
     keywords: [],
     radius: '0.75rem',
     fontDisplay: 'sans',
@@ -74,6 +78,7 @@ export const THEMES: Theme[] = [
   {
     id: 'editorial-coffee',
     label: 'Editorial Coffee',
+    layout: ['hero', 'cards', 'background', 'sticky'],
     keywords: ['кофе', 'эспрессо', 'латте', 'капучино', 'зёрна', 'зерна', 'обжарка', 'бариста', 'пекарн', 'выпечк', 'десерт', 'ресторан', 'кафе', 'чай', 'вино', 'еда', 'coffee', 'espresso', 'latte', 'cappuccino', 'beans', 'roast', 'barista', 'bakery', 'dessert', 'restaurant', 'cafe', 'tea', 'wine', 'food'],
     radius: '0.625rem',
     fontDisplay: 'serif',
@@ -108,6 +113,7 @@ export const THEMES: Theme[] = [
   {
     id: 'sport-dynamic',
     label: 'Sport Dynamic',
+    layout: ['hero', 'mosaic', 'cards', 'sticky'],
     keywords: ['матч', 'футбол', 'спорт', 'гол', 'чемпион', 'лига', 'турнир', 'стадион', 'команда', 'фитнес', 'зал', 'гонк', 'бег', 'баскетбол', 'хоккей', 'sport', 'football', 'soccer', 'match', 'goal', 'league', 'tournament', 'stadium', 'team', 'fitness', 'gym', 'race', 'running', 'basketball', 'hockey', 'esports'],
     radius: '0.25rem',
     fontDisplay: 'grotesk',
@@ -142,6 +148,7 @@ export const THEMES: Theme[] = [
   {
     id: 'tech-saas',
     label: 'Tech SaaS',
+    layout: ['split', 'cards', 'sticky', 'background'],
     keywords: ['saas', 'стартап', 'startup', 'приложение', 'app', 'платформа', 'platform', 'технолог', 'tech', 'ai', 'ии', 'нейросет', 'dashboard', 'аналитик', 'crypto', 'крипто', 'финтех', 'fintech', 'облак', 'cloud', 'devtool', 'api'],
     radius: '0.75rem',
     fontDisplay: 'grotesk',
@@ -176,6 +183,7 @@ export const THEMES: Theme[] = [
   {
     id: 'luxury-dark',
     label: 'Luxury Dark',
+    layout: ['hero', 'sticky', 'background', 'cards'],
     keywords: ['люкс', 'luxury', 'премиум', 'premium', 'ювелир', 'jewelry', 'часы', 'watch', 'мода', 'fashion', 'бутик', 'boutique', 'отель', 'hotel', 'авто', 'car', 'яхт', 'yacht', 'парфюм', 'perfume', 'эксклюзив'],
     radius: '0.5rem',
     fontDisplay: 'serif',
