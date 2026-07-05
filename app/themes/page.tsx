@@ -2,8 +2,8 @@ import { SiteHeader } from '@/components/site-header';
 import { THEMES, FONT_VAR, type Theme } from '@/lib/themes';
 import { ThemeStyle } from '@/components/theme-style';
 import { ThemeFX } from '@/components/theme-fx';
-import { siteTheme } from '@/lib/site-theme';
-import { Palette } from 'lucide-react';
+import { activeSiteTheme } from '@/lib/site-theme';
+import { Palette, Check } from 'lucide-react';
 
 export const metadata = {
   title: 'Темы / шаблоны — Кинематографический кит',
@@ -12,7 +12,7 @@ export const metadata = {
 
 const ok = (v: string) => `oklch(${v})`;
 
-function ThemePreview({ theme }: { theme: Theme }) {
+function ThemePreview({ theme, active }: { theme: Theme; active?: boolean }) {
   const d = theme.dark;
   const swatches: [string, string][] = [
     ['primary', d.primary],
@@ -23,9 +23,17 @@ function ThemePreview({ theme }: { theme: Theme }) {
   ];
   return (
     <div
-      className="overflow-hidden rounded-2xl border shadow-lg"
-      style={{ background: ok(d.background), color: ok(d.foreground), borderColor: ok(d.border) }}
+      className="relative overflow-hidden rounded-2xl border shadow-lg"
+      style={{ background: ok(d.background), color: ok(d.foreground), borderColor: active ? ok(d.primary) : ok(d.border), boxShadow: active ? `0 0 0 2px ${ok(d.primary)}` : undefined }}
     >
+      {active && (
+        <span
+          className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+          style={{ background: ok(d.primary), color: ok(d['primary-foreground']) }}
+        >
+          <Check className="h-3 w-3" /> Активна на сайте
+        </span>
+      )}
       {/* Preview surface */}
       <div className="p-6" style={{ background: ok(d.background) }}>
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: ok(d['muted-foreground']) }}>
@@ -95,9 +103,10 @@ function ThemePreview({ theme }: { theme: Theme }) {
 }
 
 export default function ThemesPage() {
+  const active = activeSiteTheme();
   return (
     <main className="min-h-dvh">
-      <ThemeStyle theme={siteTheme()} />
+      <ThemeStyle theme={active} />
       <ThemeFX />
       <SiteHeader />
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-12 sm:px-10">
@@ -108,12 +117,12 @@ export default function ThemesPage() {
         <p className="mb-8 max-w-2xl text-muted-foreground">
           Движок автоматически подбирает тему под содержание сайта (палитра, шрифт заголовков, радиусы,
           характер анимаций). Ниже — превью в тёмной схеме и ключевые слова, по которым тема выбирается.
-          Например, бриф про кофе даст «Editorial Coffee», про матч — «Sport Dynamic».
+          Сейчас на сайте активна тема «{active.label}» — она отмечена ниже.
         </p>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {THEMES.map((theme) => (
-            <ThemePreview key={theme.id} theme={theme} />
+            <ThemePreview key={theme.id} theme={theme} active={theme.id === active.id} />
           ))}
         </div>
       </div>

@@ -2,7 +2,8 @@ import mediaData from '@/data/media.json';
 import siteConfig from '@/data/site.json';
 import type { MediaEntry } from '@/lib/media';
 import { ThemeStyle } from '@/components/theme-style';
-import { pickTheme, getTheme } from '@/lib/themes';
+import { getTheme } from '@/lib/themes';
+import { activeSiteTheme } from '@/lib/site-theme';
 import { ThemeFX } from '@/components/theme-fx';
 import { SiteHeader } from '@/components/site-header';
 import { PageComposer } from '@/components/page-composer';
@@ -15,15 +16,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ t
   const media = mediaData as MediaEntry[];
   const hasContent = media.length > 0;
 
-  // Theme priority: ?theme= preview  →  saved site theme  →  auto from content.
-  const brief = media.map((m) => `${m.title} ${m.subtitle ?? ''} ${m.prompt ?? ''}`).join(' ');
-  const savedTheme = (siteConfig as { theme?: string }).theme ?? 'auto';
+  // Theme priority: ?theme= preview  →  active site theme (saved or content-derived).
   const savedLayout = (siteConfig as { layout?: string[] | null }).layout ?? undefined;
-  const theme = sp.theme
-    ? getTheme(sp.theme)
-    : savedTheme && savedTheme !== 'auto'
-      ? getTheme(savedTheme)
-      : pickTheme(brief);
+  const theme = sp.theme ? getTheme(sp.theme) : activeSiteTheme();
 
   return (
     <main className="min-h-dvh">
