@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+data/app.db
+data/app.db-*
+public/uploads
+npm-debug.log
+*.local
+.env.local
+coverage

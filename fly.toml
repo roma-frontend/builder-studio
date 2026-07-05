@@ -1,0 +1,38 @@
+# Fly.io deployment. One machine (SQLite is single-writer) + one persistent
+# volume mounted at /data for the DB and uploaded media.
+#
+#   fly launch --no-deploy      # creates the app (or: fly apps create <name>)
+#   fly volumes create cwk_data --size 1 --region fra
+#   fly secrets set SESSION_SECRET=... MUAPI_KEY=...        # your env
+#   fly deploy
+#
+# Update NEXT_PUBLIC_APP_HOST to your real hostname (fly.dev subdomain or your
+# Cloudflare domain) so tenant subdomains/links resolve correctly.
+
+app = "cinematic-web-kit"
+primary_region = "fra"
+
+[build]
+
+[env]
+  PORT = "3000"
+  NODE_ENV = "production"
+  DATABASE_FILE = "/data/app.db"
+  NEXT_PUBLIC_APP_HOST = "cinematic-web-kit.fly.dev"
+
+[[mounts]]
+  source = "cwk_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # Free-friendly: scale to zero when idle, wake on request. Remove these two
+  # lines if you want it always-on (no cold starts).
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
