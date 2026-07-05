@@ -16,3 +16,6 @@ scripts/media-pipeline/.raw
 /data/*.db-wal
 
 tsconfig.tsbuildinfo
+
+# Test coverage output
+/coverage/
