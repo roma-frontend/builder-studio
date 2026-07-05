@@ -213,6 +213,10 @@ function renderInner(node: BuilderNode) {
       const { bg: bgChild, rest: sectionKids } = extractBgImage(kids);
       const bgImageSrc = p.bgImage || bgChild?.props?.src;
       const bgChildOverlay = bgChild?.props?.overlay;
+      // The hoisted background respects the image's own responsive visibility,
+      // so you can show a full-bleed image background only on mobile while
+      // placing inline images for tablet/desktop as separate blocks.
+      const bgShow = bgChild?.props?.showOn && SHOW_ON[bgChild.props.showOn];
       const hasMedia = !!(bgImageSrc || p.bgVideo);
       const gradStyle = gradient
         ? { backgroundImage: 'linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary) 45%, #000))', color: 'var(--primary-foreground)' }
@@ -223,7 +227,7 @@ function renderInner(node: BuilderNode) {
         bgMode === 'blur' ? 'blur(14px) saturate(1.15) brightness(0.9)'
         : bgMode === 'duotone' ? 'grayscale(1) contrast(1.05)'
         : undefined;
-      const mediaClass = cn('absolute inset-0 h-full w-full object-cover', bgMode === 'blur' && 'scale-110');
+      const mediaClass = cn('absolute inset-0 h-full w-full object-cover', bgMode === 'blur' && 'scale-110', bgShow);
       const overlayBg: Record<string, string> = {
         cover: 'rgba(0,0,0,0.5)',
         blur: 'rgba(0,0,0,0.45)',
@@ -246,7 +250,7 @@ function renderInner(node: BuilderNode) {
               <img className={mediaClass} style={mediaFilter ? { filter: mediaFilter } : undefined} src={bgImageSrc} alt="" />
             )
           ) : null}
-          {hasMedia && <div className="absolute inset-0" style={{ background: bgChildOverlay || (overlayBg[bgMode] ?? overlayBg.cover) }} />}
+          {hasMedia && <div className={cn('absolute inset-0', bgShow)} style={{ background: bgChildOverlay || (overlayBg[bgMode] ?? overlayBg.cover) }} />}
           <div className={cn('relative z-10 mx-auto w-full px-6', pick(WIDTH, p.width, 'wide'), hasMedia && 'text-white')}>
             {sectionKids.map((c) => (
               <RenderNode key={c.id} node={c} />
