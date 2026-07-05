@@ -14,6 +14,7 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { CommandPalette, type Command } from '@/components/dashboard/command-palette';
+import { OrgRequestsBadge } from '@/components/dashboard/org-requests-badge';
 
 export type Role = 'customer' | 'admin' | 'superadmin';
 export interface ShellUser { name: string; email: string; role: Role }
@@ -100,9 +101,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, children 
               >
                 <item.icon className="h-4 w-4 shrink-0 text-amber-500" />
                 <span className="truncate">{item.label}</span>
-                {item.href === '/dashboard/organizations' && orgRequests > 0 && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-bold text-white">{orgRequests}</span>
-                )}
+                {item.href === '/dashboard/organizations' && <OrgRequestsBadge initialCount={orgRequests} />}
               </Link>
             );
           }

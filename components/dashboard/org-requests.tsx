@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Check, X, Plus, LogIn, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ORG_REQ_SEEN_EVENT } from '@/components/dashboard/org-requests-badge';
 
 type Req = {
   id: string; type: string; requesterName: string; requesterEmail: string;
@@ -17,7 +18,12 @@ export function OrgRequests({ onChange }: { onChange?: () => void }) {
   const [busy, setBusy] = useState('');
 
   const load = useCallback(() => {
-    fetch('/api/admin/org-requests?status=pending').then((r) => r.json()).then((d) => setItems(d.requests ?? [])).catch(() => setItems([]));
+    fetch('/api/admin/org-requests?status=pending').then((r) => r.json()).then((d) => {
+      const list = d.requests ?? [];
+      setItems(list);
+      // Mark as seen so the nav badge stops blinking.
+      window.dispatchEvent(new CustomEvent(ORG_REQ_SEEN_EVENT, { detail: list.length }));
+    }).catch(() => setItems([]));
   }, []);
   useEffect(() => { load(); }, [load]);
 
