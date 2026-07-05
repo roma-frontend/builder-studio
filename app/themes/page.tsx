@@ -1,4 +1,5 @@
 import { SiteHeader } from '@/components/site-header';
+import { SiteFooter } from '@/components/site-footer';
 import { THEMES, FONT_VAR, type Theme } from '@/lib/themes';
 import { ThemeStyle } from '@/components/theme-style';
 import { ThemeFX } from '@/components/theme-fx';
@@ -126,6 +127,7 @@ export default function ThemesPage() {
           ))}
         </div>
       </div>
+      <SiteFooter />
     </main>
   );
 }

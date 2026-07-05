@@ -6,6 +6,7 @@ import { THEMES } from '@/lib/themes';
 import { activeSiteTheme } from '@/lib/site-theme';
 import { ThemeFX } from '@/components/theme-fx';
 import { SiteHeader } from '@/components/site-header';
+import { SiteFooter } from '@/components/site-footer';
 import { VideoCardGrid } from '@/components/media/video-card';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,7 +56,7 @@ export default function Home() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-[var(--container-max)] px-6 py-20 text-center sm:px-10 sm:py-28">
+        <div className="mx-auto max-w-[var(--container-max)] px-6 py-20 text-center sm:px-10 sm:py-24">
           <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground backdrop-blur">
             <Sparkles className="h-3.5 w-3.5 text-primary" /> ИИ-платформа для сайтов
           </span>
@@ -83,8 +84,8 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10">
-        <div className="mb-10 text-center">
+      <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10 sm:py-20">
+        <div className="mb-12 text-center">
           <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">Как это работает</h2>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">Три шага от идеи до опубликованного сайта.</p>
         </div>
@@ -105,8 +106,8 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10">
-        <div className="mb-10 text-center">
+      <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10 sm:py-20">
+        <div className="mb-12 text-center">
           <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">Возможности</h2>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">Всё для запуска красивого сайта — в одном месте.</p>
         </div>
@@ -124,7 +125,7 @@ export default function Home() {
       </section>
 
       {/* Themes gallery teaser */}
-      <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10">
+      <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10 sm:py-20">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">Готовые темы</h2>
@@ -168,8 +169,8 @@ export default function Home() {
 
       {/* Made on the platform — real example from demo content */}
       {examples.length > 0 && (
-        <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10">
-          <div className="mb-8 text-center">
+        <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10 sm:py-20">
+          <div className="mb-12 text-center">
             <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               <Video className="h-3.5 w-3.5 text-primary" /> Сделано на платформе
             </span>
@@ -206,17 +207,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/60">
-        <div className="mx-auto flex max-w-[var(--container-max)] flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-muted-foreground sm:flex-row sm:px-10">
-          <span>© {new Date().getFullYear()} Cinematic Web Kit</span>
-          <nav className="flex items-center gap-4">
-            <Link href="/themes" className="hover:text-foreground">Темы</Link>
-            <Link href="/studio" className="hover:text-foreground">Студия</Link>
-            <Link href="/studio/builder" className="hover:text-foreground">Конструктор</Link>
-            <Link href="/register" className="hover:text-foreground">Начать</Link>
-          </nav>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
