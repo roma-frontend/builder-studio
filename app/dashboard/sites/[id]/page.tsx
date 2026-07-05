@@ -17,6 +17,7 @@ export default async function SiteSettingsPage({ params }: { params: Promise<{ i
   return (
     <SiteSettings
       appHost={APP_HOST}
+      serverIp={process.env.SERVER_IP || ''}
       site={{
         id: site.id,
         name: site.name,

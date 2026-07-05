@@ -3,11 +3,11 @@
 // Per-site settings: identity (name/slug), custom domains with DNS
 // instructions + verification, form submissions inbox, danger zone.
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Loader2, Save, Globe, Plus, Trash2, RefreshCw, CheckCircle2, AlertCircle, Inbox, ExternalLink,
+  ArrowLeft, Loader2, Save, Globe, Plus, Trash2, RefreshCw, CheckCircle2, Inbox, ExternalLink, Copy, Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,11 +33,13 @@ interface SubmissionRow {
 
 export function SiteSettings({
   appHost,
+  serverIp,
   site,
   initialDomains,
   initialSubmissions,
 }: {
   appHost: string;
+  serverIp: string;
   site: SiteInfo;
   initialDomains: DomainRow[];
   initialSubmissions: SubmissionRow[];
@@ -54,6 +56,23 @@ export function SiteSettings({
   const [domErr, setDomErr] = useState('');
 
   const appHostname = appHost.split(':')[0];
+  const [copied, setCopied] = useState('');
+  const copy = (text: string, key: string) => {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied((c) => (c === key ? '' : c)), 1500);
+    });
+  };
+  // DNS records for a hostname: apex (example.com) uses an A-record to the
+  // server IP; a subdomain (www.example.com) uses a CNAME to the platform host.
+  const dnsRecords = (hostname: string): { type: string; name: string; value: string }[] => {
+    const labels = hostname.split('.');
+    const isApex = labels.length <= 2;
+    const name = isApex ? '@' : labels.slice(0, labels.length - 2).join('.');
+    return isApex
+      ? [{ type: 'A', name, value: serverIp || 'IP вашего сервера' }]
+      : [{ type: 'CNAME', name, value: appHostname }];
+  };
 
   const saveIdentity = async (e: FormEvent) => {
     e.preventDefault();
@@ -100,9 +119,7 @@ export function SiteSettings({
     }
   };
 
-  const checkDomain = async (domainId: string) => {
-    setDomBusy(domainId);
-    setDomErr('');
+  const runCheck = async (domainId: string): Promise<{ verified: boolean; error: string }> => {
     try {
       const res = await fetch(`/api/sites/${site.id}/domains`, {
         method: 'PATCH',
@@ -112,12 +129,34 @@ export function SiteSettings({
       const data = await res.json();
       if (res.ok) {
         setDomains((list) => list.map((d) => (d.id === domainId ? { ...d, verified: data.verified } : d)));
-        if (!data.verified) setDomErr(`DNS ещё не указывает на платформу (${(data.details || []).join(' · ')})`);
-      } else setDomErr(data.error || 'Ошибка проверки.');
-    } finally {
-      setDomBusy(null);
+        return { verified: Boolean(data.verified), error: data.verified ? '' : `DNS ещё не указывает на платформу (${(data.details || []).join(' · ')})` };
+      }
+      return { verified: false, error: data.error || 'Ошибка проверки.' };
+    } catch {
+      return { verified: false, error: 'Сеть недоступна.' };
     }
   };
+
+  const checkDomain = async (domainId: string) => {
+    setDomBusy(domainId);
+    setDomErr('');
+    const r = await runCheck(domainId);
+    if (!r.verified) setDomErr(r.error);
+    setDomBusy(null);
+  };
+
+  // Auto re-check pending domains in the background so a freshly-added DNS
+  // record gets picked up without the user clicking «Проверить».
+  const domainsRef = useRef(domains);
+  domainsRef.current = domains;
+  useEffect(() => {
+    if (!domains.some((d) => !d.verified)) return;
+    const t = setInterval(() => {
+      for (const d of domainsRef.current) if (!d.verified) void runCheck(d.id);
+    }, 25000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [domains]);
 
   const removeDomain = async (domainId: string) => {
     setDomBusy(domainId);
@@ -193,21 +232,40 @@ export function SiteSettings({
           {domains.length > 0 && (
             <ul className="mt-4 divide-y divide-border rounded-xl border border-border">
               {domains.map((d) => (
-                <li key={d.id} className="flex items-center gap-3 px-4 py-3">
-                  <span className="font-medium">{d.hostname}</span>
-                  {d.verified ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5" /> подтверждён</span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><AlertCircle className="h-3.5 w-3.5" /> ждёт DNS</span>
-                  )}
-                  <div className="ml-auto flex items-center gap-1">
-                    <Button size="sm" variant="ghost" disabled={domBusy === d.id} onClick={() => checkDomain(d.id)} className="gap-1.5" title="Проверить DNS">
-                      {domBusy === d.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Проверить
-                    </Button>
-                    <Button size="sm" variant="ghost" disabled={domBusy === d.id} onClick={() => removeDomain(d.id)} title="Отвязать домен">
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
+                <li key={d.id} className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium">{d.hostname}</span>
+                    {d.verified ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5" /> подтверждён</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> ждёт DNS · проверяем автоматически</span>
+                    )}
+                    <div className="ml-auto flex items-center gap-1">
+                      <Button size="sm" variant="ghost" disabled={domBusy === d.id} onClick={() => checkDomain(d.id)} className="gap-1.5" title="Проверить DNS сейчас">
+                        {domBusy === d.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Проверить
+                      </Button>
+                      <Button size="sm" variant="ghost" disabled={domBusy === d.id} onClick={() => removeDomain(d.id)} title="Отвязать домен">
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
+                  {!d.verified && (
+                    <div className="mt-2 rounded-lg border border-border/60 bg-muted/30 p-2.5">
+                      <p className="mb-1.5 text-xs text-muted-foreground">Добавьте у DNS-провайдера запись и подождите (обновление DNS занимает от минут до часов):</p>
+                      {dnsRecords(d.hostname).map((r, i) => (
+                        <div key={i} className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
+                          <span className="rounded bg-background px-1.5 py-0.5 font-semibold">{r.type}</span>
+                          <span className="text-muted-foreground">имя</span>
+                          <code className="rounded bg-background px-1.5 py-0.5">{r.name}</code>
+                          <span className="text-muted-foreground">значение</span>
+                          <code className="rounded bg-background px-1.5 py-0.5">{r.value}</code>
+                          <button type="button" onClick={() => copy(r.value, `${d.id}-${i}`)} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground hover:bg-background hover:text-foreground" title="Скопировать значение">
+                            {copied === `${d.id}-${i}` ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
