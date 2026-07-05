@@ -399,9 +399,9 @@ export default function StudioPage() {
   const hasPrompt = prompt.trim().length > 0;
 
   return (
-    <main className="relative min-h-dvh overflow-hidden">
+    <main className="relative min-h-dvh">
       <header className="relative z-50 border-b border-border/60 bg-background/70 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-6">
+        <div className="mx-auto flex h-14 max-w-[110rem] items-center justify-between px-6 sm:px-8">
           <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
             <Clapperboard className="h-5 w-5 text-primary" />
             <span>Студия</span>
@@ -416,7 +416,7 @@ export default function StudioPage() {
       </header>
 
       {/* Animated aurora background */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <motion.div
           className="absolute -left-32 -top-32 h-[42rem] w-[42rem] rounded-full opacity-40"
           style={{ background: 'radial-gradient(circle, var(--primary), transparent 60%)', filter: 'blur(80px)' }}
@@ -431,8 +431,8 @@ export default function StudioPage() {
         />
       </div>
 
-      <div className="mx-auto max-w-3xl px-6 py-16 sm:py-24">
-        <motion.header {...fade} className="mb-10 text-center">
+      <div className="mx-auto max-w-[110rem] px-4 py-10 sm:px-8">
+        <motion.header {...fade} className="mb-8 text-center">
           <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground backdrop-blur">
             <Sparkles className="h-3.5 w-3.5 text-primary" /> Cinematic Studio
           </span>
@@ -445,6 +445,8 @@ export default function StudioPage() {
           </p>
         </motion.header>
 
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_46rem] xl:items-start">
+          <div className="min-w-0 space-y-6">
         {/* Step 1 — Brief */}
         <motion.section {...fade} transition={{ ...fade.transition, delay: 0.05 }} className="mb-6">
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -603,19 +605,6 @@ export default function StudioPage() {
               </div>
               {builderMsg && <span className="w-full text-xs text-muted-foreground">{builderMsg}</span>}
             </div>
-          </Card>
-        </motion.section>
-
-        {/* Live preview */}
-        <motion.section {...fade} transition={{ ...fade.transition, delay: 0.1 }} className="mb-6">
-          <label className="mb-2 flex items-center justify-between text-sm font-semibold">
-            <span className="flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> Предпросмотр</span>
-            <button onClick={() => setPreviewKey((k) => k + 1)} className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
-              <RotateCcw className="h-3.5 w-3.5" /> Обновить
-            </button>
-          </label>
-          <Card className="overflow-hidden p-0">
-            <iframe key={previewKey} src="/" title="Предпросмотр сайта" className="h-[70vh] w-full border-0 bg-background" />
           </Card>
         </motion.section>
 
@@ -819,6 +808,21 @@ export default function StudioPage() {
             </motion.div>
           )}
         </AnimatePresence>
+          </div>
+
+          {/* Live preview — sticky right pane */}
+          <div className="xl:sticky xl:top-20 xl:self-start">
+            <div className="mb-2 flex items-center justify-between text-sm font-semibold">
+              <span className="flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> Предпросмотр</span>
+              <button onClick={() => setPreviewKey((k) => k + 1)} className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+                <RotateCcw className="h-3.5 w-3.5" /> Обновить
+              </button>
+            </div>
+            <Card className="overflow-hidden p-0">
+              <iframe key={previewKey} src="/" title="Предпросмотр сайта" className="h-[calc(100vh-9rem)] w-full border-0 bg-background" />
+            </Card>
+          </div>
+        </div>
       </div>
     </main>
   );
