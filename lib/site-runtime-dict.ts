@@ -43,6 +43,25 @@ export type SiteRtDict = {
   registerFailed: string;
   pwMin6: string;
   pwMin6Ph: string;
+  // forgot / reset password (tenant end-user; reset uses 8-char min)
+  forgotTitle: string;
+  forgotSubtitle: string;
+  sendLink: string;
+  forgotSentTitle: string;
+  forgotSent: string;
+  backToLogin: string;
+  resetTitle: string;
+  resetSubtitle: string;
+  newPassword: string;
+  repeatPassword: string;
+  savePassword: string;
+  resetDoneTitle: string;
+  resetDoneSubtitle: string;
+  resetNoTokenTitle: string;
+  resetNoTokenSubtitle: string;
+  requestNewLink: string;
+  pwMin8: string;
+  pwMin8Ph: string;
 };
 
 const ru: SiteRtDict = {
@@ -81,6 +100,24 @@ const ru: SiteRtDict = {
   registerFailed: 'Не удалось зарегистрировать',
   pwMin6: 'Пароль должен быть не короче 6 символов.',
   pwMin6Ph: 'Минимум 6 символов',
+  forgotTitle: 'Восстановление пароля',
+  forgotSubtitle: 'Укажите email — мы отправим ссылку для сброса',
+  sendLink: 'Отправить ссылку',
+  forgotSentTitle: 'Проверьте почту',
+  forgotSent: 'Если аккаунт с таким адресом существует, мы отправили на него ссылку для сброса пароля.',
+  backToLogin: 'Вернуться ко входу',
+  resetTitle: 'Новый пароль',
+  resetSubtitle: 'Придумайте новый надёжный пароль для аккаунта',
+  newPassword: 'Новый пароль',
+  repeatPassword: 'Повторите пароль',
+  savePassword: 'Сохранить пароль',
+  resetDoneTitle: 'Пароль обновлён',
+  resetDoneSubtitle: 'Теперь войдите с новым паролем. Все старые сессии завершены.',
+  resetNoTokenTitle: 'Ссылка недействительна',
+  resetNoTokenSubtitle: 'В адресе нет токена сброса. Запросите новую ссылку.',
+  requestNewLink: 'Запросить новую ссылку',
+  pwMin8: 'Пароль должен быть не короче 8 символов.',
+  pwMin8Ph: 'Минимум 8 символов',
 };
 
 const en: SiteRtDict = {
@@ -119,6 +156,24 @@ const en: SiteRtDict = {
   registerFailed: 'Could not register',
   pwMin6: 'Password must be at least 6 characters.',
   pwMin6Ph: 'At least 6 characters',
+  forgotTitle: 'Reset your password',
+  forgotSubtitle: 'Enter your email — we’ll send a reset link',
+  sendLink: 'Send link',
+  forgotSentTitle: 'Check your email',
+  forgotSent: 'If an account with that address exists, we’ve sent it a password reset link.',
+  backToLogin: 'Back to sign in',
+  resetTitle: 'New password',
+  resetSubtitle: 'Choose a new strong password for your account',
+  newPassword: 'New password',
+  repeatPassword: 'Repeat password',
+  savePassword: 'Save password',
+  resetDoneTitle: 'Password updated',
+  resetDoneSubtitle: 'Now sign in with your new password. All old sessions have ended.',
+  resetNoTokenTitle: 'Link is invalid',
+  resetNoTokenSubtitle: 'There is no reset token in the address. Request a new link.',
+  requestNewLink: 'Request a new link',
+  pwMin8: 'Password must be at least 8 characters.',
+  pwMin8Ph: 'At least 8 characters',
 };
 
 const hy: SiteRtDict = {
@@ -157,6 +212,24 @@ const hy: SiteRtDict = {
   registerFailed: 'Չհաջողվեց գրանցվել',
   pwMin6: 'Գաղտնաբառը պետք է լինի առնվազն 6 նիշ։',
   pwMin6Ph: 'Առնվազն 6 նիշ',
+  forgotTitle: 'Գաղտնաբառի վերականգնում',
+  forgotSubtitle: 'Նշեք ձեր email-ը — մենք կուղարկենք վերականգնման հղում',
+  sendLink: 'Ուղարկել հղումը',
+  forgotSentTitle: 'Ստուգեք ձեր փոստը',
+  forgotSent: 'Եթե այդ հասցեով հաշիվ գոյություն ունի, մենք ուղարկել ենք գաղտնաբառի վերականգնման հղում։',
+  backToLogin: 'Վերադառնալ մուտք',
+  resetTitle: 'Նոր գաղտնաբառ',
+  resetSubtitle: 'Ընտրեք ձեր հաշվի համար նոր ամուր գաղտնաբառ',
+  newPassword: 'Նոր գաղտնաբառ',
+  repeatPassword: 'Կրկնեք գաղտնաբառը',
+  savePassword: 'Պահպանել գաղտնաբառը',
+  resetDoneTitle: 'Գաղտնաբառը թարմացվեց',
+  resetDoneSubtitle: 'Այժմ մուտք գործեք նոր գաղտնաբառով։ Բոլոր հին սեսիաներն ավարտված են։',
+  resetNoTokenTitle: 'Հղումն անվավեր է',
+  resetNoTokenSubtitle: 'Հասցեում վերականգնման կոդ չկա։ Հայցեք նոր հղում։',
+  requestNewLink: 'Հայցել նոր հղում',
+  pwMin8: 'Գաղտնաբառը պետք է լինի առնվազն 8 նիշ։',
+  pwMin8Ph: 'Առնվազն 8 նիշ',
 };
 
 export const SITE_RT: Record<Locale, SiteRtDict> = { ru, en, hy };

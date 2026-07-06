@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -13,10 +13,10 @@ import {
   ArrowUp, ArrowDown, X, Plus, Save, Loader2, Monitor, Tablet, Smartphone,
   ExternalLink, Trash2, FileText, LayoutTemplate, ChevronRight, Copy, Upload, Wand2, Palette,
   Undo2, Redo2, LayoutGrid, ChevronDown, Maximize2, Minimize2, Sun, Moon, Rocket, Home,
-  ClipboardPaste, CopyPlus, Keyboard,
+  ClipboardPaste, CopyPlus, Keyboard, Eye, PanelLeft, RotateCw, Pipette, CornerLeftUp,
 } from 'lucide-react';
 import seed from '@/data/builder.json';
-import { usePrefs, setPref } from '@/hooks/use-user-prefs';
+import { usePrefs, usePref, setPref } from '@/hooks/use-user-prefs';
 import { useMounted } from '@/hooks/use-mounted';
 import { THEMES, getTheme, themeCss } from '@/lib/themes';
 import { RenderNode } from '@/components/builder/render-node';
@@ -28,6 +28,7 @@ import {
   NODE_LABELS, isContainer, makeNode, newId,
 } from '@/lib/builder/types';
 import { updateProps, removeNode, insertChild, moveNode, findNode, duplicateNode, moveTo, insertAfter, ancestorTypes, ancestorPath, cloneWithNewIds, findSymbolOf, applySymbol, collectSymbols, findBySymbol } from '@/lib/builder/tree';
+import { contrastRatio, wcagLevel } from '@/lib/contrast';
 import { chromeBtnClass, CHROME_BTN_VARIANTS, CHROME_BTN_VARIANT_LABELS, CHROME_BTN_ROUNDED_LABELS, NAV_STYLES, NAV_STYLE_LABELS, THEME_BTN_PRESETS } from '@/lib/builder/chrome-buttons';
 import { useLocale } from '@/hooks/use-locale';
 import { builderTr } from '@/lib/builder-dict';
@@ -277,6 +278,10 @@ const STYLE_GROUPS: { title: string; fields: Field[] }[] = [
   },
 ];
 const DEVICE = { full: '100%', tablet: '834px', mobile: '390px' } as const;
+// Preview pane width bounds: never wider than 1100px and always leaves the
+// editor panel at least ~360px, so neither side can be crushed off-screen.
+const clampPreviewWidth = (w: number) =>
+  Math.max(300, Math.min(1100, w, typeof window !== 'undefined' ? window.innerWidth - 360 : 1100));
 // All style keys (from STYLE_GROUPS) + their per-breakpoint variants — used to
 // capture/apply reusable style presets.
 const STYLE_PRESET_BASE_KEYS = STYLE_GROUPS.flatMap((g) => g.fields.map((f) => f.k));
@@ -320,6 +325,45 @@ function respValue(props: Record<string, string>, k: string, dev: keyof typeof D
   return dev === 'mobile' ? base : dev === 'tablet' ? tablet : desktop;
 }
 
+// Native color pickers fire an input event for every pixel the pointer moves
+// across the palette; committing each shade into the doc re-renders the whole
+// builder + preview and freezes the UI. Keep the dragged value local and push
+// it to the doc only once the pointer settles (or the input loses focus).
+function ColorInput({ value, onCommit, onPreview, title, className }: { value: string; onCommit: (v: string) => void; onPreview?: (v: string) => void; title?: string; className?: string }) {
+  const [local, setLocal] = useState(value);
+  // Adopt outside value changes (undo, preset, select) during render — the
+  // sanctioned alternative to a setState-in-effect sync.
+  const [adopted, setAdopted] = useState(value);
+  if (adopted !== value) { setAdopted(value); setLocal(value); }
+  const pending = useRef<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commitRef = useRef(onCommit);
+  const previewRef = useRef(onPreview);
+  useEffect(() => { commitRef.current = onCommit; previewRef.current = onPreview; });
+  const flush = useCallback(() => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    if (pending.current !== null) { commitRef.current(pending.current); pending.current = null; }
+  }, []);
+  useEffect(() => flush, [flush]); // don't drop the last picked shade on unmount
+  return (
+    <input
+      type="color"
+      value={local}
+      title={title}
+      className={className}
+      onChange={(e) => {
+        const v = e.target.value;
+        setLocal(v);
+        pending.current = v;
+        previewRef.current?.(v); // live hint only — the doc is untouched until flush
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = setTimeout(flush, 200);
+      }}
+      onBlur={flush}
+    />
+  );
+}
+
 // useSearchParams requires a Suspense boundary at the page level.
 export default function BuilderEditorPage() {
   return (
@@ -351,7 +395,16 @@ function BuilderEditor() {
   const [fullscreen, setFullscreen] = useState(false);
   const [previewDark, setPreviewDark] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [treeQuery, setTreeQuery] = useState('');
+  const [selRect, setSelRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [selColors, setSelColors] = useState<{ color: string; bg: string; hasText: boolean } | null>(null);
+  // Stable indirection so the preview message listener can commit inline text
+  // edits via `patch` (defined later) without re-subscribing every render.
+  const editTextRef = useRef<(id: string, prop: string, value: string) => void>(() => {});
   const [dropHint, setDropHint] = useState<{ id: string; pos: 'before' | 'after' } | null>(null);
+  // Below lg the editor panel and the preview don't fit side by side — the
+  // toolbar toggle shows one of them full-width instead.
+  const [mobileView, setMobileView] = useState<'panel' | 'preview'>('panel');
   const toggleCollapse = (id: string) =>
     setCollapsed((s) => {
       const n = new Set(s);
@@ -359,17 +412,44 @@ function BuilderEditor() {
       else n.add(id);
       return n;
     });
-  const startResize = () => {
-    const onMove = (e: MouseEvent) => setPreviewWidth(Math.min(1100, Math.max(300, window.innerWidth - e.clientX)));
+  // Splitter drag: pointer events (mouse + touch + pen), one state write per
+  // frame (rAF), and the iframe ignores the pointer while dragging — otherwise
+  // it swallows move events and the resize stutters or gets stuck.
+  const [isResizing, setIsResizing] = useState(false);
+  const startResize = (e: ReactPointerEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    let raf = 0;
+    let lastX = e.clientX;
+    const onMove = (ev: PointerEvent) => {
+      lastX = ev.clientX;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setPreviewWidth(clampPreviewWidth(window.innerWidth - lastX));
+      });
+    };
     const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
       document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      setIsResizing(false);
     };
     document.body.style.userSelect = 'none';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   };
+  // Keep the preview pane within bounds when the window shrinks.
+  useEffect(() => {
+    const clamp = () => setPreviewWidth((w) => clampPreviewWidth(w));
+    window.addEventListener('resize', clamp);
+    return () => window.removeEventListener('resize', clamp);
+  }, []);
   const [previewKey, setPreviewKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -396,7 +476,7 @@ function BuilderEditor() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (c.tab === 'pages' || c.tab === 'blocks' || c.tab === 'design') setTab(c.tab);
     if (typeof c.device === 'string' && c.device in DEVICE) setDevice(c.device as keyof typeof DEVICE);
-    if (typeof c.previewWidth === 'number') setPreviewWidth(Math.min(1100, Math.max(300, c.previewWidth)));
+    if (typeof c.previewWidth === 'number') setPreviewWidth(clampPreviewWidth(c.previewWidth));
     if (typeof c.previewDark === 'boolean') setPreviewDark(c.previewDark);
     if (Array.isArray(c.collapsed)) setCollapsed(new Set(c.collapsed.filter((x): x is string => typeof x === 'string')));
     if (typeof c.pageId === 'string' && doc.pages.some((p) => p.id === c.pageId)) setPageId(c.pageId);
@@ -447,6 +527,7 @@ function BuilderEditor() {
   const future = useRef<BuilderDoc[]>([]);
   const skipHistory = useRef(true); // skip the very first (mount) doc
   const prevDoc = useRef<BuilderDoc>(doc);
+  const lastHistPush = useRef(0); // coalesce rapid typing into one undo step
   const [histCaps, setHistCaps] = useState({ undo: false, redo: false });
   const undo = () => {
     const p = past.current.pop();
@@ -454,6 +535,7 @@ function BuilderEditor() {
     future.current.push(doc);
     // eslint-disable-next-line react-hooks/immutability -- history refs owned by undo/redo
     skipHistory.current = true;
+    lastHistPush.current = 0;
     setDoc(p);
     setHistCaps({ undo: past.current.length > 0, redo: true });
     setDirty(true);
@@ -464,6 +546,7 @@ function BuilderEditor() {
     past.current.push(doc);
     // eslint-disable-next-line react-hooks/immutability -- history refs owned by undo/redo
     skipHistory.current = true;
+    lastHistPush.current = 0;
     setDoc(n);
     setHistCaps({ undo: true, redo: future.current.length > 0 });
     setDirty(true);
@@ -476,11 +559,19 @@ function BuilderEditor() {
       return;
     }
     if (prevDoc.current !== doc) {
-      past.current.push(prevDoc.current);
-      if (past.current.length > 60) past.current.shift();
+      // Edits landing within 600ms merge into one undo step (Ctrl+Z reverts a
+      // typed word, not one character) and the 60-slot history isn't burned
+      // through by a single sentence.
+      // eslint-disable-next-line react-hooks/purity -- effect-only bookkeeping, not render state
+      const now = Date.now();
+      if (now - lastHistPush.current > 600) {
+        past.current.push(prevDoc.current);
+        if (past.current.length > 60) past.current.shift();
+      }
+      lastHistPush.current = now;
       future.current = [];
       prevDoc.current = doc;
-      setHistCaps({ undo: true, redo: false });
+      setHistCaps({ undo: past.current.length > 0, redo: false });
       setDirty(true);
     }
   }, [doc]);
@@ -500,11 +591,39 @@ function BuilderEditor() {
   const [hoverTheme, setHoverTheme] = useState<string | null>(null);
   const hoverThemeRef = useRef<string | null>(null);
   useEffect(() => { hoverThemeRef.current = hoverTheme; }, [hoverTheme]);
+  // Coalesced to one postMessage per frame: serializing the full doc for the
+  // iframe on every keystroke is the single biggest source of typing jank.
+  const postRaf = useRef(0);
   const postPreview = useCallback(() => {
-    const s = stateRef.current;
-    const hover = hoverThemeRef.current;
-    const previewDoc = hover ? { ...s.doc, themeId: hover, ...(THEME_BTN_PRESETS[hover] ?? {}) } : s.doc;
-    previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', ...s, doc: previewDoc }, '*');
+    if (postRaf.current) return;
+    postRaf.current = requestAnimationFrame(() => {
+      postRaf.current = 0;
+      const s = stateRef.current;
+      const hover = hoverThemeRef.current;
+      const previewDoc = hover ? { ...s.doc, themeId: hover, ...(THEME_BTN_PRESETS[hover] ?? {}) } : s.doc;
+      previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', ...s, doc: previewDoc }, '*');
+    });
+  }, []);
+  useEffect(() => () => { if (postRaf.current) cancelAnimationFrame(postRaf.current); }, []);
+  // While the palette is being dragged the picked shade is painted on the
+  // target element by a tiny <style> inside the preview — no doc update, no
+  // re-render. The next full state message (sent on commit) clears the hint.
+  const sendColorHint = useCallback((id: string, baseKey: string, value: string) => {
+    const css = baseKey === 'bgColor' ? 'background' : baseKey === 'borderColor' ? 'border-color' : 'color';
+    previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', type: 'stylehint', id, css, value }, '*');
+  }, []);
+  // Recently used custom colors (a per-user pref, follows the account across
+  // browsers) and the EyeDropper screen picker where the browser supports it.
+  const [recentRaw, setRecentRaw] = usePref<string[]>('builderRecentColors', []);
+  const recentColors = Array.isArray(recentRaw) ? recentRaw.filter((c) => typeof c === 'string' && c.startsWith('#')).slice(0, 8) : [];
+  const rememberColor = (v: string) => setRecentRaw([v, ...recentColors.filter((c) => c !== v)].slice(0, 8));
+  const hasEyeDropper = useMounted() && 'EyeDropper' in window;
+  const pickFromScreen = useCallback(async (commit: (v: string) => void) => {
+    try {
+      const ED = (window as unknown as { EyeDropper: new () => { open(): Promise<{ sRGBHex: string }> } }).EyeDropper;
+      const { sRGBHex } = await new ED().open();
+      commit(sRGBHex);
+    } catch { /* user cancelled */ }
   }, []);
 
   // Insert an element dropped from the palette onto the live page, snapping it
@@ -547,6 +666,12 @@ function BuilderEditor() {
         setTab('blocks');
       } else if (e.data.type === 'drop' && e.data.nodeType) {
         dropOnPreview(e.data.nodeType as NodeType, (e.data.targetId as string | null) ?? null);
+      } else if (e.data.type === 'rect') {
+        const has = Boolean(e.data.id && e.data.rect);
+        setSelRect(has ? (e.data.rect as { top: number; left: number; width: number; height: number }) : null);
+        setSelColors(has ? { color: e.data.color as string, bg: e.data.bg as string, hasText: Boolean(e.data.hasText) } : null);
+      } else if (e.data.type === 'edittext' && e.data.id && e.data.prop) {
+        editTextRef.current(e.data.id as string, e.data.prop as string, String(e.data.value ?? ''));
       }
     };
     window.addEventListener('message', onMsg);
@@ -561,6 +686,37 @@ function BuilderEditor() {
     () => (selectedId && page ? findNode(page.blocks, selectedId) : null),
     [selectedId, page],
   );
+
+  // Reveal the active element in the Structure tree whenever the selection
+  // changes (from the canvas or the tree): expand its collapsed ancestors so
+  // the row exists, then scroll it into view — so it's obvious which block/
+  // element is selected without hunting for it. Latest page via ref so this
+  // only runs on selection changes, not on every edit.
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  useEffect(() => {
+    if (!selectedId) return;
+    const pg = pageRef.current;
+    if (!pg) return;
+    const anc = ancestorPath(pg.blocks, selectedId);
+    if (anc.some((a) => collapsed.has(a.id))) {
+      setCollapsed((s) => {
+        const next = new Set(s);
+        anc.forEach((a) => next.delete(a.id));
+        return next;
+      });
+    }
+    // Double rAF: wait past the (possible) expand re-render + commit so the row
+    // is in the DOM before scrolling.
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>(`[data-tree-nid="${CSS.escape(selectedId)}"]`)?.scrollIntoView({ block: 'nearest' });
+      }),
+    );
+    return () => cancelAnimationFrame(raf);
+    // collapsed intentionally omitted: expansion is derived from selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   // Apply a blocks transform to the CURRENT page using the latest state — never
   // a render-time snapshot — so consecutive edits accumulate instead of the
@@ -593,6 +749,7 @@ function BuilderEditor() {
   };
 
   const patch = (id: string, p: Record<string, string>) => setBlocks((b) => updateProps(b, id, p));
+  editTextRef.current = (id, prop, value) => patch(id, { [prop]: value });
   // Responsive override management: clear all overrides for a breakpoint, or copy
   // the values from the next-smaller breakpoint into it (empty string = "unset").
   const resetBreakpoint = (id: string, dev: keyof typeof DEVICE) => {
@@ -1184,18 +1341,18 @@ function BuilderEditor() {
     <main className="flex h-dvh flex-col overflow-hidden bg-background">
       {/* Toolbar */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-3 px-4">
-          <Link href={isLanding ? '/studio' : '/dashboard'} className="flex items-center gap-2 font-bold tracking-tight" title={isLanding ? tr('Назад в Студию') : tr('К списку сайтов')}>
-            <LayoutTemplate className="h-5 w-5 text-primary" /> {tr('Конструктор')}
+        <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-1.5 px-2 sm:gap-2 sm:px-4 xl:gap-3">
+          <Link href={isLanding ? '/studio' : '/dashboard'} className="flex shrink-0 items-center gap-2 font-bold tracking-tight" title={isLanding ? tr('Назад в Студию') : tr('К списку сайтов')}>
+            <LayoutTemplate className="h-5 w-5 text-primary" /> <span className="hidden md:inline">{tr('Конструктор')}</span>
           </Link>
-          <div className="mx-2 h-6 w-px bg-border" />
+          <div className="mx-1 hidden h-6 w-px bg-border md:block xl:mx-2" />
           {isLanding && (
-            <span className="mr-1 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary" title={tr('Вы редактируете главную страницу сайта (/)')}>
+            <span className="mr-1 hidden shrink-0 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary lg:inline-flex" title={tr('Вы редактируете главную страницу сайта (/)')}>
               <Home className="h-3.5 w-3.5" /> {tr('Лендинг «/»')}
             </span>
           )}
-          <Input value={doc.brand} onChange={(e) => setDoc((d) => ({ ...d, brand: e.target.value }))} className="h-8 w-44" aria-label={tr('Название сайта')} />
-          <div className="hidden items-center gap-1 sm:flex">
+          <Input value={doc.brand} onChange={(e) => setDoc((d) => ({ ...d, brand: e.target.value }))} className="hidden h-8 w-32 min-w-0 sm:block xl:w-44" aria-label={tr('Название сайта')} />
+          <div className="hidden items-center gap-1 md:flex">
             <Palette className="h-4 w-4 text-muted-foreground" />
             {/* Switching theme also applies its recommended chrome-button
                 preset so header/footer buttons stay on-brand (undoable).
@@ -1216,18 +1373,30 @@ function BuilderEditor() {
               </SelectContent>
             </Select>
           </div>
-          <div className="ml-auto flex items-center gap-1 rounded-lg border border-border p-0.5">
-            {(['full', 'tablet', 'mobile'] as const).map((dv) => {
-              const Icon = dv === 'full' ? Monitor : dv === 'tablet' ? Tablet : Smartphone;
+          {/* Below lg the panel and preview can't sit side by side — toggle between them. */}
+          <div className="ml-auto flex shrink-0 items-center gap-1 rounded-lg border border-border p-0.5 lg:hidden">
+            {(['panel', 'preview'] as const).map((v) => {
+              const Icon = v === 'panel' ? PanelLeft : Eye;
+              const label = v === 'panel' ? tr('Редактор') : tr('Предпросмотр');
               return (
-                <button key={dv} onClick={() => setDevice(dv)} className={`rounded-md p-1.5 ${device === dv ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`} aria-label={dv}>
+                <button key={v} onClick={() => setMobileView(v)} className={`rounded-md p-1.5 transition-colors ${mobileView === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`} aria-label={label} title={label}>
                   <Icon className="h-4 w-4" />
                 </button>
               );
             })}
           </div>
-          <Link href={previewSrc} target="_blank"><Button size="sm" variant="outline" className="gap-1.5"><ExternalLink className="h-4 w-4" /> {tr('Открыть')}</Button></Link>
-          <div className="relative">
+          <div className="flex shrink-0 items-center gap-1 rounded-lg border border-border p-0.5 lg:ml-auto">
+            {(['full', 'tablet', 'mobile'] as const).map((dv) => {
+              const Icon = dv === 'full' ? Monitor : dv === 'tablet' ? Tablet : Smartphone;
+              return (
+                <button key={dv} onClick={() => setDevice(dv)} className={`rounded-md p-1.5 transition-colors ${device === dv ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`} aria-label={dv}>
+                  <Icon className="h-4 w-4" />
+                </button>
+              );
+            })}
+          </div>
+          <Link href={previewSrc} target="_blank" className="hidden shrink-0 sm:block"><Button size="sm" variant="outline" className="gap-1.5"><ExternalLink className="h-4 w-4" /> <span className="hidden xl:inline">{tr('Открыть')}</span></Button></Link>
+          <div className="relative hidden lg:block">
             <button onClick={() => setShowKeys((v) => !v)} className={`rounded-md p-1.5 ${showKeys ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'}`} aria-label={tr('Горячие клавиши')} title={tr('Горячие клавиши')}><Keyboard className="h-4 w-4" /></button>
             {showKeys && (
               <>
@@ -1250,22 +1419,22 @@ function BuilderEditor() {
               </>
             )}
           </div>
-          <button onClick={undo} disabled={!canUndo} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label={tr('Отменить')} title={tr('Отменить (Ctrl+Z)')}><Undo2 className="h-4 w-4" /></button>
-          <button onClick={redo} disabled={!canRedo} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label={tr('Повторить')} title={tr('Повторить (Ctrl+Shift+Z)')}><Redo2 className="h-4 w-4" /></button>
-          <Button size="sm" onClick={save} disabled={busy || pubBusy} className="relative gap-1.5" title={dirty ? tr('Есть несохранённые изменения (автосохранение через пару секунд)') : tr('Всё сохранено')}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr('Сохранить')}
+          <button onClick={undo} disabled={!canUndo} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label={tr('Отменить')} title={tr('Отменить (Ctrl+Z)')}><Undo2 className="h-4 w-4" /></button>
+          <button onClick={redo} disabled={!canRedo} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label={tr('Повторить')} title={tr('Повторить (Ctrl+Shift+Z)')}><Redo2 className="h-4 w-4" /></button>
+          <Button size="sm" onClick={save} disabled={busy || pubBusy} className="relative shrink-0 gap-1.5 px-2 md:px-3" title={dirty ? tr('Есть несохранённые изменения (автосохранение через пару секунд)') : tr('Всё сохранено')} aria-label={tr('Сохранить')}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} <span className="hidden md:inline">{tr('Сохранить')}</span>
             {dirty && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-background bg-amber-500" aria-label={tr('Несохранённые изменения')} />}
           </Button>
-          <Button size="sm" variant={siteMeta?.published ? 'outline' : 'default'} onClick={publish} disabled={busy || pubBusy} className="gap-1.5" title={tr('Сохранить черновик и опубликовать')}>
+          <Button size="sm" variant={siteMeta?.published ? 'outline' : 'default'} onClick={publish} disabled={busy || pubBusy} className="shrink-0 gap-1.5 px-2 md:px-3" title={tr('Сохранить черновик и опубликовать')} aria-label={siteMeta?.published ? tr('Обновить') : tr('Опубликовать')}>
             {pubBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-            {siteMeta?.published ? tr('Обновить') : tr('Опубликовать')}
+            <span className="hidden md:inline">{siteMeta?.published ? tr('Обновить') : tr('Опубликовать')}</span>
           </Button>
         </div>
         {msg && <div className="border-t border-border/60 bg-muted/40 px-4 py-1 text-center text-xs text-muted-foreground">{msg}</div>}
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex-1 min-w-0 overflow-y-auto border-r border-border/60 p-3">
+        <aside className={cn('min-w-0 flex-1 overflow-y-auto p-3 @container lg:border-r lg:border-border/60', mobileView === 'preview' && 'hidden lg:block')}>
           {/* Tabs */}
           <div className="mb-3 grid grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1">
             {([['pages', 'Страницы'], ['blocks', 'Блоки'], ['design', 'Сайт']] as const).map(([id, label]) => (
@@ -1290,8 +1459,8 @@ function BuilderEditor() {
               {LANDINGS.map((t) => (
                 <div key={t.id} role="button" tabIndex={0} onClick={() => addTemplate(t.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addTemplate(t.id); } }} className="cursor-pointer overflow-hidden rounded-lg border border-border/60 text-left transition-colors hover:border-primary/60">
                   <LandingThumb def={t} />
-                  <span className="block px-2 pt-1.5 text-xs font-semibold">{tplText(t.label, locale)}</span>
-                  <span className="block px-2 pb-2 text-[10px] leading-tight text-muted-foreground">{tplText(t.description, locale)}</span>
+                  <span className="block truncate px-2 pt-1.5 text-xs font-semibold">{tplText(t.label, locale)}</span>
+                  <span className="line-clamp-2 block px-2 pb-2 text-[10px] leading-tight text-muted-foreground">{tplText(t.description, locale)}</span>
                 </div>
               ))}
             </div>
@@ -1312,8 +1481,8 @@ function BuilderEditor() {
             <div className="space-y-1.5">
               {TEMPLATES.map((t) => (
                 <button key={t.id} onClick={() => addTemplate(t.id)} className="w-full rounded-lg border border-border/60 p-2 text-left transition-colors hover:border-primary/50 hover:bg-muted/50">
-                  <span className="flex items-center justify-between text-sm font-medium">{tplText(t.label, locale)}<Plus className="h-3.5 w-3.5 text-muted-foreground" /></span>
-                  <span className="text-xs text-muted-foreground">{tplText(t.description, locale)}</span>
+                  <span className="flex items-center justify-between gap-2 text-sm font-medium"><span className="min-w-0 truncate">{tplText(t.label, locale)}</span><Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /></span>
+                  <span className="line-clamp-2 text-xs text-muted-foreground">{tplText(t.description, locale)}</span>
                 </button>
               ))}
             </div>
@@ -1372,21 +1541,33 @@ function BuilderEditor() {
           )}
           </div>{/* end Страницы */}
 
-          {/* TAB: Блоки */}
-          <div className={tab === 'blocks' ? 'grid items-start gap-4 lg:grid-cols-2' : 'hidden'}>
+          {/* TAB: Блоки — two columns as soon as the PANEL itself is wide
+              enough (container query), not the viewport: with a wide preview
+              pane the panel may be narrow even on a large monitor. */}
+          <div className={tab === 'blocks' ? 'grid items-start gap-4 @3xl:grid-cols-2' : 'hidden'}>
           <div className="space-y-4">
           {/* Palette */}
           <Card className="p-3">
             <p className="mb-1 text-sm font-semibold">{tr('Добавить элемент')}</p>
             <p className="mb-2 text-xs text-muted-foreground">{selected && isContainer(selected.type) ? tr('Клик — внутрь: {label}').replace('{label}', tr(NODE_LABELS[selected.type])) : tr('Клик — в конец страницы')} · {tr('или перетащите на блок')}</p>
             <Input value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} placeholder={tr('Поиск элемента…')} className="mb-2 h-8" />
-            <div className="grid grid-cols-2 gap-1.5">
-              {PALETTE.filter((t) => NODE_LABELS[t].toLowerCase().includes(paletteQuery.trim().toLowerCase())).map((t) => (
-                <Button key={t} size="sm" variant="outline" onMouseDown={(e) => startPaletteDrag(t, e)} className="cursor-grab justify-start gap-1 text-xs active:cursor-grabbing">
-                  <Plus className="h-3.5 w-3.5" /> {tr(NODE_LABELS[t])}
-                </Button>
-              ))}
-            </div>
+            {(() => {
+              // Match against the LOCALIZED label — the user searches in the
+              // language they see, not in the internal Russian keys.
+              const q = paletteQuery.trim().toLowerCase();
+              const found = PALETTE.filter((t) => tr(NODE_LABELS[t]).toLowerCase().includes(q) || NODE_LABELS[t].toLowerCase().includes(q));
+              return found.length ? (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {found.map((t) => (
+                    <Button key={t} size="sm" variant="outline" onMouseDown={(e) => startPaletteDrag(t, e)} title={tr(NODE_LABELS[t])} className="min-w-0 cursor-grab justify-start gap-1 px-2 text-xs active:cursor-grabbing">
+                      <Plus className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{tr(NODE_LABELS[t])}</span>
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-dashed border-border p-2.5 text-center text-xs text-muted-foreground">{tr('Ничего не найдено.')}</p>
+              );
+            })()}
           </Card>
 
           {/* Section presets */}
@@ -1394,8 +1575,8 @@ function BuilderEditor() {
             <p className="mb-2 text-sm font-semibold">{tr('Готовые секции')}</p>
             <div className="grid grid-cols-2 gap-1.5">
               {SECTION_PRESETS.map((s) => (
-                <Button key={s.id} size="sm" variant="outline" className="justify-start gap-1 text-xs" onClick={() => addSectionPreset(s.id)}>
-                  <Plus className="h-3.5 w-3.5" /> {tplText(s.label, locale)}
+                <Button key={s.id} size="sm" variant="outline" title={tplText(s.label, locale)} className="min-w-0 justify-start gap-1 px-2 text-xs" onClick={() => addSectionPreset(s.id)}>
+                  <Plus className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{tplText(s.label, locale)}</span>
                 </Button>
               ))}
             </div>
@@ -1405,8 +1586,23 @@ function BuilderEditor() {
           <Card className="p-3" onDragOver={(e) => e.preventDefault()} onDrop={onRootDrop}>
             <p className="mb-1 text-sm font-semibold">{tr('Структура')}</p>
             <p className="mb-2 text-xs text-muted-foreground">{tr('Перетащите элемент из палитры сюда или на нужный блок.')}</p>
+            {page && page.blocks.length > 0 && (
+              <div className="relative mb-2">
+                <input
+                  value={treeQuery}
+                  onChange={(e) => setTreeQuery(e.target.value)}
+                  placeholder={tr('Поиск по блокам…')}
+                  className="w-full rounded-md border border-border bg-background px-2 py-1.5 pr-7 text-xs outline-none focus:border-primary"
+                />
+                {treeQuery && (
+                  <button onClick={() => setTreeQuery('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label={tr('Очистить')}>
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
             {page && page.blocks.length > 0 ? (
-              <Tree nodes={page.blocks} depth={0} selectedId={selectedId} onSelect={setSelectedId}
+              <Tree nodes={page.blocks} depth={0} selectedId={selectedId} onSelect={setSelectedId} query={treeQuery}
                 collapsed={collapsed} onToggle={toggleCollapse}
                 dropHint={dropHint} setDropHint={setDropHint}
                 onMove={(id, dir) => setBlocks((b) => moveNode(b, id, dir))}
@@ -1604,15 +1800,39 @@ function BuilderEditor() {
                                 <SelectContent>{f.opts!.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                               </Select>
                               {isColor && (
-                                <input
-                                  type="color"
+                                <ColorInput
                                   value={val?.startsWith('#') ? val : '#000000'}
-                                  onChange={(e) => patch(selected.id, { [key]: e.target.value })}
+                                  onCommit={(v) => { patch(selected.id, { [key]: v }); rememberColor(v); }}
+                                  onPreview={(v) => sendColorHint(selected.id, f.k, v)}
                                   title={tr('Выбрать свой цвет')}
                                   className="h-8 w-8 shrink-0 cursor-pointer rounded-md border border-border bg-transparent p-0.5"
                                 />
                               )}
                             </div>
+                            {isColor && (hasEyeDropper || recentColors.length > 0) && (
+                              <div className="mt-1 flex flex-wrap items-center gap-1">
+                                {hasEyeDropper && (
+                                  <button
+                                    onClick={() => pickFromScreen((v) => { patch(selected.id, { [key]: v }); rememberColor(v); })}
+                                    title={tr('Взять цвет с экрана')}
+                                    aria-label={tr('Взять цвет с экрана')}
+                                    className="inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                                  >
+                                    <Pipette className="h-3 w-3" />
+                                  </button>
+                                )}
+                                {recentColors.map((c) => (
+                                  <button
+                                    key={c}
+                                    onClick={() => patch(selected.id, { [key]: c })}
+                                    title={c}
+                                    aria-label={c}
+                                    className="h-4 w-4 shrink-0 rounded-full border border-border"
+                                    style={{ background: c }}
+                                  />
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -1630,9 +1850,9 @@ function BuilderEditor() {
                   ) : (
                     <div className="flex flex-wrap gap-1">
                       {stylePresets.map((ps) => (
-                        <span key={ps.id} className="flex items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-[11px]">
-                          <button onClick={() => applyStylePreset(ps)} className="py-1 hover:text-primary" title={tr('Применить к выбранному элементу')}>{ps.name}</button>
-                          <button onClick={() => deleteStylePreset(ps.id)} className="px-1 text-muted-foreground hover:text-red-500" aria-label={tr('Удалить пресет')}>×</button>
+                        <span key={ps.id} className="flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-[11px]">
+                          <button onClick={() => applyStylePreset(ps)} className="max-w-40 truncate py-1 hover:text-primary" title={`${ps.name} — ${tr('Применить к выбранному элементу')}`}>{ps.name}</button>
+                          <button onClick={() => deleteStylePreset(ps.id)} className="shrink-0 px-1 text-muted-foreground hover:text-red-500" aria-label={tr('Удалить пресет')}>×</button>
                         </span>
                       ))}
                     </div>
@@ -1648,8 +1868,8 @@ function BuilderEditor() {
                   </div>
                   {selected?.props.symbolId ? (
                     <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[11px]">
-                      <span className="text-primary">🔗 {tr('Общий блок')}: {selected.props.symbolName || tr('без имени')}</span>
-                      <button onClick={detachSymbol} className="text-muted-foreground hover:text-red-500" title={tr('Отвязать эту копию')}>{tr('Отвязать')}</button>
+                      <span className="min-w-0 truncate text-primary" title={selected.props.symbolName || tr('без имени')}>🔗 {tr('Общий блок')}: {selected.props.symbolName || tr('без имени')}</span>
+                      <button onClick={detachSymbol} className="shrink-0 text-muted-foreground hover:text-red-500" title={tr('Отвязать эту копию')}>{tr('Отвязать')}</button>
                     </div>
                   ) : null}
                   {symbolsMap.size === 0 ? (
@@ -1657,7 +1877,7 @@ function BuilderEditor() {
                   ) : (
                     <div className="flex flex-wrap gap-1">
                       {[...symbolsMap.entries()].map(([sid, name]) => (
-                        <button key={sid} onClick={() => insertSymbolCopy(sid)} className="rounded-md border border-border bg-muted/40 px-2 py-1 text-[11px] hover:border-primary hover:text-primary" title={tr('Вставить копию (в выбранный контейнер или в конец)')}>+ {name}</button>
+                        <button key={sid} onClick={() => insertSymbolCopy(sid)} className="max-w-full truncate rounded-md border border-border bg-muted/40 px-2 py-1 text-[11px] hover:border-primary hover:text-primary" title={`${name} — ${tr('Вставить копию (в выбранный контейнер или в конец)')}`}>+ {name}</button>
                       ))}
                     </div>
                   )}
@@ -1830,7 +2050,7 @@ function BuilderEditor() {
                   <select
                     value={doc.headerCtaHref ?? ''}
                     onChange={(e) => setDoc((d) => ({ ...d, headerCtaHref: e.target.value }))}
-                    className="h-8 shrink-0 rounded-md border border-input bg-background px-1 text-xs"
+                    className="h-8 w-32 shrink-0 truncate rounded-md border border-input bg-background px-1 text-xs"
                     title={tr('Ведёт на страницу')}
                     aria-label={tr('Ведёт на страницу')}
                   >
@@ -1894,12 +2114,12 @@ function BuilderEditor() {
             <div className="space-y-1.5">
               {doc.nav.map((l, i) => (
                 <div key={i} className="flex items-center gap-1.5">
-                  <Input value={l.label} onChange={(e) => setNavLink(i, 'label', e.target.value)} placeholder={tr('Текст')} className="h-8" />
-                  <Input value={l.href} onChange={(e) => setNavLink(i, 'href', e.target.value)} placeholder="/site/..." className="h-8" />
+                  <Input value={l.label} onChange={(e) => setNavLink(i, 'label', e.target.value)} placeholder={tr('Текст')} className="h-8 min-w-0" />
+                  <Input value={l.href} onChange={(e) => setNavLink(i, 'href', e.target.value)} placeholder="/site/..." className="h-8 min-w-0" />
                   <select
                     value={doc.pages.some((p) => (p.path ? `/site/${p.path}` : '/site') === l.href) ? l.href : ''}
                     onChange={(e) => { if (e.target.value) setNavLink(i, 'href', e.target.value); }}
-                    className="h-8 shrink-0 rounded-md border border-input bg-background px-1 text-xs"
+                    className="h-8 w-24 shrink-0 truncate rounded-md border border-input bg-background px-1 text-xs"
                     title={tr('Связать со страницей сайта')}
                     aria-label={tr('Связать со страницей сайта')}
                   >
@@ -1923,36 +2143,51 @@ function BuilderEditor() {
           </div>{/* end Сайт */}
         </aside>
 
-        {/* Resizable splitter */}
+        {/* Resizable splitter (desktop only; the touch target extends 6px to
+            each side so it's easy to grab without pixel-hunting) */}
         <div
-          onMouseDown={startResize}
-          className={`w-1.5 shrink-0 cursor-col-resize bg-border/60 transition-colors hover:bg-primary/60 ${fullscreen ? 'hidden' : ''}`}
+          onPointerDown={startResize}
+          className={cn(
+            "relative hidden w-1.5 shrink-0 cursor-col-resize touch-none bg-border/60 transition-colors after:absolute after:inset-y-0 after:-left-1.5 after:-right-1.5 after:content-[''] hover:bg-primary/60",
+            isResizing && 'bg-primary/60',
+            !fullscreen && 'lg:block',
+          )}
           title={tr('Потяните, чтобы изменить ширину')}
         />
 
-        {/* Live preview canvas */}
+        {/* Live preview canvas. Full-width below lg (mobileView toggle),
+            fixed --pw width from lg up. */}
         <div
-          className={fullscreen ? 'fixed inset-x-0 bottom-0 top-14 z-30 flex flex-col bg-muted/20' : 'flex shrink-0 flex-col border-l border-border/60 bg-muted/20'}
-          style={fullscreen ? undefined : { width: previewWidth }}
+          className={cn(
+            '@container',
+            fullscreen
+              ? 'fixed inset-x-0 bottom-0 top-14 z-30 flex flex-col bg-muted/20'
+              : 'min-w-0 flex-1 flex-col bg-muted/20 lg:w-(--pw) lg:flex-none lg:shrink-0 lg:border-l lg:border-border/60',
+            !fullscreen && (mobileView === 'panel' ? 'hidden lg:flex' : 'flex'),
+          )}
+          style={fullscreen ? undefined : ({ '--pw': `${previewWidth}px` } as CSSProperties)}
         >
-          <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground">
-            <ChevronRight className="h-4 w-4 text-primary" />
-            <span className="truncate">{previewSrc}</span>
-            <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{tr('в реальном времени')}</span>
-            <div className="ml-auto flex items-center gap-1">
+          <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2 text-xs text-muted-foreground @lg:px-4">
+            <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
+            <span className="min-w-0 flex-1 truncate" title={previewSrc}>{previewSrc}</span>
+            <span className="hidden shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary @xl:inline">{tr('в реальном времени')}</span>
+            <div className="flex shrink-0 items-center gap-1">
               <LanguageSwitcher />
-              <button onClick={() => setPreviewDark((v) => !v)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title={tr('Светлая / тёмная тема предпросмотра')}>
+              <button onClick={() => setPreviewDark((v) => !v)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title={tr('Светлая / тёмная тема предпросмотра')} aria-label={tr('Светлая / тёмная тема предпросмотра')}>
                 {previewDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                {previewDark ? tr('Светлая') : tr('Тёмная')}
+                <span className="hidden @2xl:inline">{previewDark ? tr('Светлая') : tr('Тёмная')}</span>
               </button>
-              <button onClick={() => setPreviewKey((k) => k + 1)} className="rounded-md px-2 py-1 hover:bg-muted">{tr('Перезагрузить')}</button>
-              <button onClick={() => setFullscreen((f) => !f)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title={tr('Полноэкранный предпросмотр')}>
+              <button onClick={() => setPreviewKey((k) => k + 1)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title={tr('Перезагрузить')} aria-label={tr('Перезагрузить')}>
+                <RotateCw className="h-4 w-4" />
+                <span className="hidden @2xl:inline">{tr('Перезагрузить')}</span>
+              </button>
+              <button onClick={() => setFullscreen((f) => !f)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title={tr('Полноэкранный предпросмотр')} aria-label={tr('Полноэкранный предпросмотр')}>
                 {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                {fullscreen ? tr('Свернуть') : tr('На весь экран')}
+                <span className="hidden @2xl:inline">{fullscreen ? tr('Свернуть') : tr('На весь экран')}</span>
               </button>
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto p-4">
+          <div className="min-h-0 flex-1 overflow-auto p-2 @lg:p-4">
             <div className="mx-auto h-full transition-[width] duration-300" style={{ width: fullscreen ? DEVICE[device] : (device === 'full' ? '100%' : DEVICE[device]) }}>
               <div className="relative h-full w-full">
                 <iframe
@@ -1961,8 +2196,40 @@ function BuilderEditor() {
                   src="/builder-preview"
                   title={tr('Предпросмотр')}
                   onLoad={postPreview}
-                  className={cn('h-full w-full rounded-xl border border-border bg-background shadow-2xl', dragType && 'pointer-events-none')}
+                  className={cn('h-full w-full rounded-xl border border-border bg-background shadow-2xl', (dragType || isResizing) && 'pointer-events-none')}
                 />
+                {selectedId && selRect && !dragType && !isResizing && page && (
+                  <div
+                    className="pointer-events-auto absolute z-20 flex items-center gap-0.5 rounded-lg border border-border bg-background/95 p-0.5 shadow-xl backdrop-blur"
+                    style={{
+                      top: selRect.top < 34 ? selRect.top + selRect.height + 4 : selRect.top - 4,
+                      left: Math.max(4, selRect.left),
+                      transform: selRect.top < 34 ? 'none' : 'translateY(-100%)',
+                    }}
+                  >
+                    <button
+                      onClick={() => { const anc = ancestorPath(page.blocks, selectedId); const par = anc[anc.length - 1]; if (par) setSelectedId(par.id); }}
+                      className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      title={tr('Выбрать родителя')} aria-label={tr('Выбрать родителя')}
+                    ><CornerLeftUp className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => setBlocks((b) => moveNode(b, selectedId, -1))} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title={tr('Вверх')} aria-label={tr('Вверх')}><ArrowUp className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => setBlocks((b) => moveNode(b, selectedId, 1))} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title={tr('Вниз')} aria-label={tr('Вниз')}><ArrowDown className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => duplicate(selectedId)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title={tr('Дублировать')} aria-label={tr('Дублировать')}><Copy className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => { setBlocks((b) => removeNode(b, selectedId)); setSelectedId(null); }} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500" title={tr('Удалить')} aria-label={tr('Удалить')}><Trash2 className="h-3.5 w-3.5" /></button>
+                    {(() => {
+                      if (!selColors?.hasText || !selColors.color || !selColors.bg) return null;
+                      const ratio = contrastRatio(selColors.color, selColors.bg);
+                      if (ratio == null) return null;
+                      const lvl = wcagLevel(ratio);
+                      const cls = lvl === 'fail' ? 'bg-red-500/15 text-red-500' : lvl === 'AA-large' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-green-500/15 text-green-600 dark:text-green-400';
+                      return (
+                        <span className={`ml-0.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-bold tabular-nums ${cls}`} title={tr('Контраст текста и фона (WCAG)')}>
+                          {ratio.toFixed(1)}:1 {lvl === 'fail' ? '⚠' : lvl === 'AA-large' ? 'AA↓' : lvl}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1983,7 +2250,23 @@ function BuilderEditor() {
 // Real, theme-scoped mini-preview of a header/footer variant.
 const HEADER_LABELS: Record<string, string> = { minimal: 'Минимал', centered: 'По центру', split: 'Сплит', cta: 'С кнопкой' };
 const FOOTER_LABELS: Record<string, string> = { simple: 'Простой', columns: 'Колонки', centered: 'По центру', newsletter: 'С подпиской' };
-function ChromeThumb({ doc, kind, variant }: { doc: BuilderDoc; kind: 'header' | 'footer'; variant: string }) {
+// Every doc field the chrome (header/footer/aside) actually reads. The memo
+// below re-renders a thumb only when one of these changes — editing page
+// content must not redraw 8 mini-chromes on each keystroke.
+const CHROME_DOC_KEYS = [
+  'themeId', 'brand', 'brandMode', 'logoUrl', 'logoHeight', 'logoWidth', 'logoAlt',
+  'nav', 'navStyle', 'footer', 'pages', 'base', 'siteId', 'authButtons',
+  'authLoginVariant', 'authCtaVariant', 'authBtnSize', 'authBtnRounded', 'footerBtnVariant',
+  'headerCtaText', 'headerCtaHref', 'headerCtaVariant', 'headerVariant', 'headerBehavior',
+  'footerVariant', 'asideVariant', 'asideStyle',
+] as const;
+const chromeThumbEq = (
+  a: { doc: BuilderDoc; kind: string; variant: string },
+  b: { doc: BuilderDoc; kind: string; variant: string },
+) =>
+  a.kind === b.kind && a.variant === b.variant &&
+  CHROME_DOC_KEYS.every((k) => (a.doc as unknown as Record<string, unknown>)[k] === (b.doc as unknown as Record<string, unknown>)[k]);
+const ChromeThumb = memo(function ChromeThumb({ doc, kind, variant }: { doc: BuilderDoc; kind: 'header' | 'footer'; variant: string }) {
   const theme = getTheme(doc.themeId ?? 'modern-clean');
   const cls = `cthumb-${kind}-${variant}`;
   const css = useMemo(() => themeCss(theme).split(':root').join(`.${cls}`).split('.dark').join(`.${cls}`), [theme, cls]);
@@ -2010,10 +2293,12 @@ function ChromeThumb({ doc, kind, variant }: { doc: BuilderDoc; kind: 'header' |
       </div>
     </div>
   );
-}
+}, chromeThumbEq);
 
 // Real, theme-scoped mini-preview of a landing (scaled-down actual render).
-function LandingThumb({ def }: { def: { id: string; themeId?: string; build: () => { blocks: BuilderNode[] } } }) {
+// Memoized: `def` is a module constant, so these full-page renders happen
+// exactly once instead of on every editor state change.
+const LandingThumb = memo(function LandingThumb({ def }: { def: { id: string; themeId?: string; build: () => { blocks: BuilderNode[] } } }) {
   const theme = getTheme(def.themeId ?? 'modern-clean');
   const blocks = useMemo(() => def.build().blocks, [def]);
   const cls = `thumb-${def.id}`;
@@ -2047,12 +2332,12 @@ function LandingThumb({ def }: { def: { id: string; themeId?: string; build: () 
       )}
     </div>
   );
-}
+});
 
 // Recursive tree view
 function Tree({
   nodes, depth, selectedId, onSelect, onMove, onDelete, onDuplicate, onDragStartId, onDropRow,
-  collapsed, onToggle, dropHint, setDropHint,
+  collapsed, onToggle, dropHint, setDropHint, query,
 }: {
   nodes: BuilderNode[];
   depth: number;
@@ -2067,8 +2352,17 @@ function Tree({
   onToggle: (id: string) => void;
   dropHint: { id: string; pos: 'before' | 'after' } | null;
   setDropHint: (h: { id: string; pos: 'before' | 'after' } | null) => void;
+  query?: string;
 }) {
   const tr = builderTr(useLocale().locale);
+  const q = (query ?? '').trim().toLowerCase();
+  const matchesNode = (n: BuilderNode): boolean => {
+    if (!q) return true;
+    const label = tr(NODE_LABELS[n.type]).toLowerCase();
+    const text = (n.props.text ?? '').toLowerCase();
+    if (label.includes(q) || text.includes(q) || n.type.toLowerCase().includes(q)) return true;
+    return (n.children ?? []).some(matchesNode);
+  };
   return (
     <div className="space-y-1">
       {nodes.map((n, i) => {
@@ -2076,6 +2370,8 @@ function Tree({
         const isCollapsed = collapsed.has(n.id);
         const container = isContainer(n.type);
         const hint = dropHint?.id === n.id ? dropHint.pos : null;
+        if (q && !matchesNode(n)) return null;
+        const selfMatch = q ? (tr(NODE_LABELS[n.type]).toLowerCase().includes(q) || (n.props.text ?? '').toLowerCase().includes(q) || n.type.toLowerCase().includes(q)) : false;
         return (
           <div key={n.id}>
             {hint === 'before' && <div className="my-0.5 h-0.5 rounded bg-primary" style={{ marginLeft: depth * 12 + 6 }} />}
@@ -2101,18 +2397,18 @@ function Tree({
                 <span className="w-3.5" />
               )}
               <span className="cursor-grab text-muted-foreground/50 active:cursor-grabbing" aria-hidden>⋮⋮</span>
-              <button className="min-w-0 flex-1 truncate text-left" onClick={() => onSelect(n.id)}>
+              <button className={`min-w-0 flex-1 truncate text-left ${selfMatch ? 'font-semibold text-primary' : ''}`} onClick={() => onSelect(n.id)}>
                 {tr(NODE_LABELS[n.type])}
                 {n.props.text ? <span className="text-muted-foreground"> — {n.props.text.slice(0, 16)}</span> : null}
               </button>
-              <button onClick={() => onMove(n.id, -1)} disabled={i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label={tr('Вверх')}><ArrowUp className="h-3.5 w-3.5" /></button>
-              <button onClick={() => onMove(n.id, 1)} disabled={i === nodes.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label={tr('Вниз')}><ArrowDown className="h-3.5 w-3.5" /></button>
-              <button onClick={() => onDuplicate(n.id)} className="text-muted-foreground hover:text-foreground" aria-label={tr('Дублировать')}><Copy className="h-3.5 w-3.5" /></button>
-              <button onClick={() => onDelete(n.id)} className="text-muted-foreground hover:text-red-500" aria-label={tr('Удалить')}><X className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onMove(n.id, -1)} disabled={i === 0} className="shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label={tr('Вверх')}><ArrowUp className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onMove(n.id, 1)} disabled={i === nodes.length - 1} className="shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label={tr('Вниз')}><ArrowDown className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onDuplicate(n.id)} className="shrink-0 text-muted-foreground hover:text-foreground" aria-label={tr('Дублировать')}><Copy className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onDelete(n.id)} className="shrink-0 text-muted-foreground hover:text-red-500" aria-label={tr('Удалить')}><X className="h-3.5 w-3.5" /></button>
             </div>
             {hint === 'after' && <div className="my-0.5 h-0.5 rounded bg-primary" style={{ marginLeft: depth * 12 + 6 }} />}
-            {hasKids && !isCollapsed && (
-              <Tree nodes={n.children!} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onMove={onMove} onDelete={onDelete} onDuplicate={onDuplicate} onDragStartId={onDragStartId} onDropRow={onDropRow} collapsed={collapsed} onToggle={onToggle} dropHint={dropHint} setDropHint={setDropHint} />
+            {hasKids && (!isCollapsed || !!q) && (
+              <Tree nodes={n.children!} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onMove={onMove} onDelete={onDelete} onDuplicate={onDuplicate} onDragStartId={onDragStartId} onDropRow={onDropRow} collapsed={collapsed} onToggle={onToggle} dropHint={dropHint} setDropHint={setDropHint} query={query} />
             )}
           </div>
         );

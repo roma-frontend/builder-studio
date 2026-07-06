@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Rocket, CircleDashed, ExternalLink, LayoutList } from 'lucide-react';
 import { getCurrentUser, isStaff } from '@/lib/auth';
+import { isCapabilityEnabled } from '@/lib/access';
 import { listAllSites } from '@/lib/admin';
 import { Button } from '@/components/ui/button';
 import { PageHeader, EmptyState } from '@/components/dashboard/ui';
@@ -19,6 +20,7 @@ export default async function AllSitesPage() {
   const me = await getCurrentUser();
   if (!me) redirect('/login?next=/dashboard/all-sites');
   if (!isStaff(me)) redirect('/dashboard');
+  if (!isCapabilityEnabled(me.role, 'allSites')) redirect('/dashboard');
 
   const locale = await getLocale();
   const t = staffDict(locale);

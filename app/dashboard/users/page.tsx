@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser, isStaff, isSuperadmin } from '@/lib/auth';
+import { isCapabilityEnabled } from '@/lib/access';
 import { listUsers } from '@/lib/admin';
 import { PageHeader } from '@/components/dashboard/ui';
 import { UsersTable } from '@/components/dashboard/users-table';
@@ -16,6 +17,7 @@ export default async function UsersPage() {
   const me = await getCurrentUser();
   if (!me) redirect('/login?next=/dashboard/users');
   if (!isStaff(me)) redirect('/dashboard');
+  if (!isCapabilityEnabled(me.role, 'users')) redirect('/dashboard');
 
   const t = staffDict(await getLocale());
   const users = listUsers();

@@ -214,6 +214,49 @@ CREATE TABLE IF NOT EXISTS access_control (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (role, capability)
 );
+
+CREATE TABLE IF NOT EXISTS access_grants (
+  id TEXT PRIMARY KEY,
+  role TEXT NOT NULL,
+  capability TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  granted_by TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS access_grants_role_idx ON access_grants (role);
+
+CREATE TABLE IF NOT EXISTS activity_trail (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  path TEXT NOT NULL,
+  at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS activity_trail_user_idx ON activity_trail (user_id);
+CREATE INDEX IF NOT EXISTS activity_trail_at_idx ON activity_trail (at);
+
+CREATE TABLE IF NOT EXISTS trashed_sites (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  draft_doc TEXT NOT NULL,
+  published_doc TEXT,
+  member_approval INTEGER NOT NULL DEFAULT 1,
+  published_at INTEGER,
+  original_created_at INTEGER NOT NULL,
+  deleted_by TEXT NOT NULL DEFAULT '',
+  deleted_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS saved_views (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  route TEXT NOT NULL,
+  name TEXT NOT NULL,
+  query TEXT NOT NULL DEFAULT '{}',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS saved_views_user_route_idx ON saved_views (user_id, route);
 `;
 
 type DB = BetterSQLite3Database<typeof schema>;
@@ -238,6 +281,8 @@ function createDb(): DB {
   // Brute-force lockout counters (both auth realms).
   addColumn('users', 'failed_attempts', `failed_attempts INTEGER NOT NULL DEFAULT 0`);
   addColumn('users', 'locked_until', `locked_until INTEGER`);
+  addColumn('users', 'totp_secret', `totp_secret TEXT`);
+  addColumn('users', 'totp_enabled', `totp_enabled INTEGER NOT NULL DEFAULT 0`);
   addColumn('site_users', 'failed_attempts', `failed_attempts INTEGER NOT NULL DEFAULT 0`);
   addColumn('site_users', 'locked_until', `locked_until INTEGER`);
   addColumn('sessions', 'last_active_at', `last_active_at INTEGER`);

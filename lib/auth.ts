@@ -165,6 +165,8 @@ export function createUser(email: string, password: string, name: string): User 
     isActive: true,
     failedAttempts: 0,
     lockedUntil: null,
+    totpSecret: null,
+    totpEnabled: false,
     createdAt: new Date(),
   };
   db.insert(users).values(user).run();

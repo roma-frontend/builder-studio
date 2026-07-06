@@ -71,7 +71,7 @@ export function TenantUsers() {
             return (
               <div key={u.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3">
                 <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">{(u.name || u.email).charAt(0).toUpperCase()}</div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-[220px] flex-1">
                   <p className="truncate text-sm font-medium">{u.name || t.noName} <span className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${meta.cls}`}>{meta.label}</span></p>
                   <p className="truncate text-xs text-muted-foreground">{u.email} · {t.now} {u.siteName} (/s/{u.siteSlug})</p>
                 </div>

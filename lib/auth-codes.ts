@@ -8,6 +8,7 @@ import 'server-only';
 import { randomInt, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { and, eq, isNull, lt } from 'drizzle-orm';
 import { getDb, newId, authCodes, users, type User } from '@/lib/db';
+import { verifyTotp } from '@/lib/totp';
 
 export const OTP_TTL_MS = 10 * 60 * 1000; // 10 min
 export const RESET_TTL_MS = 60 * 60 * 1000; // 60 min
@@ -109,6 +110,55 @@ export function challengeUser(challengeId: string): User | null {
     .where(and(eq(authCodes.id, challengeId), eq(authCodes.purpose, 'login_otp'), isNull(authCodes.consumedAt)))
     .get();
   return row?.user ?? null;
+}
+
+// ── TOTP login challenge (authenticator app replaces the emailed code) ───────
+
+/** Issue a pending-login challenge satisfied by a TOTP code. No code is stored;
+ *  verification runs against the user's TOTP secret at verify time. */
+export function createTotpChallenge(user: Pick<User, 'id' | 'email'>): { challengeId: string } {
+  cleanupAuthCodes();
+  invalidateFor(user.id, 'totp_login');
+  const challengeId = newId('totp');
+  getDb()
+    .insert(authCodes)
+    .values({
+      id: challengeId,
+      userId: user.id,
+      email: user.email,
+      purpose: 'totp_login',
+      codeHash: '',
+      attempts: 0,
+      expiresAt: new Date(Date.now() + OTP_TTL_MS),
+      consumedAt: null,
+      createdAt: new Date(),
+    })
+    .run();
+  return { challengeId };
+}
+
+/** Purpose + user of a live (unconsumed, unexpired) challenge, or null. */
+export function getChallenge(challengeId: string): { userId: string; purpose: string } | null {
+  const row = getDb().select().from(authCodes).where(eq(authCodes.id, challengeId)).get();
+  if (!row || row.consumedAt || row.expiresAt.getTime() < Date.now()) return null;
+  return { userId: row.userId, purpose: row.purpose };
+}
+
+/** Verify a TOTP code against a challenge; consumes on success, caps attempts. */
+export function verifyTotpLogin(challengeId: string, code: string, secret: string | null): OtpVerdict {
+  const db = getDb();
+  const row = db.select().from(authCodes).where(eq(authCodes.id, challengeId)).get();
+  if (!row || row.purpose !== 'totp_login' || row.consumedAt) return { status: 'expired' };
+  if (row.expiresAt.getTime() < Date.now()) return { status: 'expired' };
+  if (row.attempts >= MAX_OTP_ATTEMPTS) return { status: 'too_many' };
+  if (!secret || !verifyTotp(secret, (code ?? '').trim())) {
+    const attempts = row.attempts + 1;
+    db.update(authCodes).set({ attempts }).where(eq(authCodes.id, challengeId)).run();
+    if (attempts >= MAX_OTP_ATTEMPTS) return { status: 'too_many' };
+    return { status: 'invalid', attemptsLeft: MAX_OTP_ATTEMPTS - attempts };
+  }
+  db.update(authCodes).set({ consumedAt: new Date() }).where(eq(authCodes.id, challengeId)).run();
+  return { status: 'ok', userId: row.userId };
 }
 
 // ── Password reset (long token) ─────────────────────────────────────────────

@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { createSession, rateLimit, requestMeta, setSessionCookie } from '@/lib/auth';
-import { verifyLoginOtp } from '@/lib/auth-codes';
+import { verifyLoginOtp, verifyTotpLogin, getChallenge } from '@/lib/auth-codes';
 import { getDb, users } from '@/lib/db';
 import { recordAudit } from '@/lib/audit';
 
@@ -24,7 +24,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const verdict = verifyLoginOtp(body.challenge ?? '', (body.code ?? '').trim());
+  const challenge = body.challenge ?? '';
+  const code = (body.code ?? '').trim();
+  // TOTP challenges verify against the user's authenticator secret; email OTP
+  // challenges verify against the stored one-time code.
+  const info = getChallenge(challenge);
+  let verdict;
+  if (info?.purpose === 'totp_login') {
+    const u = getDb().select().from(users).where(eq(users.id, info.userId)).get();
+    verdict = verifyTotpLogin(challenge, code, u?.totpSecret ?? null);
+  } else {
+    verdict = verifyLoginOtp(challenge, code);
+  }
   if (verdict.status === 'expired') {
     return NextResponse.json({ error: 'Код устарел. Войдите заново, мы отправим новый.' }, { status: 401 });
   }

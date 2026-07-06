@@ -4,6 +4,7 @@ import { getCurrentUser, getUserByToken, isSuperadmin, ADMIN_RETURN_COOKIE } fro
 import { listSitesForUser } from '@/lib/sites';
 import { countPendingOrgRequests } from '@/lib/org-requests';
 import { countPendingMembersForOwner } from '@/lib/site-membership';
+import { disabledCapabilitiesFor } from '@/lib/access';
 import { getLocale } from '@/lib/i18n';
 import { dashDict } from '@/lib/dashboard-dict';
 import { DashboardShell, type Role } from '@/components/dashboard/shell';
@@ -35,6 +36,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const gated = !isSuperadmin(user) && !hasOrg;
   const orgRequests = isSuperadmin(user) ? countPendingOrgRequests() : 0;
   const siteMembers = gated ? 0 : countPendingMembersForOwner(user);
+  const disabled = disabledCapabilitiesFor(user.role);
   const dashT = dashDict(await getLocale());
 
   return (
@@ -44,6 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       gated={gated}
       orgRequests={orgRequests}
       siteMembers={siteMembers}
+      disabled={disabled}
     >
       {gated ? (
         <>

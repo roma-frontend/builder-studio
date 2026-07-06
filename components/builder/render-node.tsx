@@ -386,10 +386,14 @@ export function RenderNode({ node, t = RT_DEFAULT }: { node: BuilderNode; t?: Si
   const p = node.props ?? {};
   const elProps = el.props as { className?: string; style?: CSSProperties };
   const self = SELF_STYLED.has(node.type);
-  const merged: { 'data-nid': string; 'data-container'?: string; className: string; style?: CSSProperties } = {
+  const merged: { 'data-nid': string; 'data-node-type': string; 'data-prop'?: string; 'data-container'?: string; className: string; style?: CSSProperties } = {
     'data-nid': node.id,
+    'data-node-type': node.type,
     className: cn(elProps.className, motionClass(p), layoutClass(p), self ? '' : surfaceClass(p), p.showOn && SHOW_ON[p.showOn]),
   };
+  // Text nodes whose element directly holds props.text are editable inline
+  // (double-click in the preview → contenteditable → commit as a patch).
+  if (node.type === 'heading' || node.type === 'text') merged['data-prop'] = 'text';
   if (isContainer(node.type)) merged['data-container'] = '1';
   const responsive = hasResponsive(p);
   // Container flex/grid overrides (gap/align/justify/justify-items) as raw CSS.

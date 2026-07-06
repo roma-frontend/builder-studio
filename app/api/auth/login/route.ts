@@ -12,7 +12,7 @@ import {
   verifyPassword,
 } from '@/lib/auth';
 import { recordAudit } from '@/lib/audit';
-import { createLoginOtp, maskEmail, OTP_TTL_MIN } from '@/lib/auth-codes';
+import { createLoginOtp, createTotpChallenge, maskEmail, OTP_TTL_MIN } from '@/lib/auth-codes';
 import { loginOtpEnabled, sendEmail } from '@/lib/email';
 import { renderLoginOtpEmail } from '@/lib/email-templates';
 import { getLocale } from '@/lib/i18n';
@@ -71,7 +71,15 @@ export async function POST(request: Request) {
 
   clearLoginFailures(user);
 
-  // Second factor: email a 6-digit code and stop before creating the session.
+  // Second factor A: authenticator app (TOTP) replaces the emailed code when
+  // the user has enrolled one — no email is sent.
+  if (user.totpEnabled && user.totpSecret) {
+    const { challengeId } = createTotpChallenge(user);
+    recordAudit({ id: user.id, email: user.email }, 'auth.totp_challenge', user.email, `ip=${ip}`);
+    return NextResponse.json({ ok: true, otpRequired: true, totp: true, challenge: challengeId });
+  }
+
+  // Second factor B: email a 6-digit code and stop before creating the session.
   // If the email provider is down, fall back to a direct login — an outage
   // must degrade security gracefully, never lock every user out.
   if (loginOtpEnabled()) {

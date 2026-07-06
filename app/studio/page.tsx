@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,8 @@ import { planFromBrief, composePrompt, STYLE_PRESETS, NEGATIVE_PROMPT, type Sect
 import { THEMES, getTheme } from '@/lib/themes';
 import siteConfig from '@/data/site.json';
 import mediaData from '@/data/media.json';
-import { Sparkles, Upload, Wand2, Clapperboard, Copy, Check, Loader2, ArrowRight, ListVideo, Terminal, Palette, ArrowUp, ArrowDown, X, Plus, Eye, RotateCcw, LayoutList, Monitor, Tablet, Smartphone, LayoutTemplate, LayoutDashboard, Image as ImageIcon, Download } from 'lucide-react';
+import { Sparkles, Upload, Wand2, Clapperboard, Copy, Check, Loader2, ArrowRight, ListVideo, Terminal, Palette, ArrowUp, ArrowDown, X, Plus, Eye, RotateCcw, LayoutList, Monitor, Tablet, Smartphone, LayoutTemplate, LayoutDashboard, Image as ImageIcon, Download, PanelLeft } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { getLanding, type LandingContent } from '@/lib/landing';
 import { useLocale } from '@/hooks/use-locale';
 import { studioDict } from '@/lib/studio-dict';
@@ -29,6 +31,10 @@ const TAB_ICON = { landing: LayoutTemplate, generate: Clapperboard, images: Imag
 
 const DEVICE = { full: '100%', tablet: '820px', mobile: '390px' } as const;
 type Device = keyof typeof DEVICE;
+// Preview pane width bounds: never wider than 1200px and always leaves the
+// tools panel at least ~360px, so neither side can be crushed off-screen.
+const clampPaneWidth = (w: number) =>
+  Math.max(360, Math.min(1200, w, typeof window !== 'undefined' ? window.innerWidth - 360 : 1200));
 
 type Status = 'idle' | 'running' | 'done' | 'error';
 type BatchItem = PlanItem & { state: 'pending' | 'running' | 'done' | 'error'; error?: string };
@@ -107,7 +113,10 @@ export default function StudioPage() {
   const [tab, setTab] = useState<StudioTab>('landing');
   const [device, setDevice] = useState<Device>('full');
   const [paneWidth, setPaneWidth] = useState(704); // px width of the right preview pane
-  const draggingPane = useRef(false);
+  // Below xl the tools panel and the preview don't fit side by side — the
+  // toolbar toggle shows one of them full-width instead.
+  const [mobileView, setMobileView] = useState<'panel' | 'preview'>('panel');
+  const [isResizing, setIsResizing] = useState(false);
 
   // Landing copy editor (data/landing.json)
   const [landing, setLanding] = useState<LandingContent>(() => getLanding());
@@ -421,16 +430,43 @@ export default function StudioPage() {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [logs]);
 
-  // Drag-to-resize the right preview pane.
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!draggingPane.current) return;
-      setPaneWidth(Math.min(1200, Math.max(360, window.innerWidth - e.clientX)));
+  // Drag-to-resize the right preview pane: pointer events (mouse + touch +
+  // pen), one state write per frame (rAF), and the iframe ignores the pointer
+  // while dragging — otherwise it swallows move events and the resize
+  // stutters or gets stuck. Listeners are attached only for the drag.
+  const startPaneResize = (e: ReactPointerEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    let raf = 0;
+    let lastX = e.clientX;
+    const onMove = (ev: PointerEvent) => {
+      lastX = ev.clientX;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setPaneWidth(clampPaneWidth(window.innerWidth - lastX));
+      });
     };
-    const onUp = () => { draggingPane.current = false; document.body.style.userSelect = ''; };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    const onUp = () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      setIsResizing(false);
+    };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+  // Keep the preview pane within bounds when the window shrinks.
+  useEffect(() => {
+    const clamp = () => setPaneWidth((w) => clampPaneWidth(w));
+    window.addEventListener('resize', clamp);
+    return () => window.removeEventListener('resize', clamp);
   }, []);
 
   async function runOne(body: GenBody) {
@@ -537,29 +573,41 @@ export default function StudioPage() {
   return (
     <main className="flex h-dvh flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-3 px-4">
-          <Link href="/dashboard" className="flex items-center gap-2 font-bold tracking-tight">
+        <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-1.5 px-2 sm:gap-2 sm:px-4 xl:gap-3">
+          <Link href="/dashboard" className="flex shrink-0 items-center gap-2 font-bold tracking-tight" title={td.dashboard}>
             <LayoutDashboard className="h-5 w-5 text-primary" />
-            <span>{td.dashboard}</span>
+            <span className="hidden md:inline">{td.dashboard}</span>
           </Link>
-          <div className="mx-2 h-6 w-px bg-border" />
-          <span className="hidden text-sm text-muted-foreground sm:inline">{t.headerSub}</span>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="mx-1 hidden h-6 w-px bg-border md:block xl:mx-2" />
+          <span className="hidden min-w-0 truncate text-sm text-muted-foreground lg:inline">{t.headerSub}</span>
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+            {/* Below xl the panel and preview can't sit side by side — toggle between them. */}
+            <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 xl:hidden">
+              {(['panel', 'preview'] as const).map((v) => {
+                const Icon = v === 'panel' ? PanelLeft : Eye;
+                const label = v === 'panel' ? t.tabs[tab] : t.preview;
+                return (
+                  <button key={v} onClick={() => setMobileView(v)} className={`rounded-md p-1.5 transition-colors ${mobileView === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`} aria-label={label} title={label}>
+                    <Icon className="h-4 w-4" />
+                  </button>
+                );
+              })}
+            </div>
             <LanguageSwitcher />
             <ThemeToggle />
             <Link href="/studio/builder">
-              <Button size="sm" className="gap-1.5"><LayoutList className="h-4 w-4" /> {t.builderBtn}</Button>
+              <Button size="sm" className="gap-1.5 px-2 md:px-3" aria-label={t.builderBtn} title={t.builderBtn}><LayoutList className="h-4 w-4" /> <span className="hidden md:inline">{t.builderBtn}</span></Button>
             </Link>
-            <Link href="/">
-              <Button size="sm" variant="outline" className="gap-1.5">{t.toHome} <ArrowRight className="h-4 w-4" /></Button>
+            <Link href="/" className="hidden sm:block">
+              <Button size="sm" variant="outline" className="gap-1.5 px-2 md:px-3" aria-label={t.toHome} title={t.toHome}><span className="hidden md:inline">{t.toHome}</span> <ArrowRight className="h-4 w-4" /></Button>
             </Link>
           </div>
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
+      <div className="flex min-h-0 flex-1">
         {/* Left tools panel — scrollable */}
-        <aside className="min-w-0 flex-1 overflow-y-auto">
+        <aside className={cn('min-w-0 flex-1 overflow-y-auto', mobileView === 'preview' && 'hidden xl:block')}>
           <div className="mx-auto max-w-3xl space-y-5 px-5 py-6">
         <motion.header {...fade} className="flex items-center gap-2.5">
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -590,14 +638,14 @@ export default function StudioPage() {
         {tab === 'landing' && (
         <motion.section {...fade} className="space-y-4">
           {/* Full visual builder — dedicated to this landing */}
-          <Card className="relative overflow-hidden border-primary/40 p-4">
+          <Card className="relative overflow-hidden border-primary/40 p-4 @container">
             <div aria-hidden className="pointer-events-none absolute inset-0 opacity-20" style={{ background: 'radial-gradient(70% 120% at 100% 0%, var(--primary), transparent 60%)' }} />
-            <div className="relative flex flex-wrap items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1.5 text-sm font-semibold"><LayoutTemplate className="h-4 w-4 text-primary" /> {t.landingBuilderTitle}</p>
+            <div className="relative flex flex-col gap-3 @md:flex-row @md:items-center">
+              <div className="min-w-0 @md:flex-1">
+                <p className="flex items-center gap-1.5 text-sm font-semibold"><LayoutTemplate className="h-4 w-4 shrink-0 text-primary" /> <span className="text-balance">{t.landingBuilderTitle}</span></p>
                 <p className="mt-1 text-xs text-muted-foreground">{t.landingBuilderDesc}</p>
               </div>
-              <Button onClick={openLandingInBuilder} disabled={openingBuilder} className="gap-1.5">
+              <Button onClick={openLandingInBuilder} disabled={openingBuilder} className="gap-1.5 self-start @md:self-auto">
                 {openingBuilder ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />} {t.openLandingBuilder}
               </Button>
             </div>
@@ -1174,37 +1222,47 @@ export default function StudioPage() {
           </div>
         </aside>
 
-        {/* Live preview — sticky right pane, matches builder */}
-        <div className="relative hidden shrink-0 flex-col border-l border-border/60 bg-muted/20 xl:flex" style={{ width: paneWidth }}>
-          {/* drag handle */}
+        {/* Live preview — right pane (fixed --pw width from xl up), full-width
+            below xl via the toolbar toggle. */}
+        <div
+          className={cn(
+            'relative min-w-0 flex-1 flex-col bg-muted/20 @container xl:w-(--pw) xl:flex-none xl:shrink-0 xl:border-l xl:border-border/60',
+            mobileView === 'panel' ? 'hidden xl:flex' : 'flex',
+          )}
+          style={{ '--pw': `${paneWidth}px` } as CSSProperties}
+        >
+          {/* drag handle (desktop only; the touch target extends 6px to each side) */}
           <div
-            onMouseDown={() => { draggingPane.current = true; document.body.style.userSelect = 'none'; }}
-            className="absolute left-0 top-0 z-20 h-full w-1.5 -translate-x-1/2 cursor-col-resize hover:bg-primary/40"
+            onPointerDown={startPaneResize}
+            className={cn(
+              "absolute left-0 top-0 z-20 hidden h-full w-1.5 -translate-x-1/2 cursor-col-resize touch-none transition-colors after:absolute after:inset-y-0 after:-left-1.5 after:-right-1.5 after:content-[''] hover:bg-primary/40 xl:block",
+              isResizing && 'bg-primary/40',
+            )}
             title={t.resizeHint}
           />
-          <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground">
-            <Eye className="h-4 w-4 text-primary" />
-            <span className="truncate">{t.preview}</span>
-            <div className="ml-2 flex items-center gap-0.5 rounded-lg border border-border p-0.5">
+          <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2 text-xs text-muted-foreground @lg:px-4">
+            <Eye className="h-4 w-4 shrink-0 text-primary" />
+            <span className="hidden truncate @md:inline">{t.preview}</span>
+            <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border p-0.5 @md:ml-2">
               {(['full', 'tablet', 'mobile'] as const).map((dv) => {
                 const Icon = dv === 'full' ? Monitor : dv === 'tablet' ? Tablet : Smartphone;
                 return (
-                  <button key={dv} onClick={() => setDevice(dv)} className={`rounded-md p-1.5 ${device === dv ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`} aria-label={dv} title={dv}>
+                  <button key={dv} onClick={() => setDevice(dv)} className={`rounded-md p-1.5 transition-colors ${device === dv ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`} aria-label={dv} title={dv}>
                     <Icon className="h-3.5 w-3.5" />
                   </button>
                 );
               })}
             </div>
-            <div className="ml-auto flex items-center gap-1">
+            <div className="ml-auto flex shrink-0 items-center gap-1">
               <Link href="/" target="_blank" className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">{t.open}</Link>
-              <button onClick={() => setPreviewKey((k) => k + 1)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">
-                <RotateCcw className="h-3.5 w-3.5" /> {t.refresh}
+              <button onClick={() => setPreviewKey((k) => k + 1)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title={t.refresh} aria-label={t.refresh}>
+                <RotateCcw className="h-3.5 w-3.5" /> <span className="hidden @xl:inline">{t.refresh}</span>
               </button>
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto p-4">
+          <div className="min-h-0 flex-1 overflow-auto p-2 @lg:p-4">
             <div className="mx-auto h-full transition-[width] duration-300" style={{ width: DEVICE[device] }}>
-              <iframe key={previewKey} src="/" title={t.previewTitle} className="h-full w-full rounded-xl border border-border bg-background shadow-2xl" />
+              <iframe key={previewKey} src="/" title={t.previewTitle} className={cn('h-full w-full rounded-xl border border-border bg-background shadow-2xl', isResizing && 'pointer-events-none')} />
             </div>
           </div>
         </div>

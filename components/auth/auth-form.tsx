@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
-import { Mail, Lock, User, Loader2, Eye, EyeOff, ArrowRight, ArrowLeft, Check, MailCheck } from 'lucide-react';
+import { Mail, Lock, User, Loader2, Eye, EyeOff, ArrowRight, ArrowLeft, Check, MailCheck, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/components/ui/input-otp';
@@ -43,10 +43,19 @@ function useAuthSubmit(mode: 'login' | 'register') {
 
 const RESEND_COOLDOWN_S = 60;
 
+// Inline strings for the authenticator-app (TOTP) second-factor step.
+const TF = {
+  ru: { title: 'Двухфакторная проверка', sub: 'Введите код из приложения-аутентификатора', hint: 'Откройте приложение (Google Authenticator и т. п.) и введите текущий 6-значный код.' },
+  en: { title: 'Two-factor check', sub: 'Enter the code from your authenticator app', hint: 'Open your authenticator app (Google Authenticator, etc.) and enter the current 6-digit code.' },
+  hy: { title: 'Երկգործոն ստուգում', sub: 'Մուտքագրեք կոդը authenticator հավելվածից', hint: 'Բացեք authenticator հավելվածը և մուտքագրեք ընթացիկ 6-նիշանոց կոդը։' },
+} as const;
+
 function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
-  const t = authDict(useLocale().locale);
+  const locale = useLocale().locale;
+  const t = authDict(locale);
+  const tf = TF[locale] ?? TF.en;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -55,6 +64,7 @@ function LoginForm() {
   // Second factor: the login API answered otpRequired → show the 6-digit step.
   const [challenge, setChallenge] = useState('');
   const [maskedEmail, setMaskedEmail] = useState('');
+  const [totpMode, setTotpMode] = useState(false);
   const [code, setCode] = useState('');
   const [cooldown, setCooldown] = useState(0);
 
@@ -88,10 +98,12 @@ function LoginForm() {
       const { ok, data } = await post('/api/auth/login', { email, password });
       if (!ok) { setError(data.error || t.genericError); setBusy(false); return; }
       if (data.otpRequired) {
+        const isTotp = Boolean((data as { totp?: boolean }).totp);
+        setTotpMode(isTotp);
         setChallenge(data.challenge ?? '');
         setMaskedEmail(data.email ?? '');
         setCode('');
-        setCooldown(RESEND_COOLDOWN_S);
+        if (!isTotp) setCooldown(RESEND_COOLDOWN_S);
         setBusy(false);
         return;
       }
@@ -136,6 +148,7 @@ function LoginForm() {
     setCode('');
     setError('');
     setPassword('');
+    setTotpMode(false);
   };
 
   const otpPhase = Boolean(challenge);
@@ -143,7 +156,9 @@ function LoginForm() {
   return (
     <Shell>
       {otpPhase ? (
-        <Brand icon={MailCheck} title={t.otpTitle} subtitle={`${t.otpSentTo} ${maskedEmail}`} />
+        totpMode
+          ? <Brand icon={ShieldCheck} title={tf.title} subtitle={tf.sub} />
+          : <Brand icon={MailCheck} title={t.otpTitle} subtitle={`${t.otpSentTo} ${maskedEmail}`} />
       ) : (
         <Brand title={t.loginTitle} subtitle={t.loginSubtitle} />
       )}
@@ -220,7 +235,7 @@ function LoginForm() {
               </div>
 
               <p className="text-center text-xs text-muted-foreground">
-                {t.otpHint}
+                {totpMode ? tf.hint : t.otpHint}
               </p>
 
               {error && (
@@ -237,15 +252,17 @@ function LoginForm() {
                 <button type="button" onClick={backToCreds} className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground" data-testid="login-otp-back">
                   <ArrowLeft className="h-3.5 w-3.5" /> {t.back}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void resend()}
-                  disabled={cooldown > 0}
-                  className="font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
-                  data-testid="login-otp-resend"
-                >
-                  {cooldown > 0 ? `${t.resendAgain} (${cooldown} ${t.sec})` : t.resendCode}
-                </button>
+                {!totpMode && (
+                  <button
+                    type="button"
+                    onClick={() => void resend()}
+                    disabled={cooldown > 0}
+                    className="font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
+                    data-testid="login-otp-resend"
+                  >
+                    {cooldown > 0 ? `${t.resendAgain} (${cooldown} ${t.sec})` : t.resendCode}
+                  </button>
+                )}
               </div>
             </form>
           </motion.div>

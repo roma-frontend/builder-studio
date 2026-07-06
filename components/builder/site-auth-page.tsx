@@ -4,22 +4,35 @@
 // auth (glass Shell, icon inputs, register stepper), but wired to the isolated
 // /api/site-auth (scoped by siteId) and themed with the tenant's own theme.
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Mail, Lock, User, Loader2, Eye, EyeOff, ArrowRight, ArrowLeft, Check, Store } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { REGEXP_ONLY_DIGITS } from 'input-otp';
+import { Mail, Lock, User, Loader2, Eye, EyeOff, ArrowRight, ArrowLeft, Check, Store, MailCheck, KeyRound, ShieldCheck } from 'lucide-react';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/components/ui/input-otp';
+import { cn } from '@/lib/utils';
 import { EMAIL_RE, iconCls, passwordScore, StrengthMeter, Stepper, Shell, Brand } from '@/components/auth/auth-ui';
 import { SiteAccount } from '@/components/builder/site-account';
 import { useLocale } from '@/hooks/use-locale';
 import { authDict } from '@/lib/auth-dict';
 import { siteRt } from '@/lib/site-runtime-dict';
 
-type Props = { siteId: string; base: string; brand: string; mode: 'login' | 'register' | 'account' };
+type Props = { siteId: string; base: string; brand: string; mode: 'login' | 'register' | 'account' | 'reset' };
 
-async function siteAuth(action: string, body: Record<string, string>, networkError: string): Promise<{ ok: boolean; error?: string; user?: unknown; redirect?: string }> {
+type SiteAuthResult = {
+  ok: boolean;
+  error?: string;
+  user?: unknown;
+  redirect?: string;
+  otpRequired?: boolean;
+  challenge?: string;
+  email?: string;
+};
+
+async function siteAuth(action: string, body: Record<string, string>, networkError: string): Promise<SiteAuthResult> {
   try {
     const res = await fetch('/api/site-auth', {
       method: 'POST',
@@ -27,11 +40,21 @@ async function siteAuth(action: string, body: Record<string, string>, networkErr
       body: JSON.stringify({ action, ...body }),
     });
     const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, error: data.error, user: data.user, redirect: data.redirect };
+    return {
+      ok: res.ok,
+      error: data.error,
+      user: data.user,
+      redirect: data.redirect,
+      otpRequired: data.otpRequired,
+      challenge: data.challenge,
+      email: data.email,
+    };
   } catch {
     return { ok: false, error: networkError };
   }
 }
+
+const RESEND_COOLDOWN_S = 60;
 
 function LoginForm({ siteId, base, brand }: Omit<Props, 'mode'>) {
   const router = useRouter();
@@ -42,46 +65,158 @@ function LoginForm({ siteId, base, brand }: Omit<Props, 'mode'>) {
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Second factor: the login API answered otpRequired → show the 6-digit step.
+  const [challenge, setChallenge] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [cooldown, setCooldown] = useState(0);
 
-  const submit = async (e: FormEvent) => {
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setInterval(() => setCooldown((s) => s - 1), 1000);
+    return () => clearInterval(id);
+  }, [cooldown]);
+
+  const goAccount = () => {
+    router.push(`${base}/account`);
+    router.refresh();
+  };
+
+  const submitCreds = async (e: FormEvent) => {
     e.preventDefault();
     setError(''); setBusy(true);
     const r = await siteAuth('login', { siteId, email, password }, t.networkError);
     if (r.redirect) { window.location.assign(r.redirect); return; }
     if (!r.ok) { setError(r.error || rt.loginFailed); setBusy(false); return; }
-    router.push(`${base}/account`);
-    router.refresh();
+    if (r.otpRequired) {
+      setChallenge(r.challenge ?? '');
+      setMaskedEmail(r.email ?? '');
+      setCode('');
+      setCooldown(RESEND_COOLDOWN_S);
+      setBusy(false);
+      return;
+    }
+    goAccount();
   };
+
+  const submitCode = async (value?: string) => {
+    const otp = value ?? code;
+    if (otp.length !== 6 || busy) return;
+    setError(''); setBusy(true);
+    const r = await siteAuth('login-verify', { siteId, challenge, code: otp }, t.networkError);
+    if (!r.ok) { setError(r.error || rt.loginFailed); setCode(''); setBusy(false); return; }
+    goAccount();
+  };
+
+  const resend = async () => {
+    if (cooldown > 0 || busy) return;
+    setError('');
+    const r = await siteAuth('login-resend', { siteId, challenge }, t.networkError);
+    if (!r.ok) { setError(r.error || t.sendCodeError); return; }
+    setChallenge(r.challenge ?? challenge);
+    setCode('');
+    setCooldown(RESEND_COOLDOWN_S);
+  };
+
+  const backToCreds = () => {
+    setChallenge('');
+    setCode('');
+    setError('');
+    setPassword('');
+  };
+
+  const otpPhase = Boolean(challenge);
 
   return (
     <Shell>
-      <Brand title={t.loginTitle} subtitle={brand} href={base || '/'} label={brand} icon={Store} />
-      <form onSubmit={submit} className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">{t.email}</label>
-          <div className="relative">
-            <Mail className={iconCls} />
-            <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailPlaceholder} autoComplete="email" className="h-11 pl-10" />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">{t.password}</label>
-          <div className="relative">
-            <Lock className={iconCls} />
-            <Input type={showPw ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" className="h-11 pl-10 pr-10" />
-            <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground" aria-label={t.showPassword}>
-              {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-        </div>
-        {error && <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>}
-        <Button type="submit" disabled={busy} size="lg" className="w-full gap-2">
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />} {t.signIn}
-        </Button>
-      </form>
-      <p className="mt-5 text-center text-sm text-muted-foreground">
-        {t.noAccount} <Link href={`${base}/register`} className="font-medium text-primary hover:underline">{t.register}</Link>
-      </p>
+      {otpPhase ? (
+        <Brand icon={MailCheck} title={t.otpTitle} subtitle={`${t.otpSentTo} ${maskedEmail}`} />
+      ) : (
+        <Brand title={t.loginTitle} subtitle={brand} href={base || '/'} label={brand} icon={Store} />
+      )}
+
+      <AnimatePresence mode="wait" initial={false}>
+        {!otpPhase ? (
+          <motion.div key="creds" initial={{ x: -40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -40, opacity: 0 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
+            <form onSubmit={submitCreds} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t.email}</label>
+                <div className="relative">
+                  <Mail className={iconCls} />
+                  <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailPlaceholder} autoComplete="email" className="h-11 pl-10" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">{t.password}</label>
+                  <Link href={`${base}/reset`} className="text-xs font-medium text-primary hover:underline">{t.forgot}</Link>
+                </div>
+                <div className="relative">
+                  <Lock className={iconCls} />
+                  <Input type={showPw ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" className="h-11 pl-10 pr-10" />
+                  <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground" aria-label={t.showPassword}>
+                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              {error && <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>}
+              <Button type="submit" disabled={busy} size="lg" className="w-full gap-2">
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />} {t.signIn}
+              </Button>
+            </form>
+            <p className="mt-5 text-center text-sm text-muted-foreground">
+              {t.noAccount} <Link href={`${base}/register`} className="font-medium text-primary hover:underline">{t.register}</Link>
+            </p>
+          </motion.div>
+        ) : (
+          <motion.div key="otp" initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
+            <form onSubmit={(e) => { e.preventDefault(); void submitCode(); }} className="space-y-4">
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  pattern={REGEXP_ONLY_DIGITS}
+                  value={code}
+                  onChange={setCode}
+                  onComplete={(v: string) => void submitCode(v)}
+                  disabled={busy}
+                  autoFocus
+                  containerClassName="justify-center"
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                  </InputOTPGroup>
+                  <InputOTPSeparator />
+                  <InputOTPGroup>
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              <p className="text-center text-xs text-muted-foreground">{t.otpHint}</p>
+              {error && <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>}
+              <Button type="submit" disabled={busy || code.length !== 6} size="lg" className="w-full gap-2">
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />} {t.verify}
+              </Button>
+              <div className="flex items-center justify-between text-sm">
+                <button type="button" onClick={backToCreds} className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground">
+                  <ArrowLeft className="h-3.5 w-3.5" /> {t.back}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void resend()}
+                  disabled={cooldown > 0}
+                  className="font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
+                >
+                  {cooldown > 0 ? `${t.resendAgain} (${cooldown} ${t.sec})` : t.resendCode}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Shell>
   );
 }
@@ -218,8 +353,158 @@ function AccountView({ siteId, base, brand }: Omit<Props, 'mode'>) {
   return <SiteAccount siteId={siteId} base={base} brand={brand} />;
 }
 
+// mode 'reset' — served at `${base}/reset`. With a `?token=` (from the emailed
+// link) it's a "set a new password" form; without a token it's the "forgot
+// password" request form. The token is read client-side from window.location.
+function ResetView({ siteId, base, brand }: Omit<Props, 'mode'>) {
+  const t = authDict(useLocale().locale);
+  const rt = siteRt(useLocale().locale);
+  const [token, setToken] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      setToken(params.get('token'));
+    } catch {
+      setToken(null);
+    }
+    setReady(true);
+  }, []);
+
+  // Forgot-password (no token) state
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  // Set-new-password (token) state
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [done, setDone] = useState(false);
+  const pwScore = useMemo(() => passwordScore(password), [password]);
+
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const submitForgot = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!EMAIL_RE.test(email.trim())) { setError(t.errBadEmail); return; }
+    setError(''); setBusy(true);
+    // Neutral: regardless of the response we show the same confirmation (the
+    // API never reveals whether the address exists).
+    await siteAuth('forgot', { siteId, email: email.trim() }, t.networkError);
+    setSent(true);
+    setBusy(false);
+  };
+
+  const submitReset = async (e: FormEvent) => {
+    e.preventDefault();
+    if (password.length < 8) { setError(rt.pwMin8); return; }
+    if (password !== confirm) { setError(t.errPwMismatch); return; }
+    setError(''); setBusy(true);
+    const r = await siteAuth('reset', { siteId, token: token ?? '', password }, t.networkError);
+    if (!r.ok) { setError(r.error || rt.loginFailed); setBusy(false); return; }
+    setDone(true);
+    setBusy(false);
+  };
+
+  if (!ready) {
+    return (
+      <Shell>
+        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      </Shell>
+    );
+  }
+
+  // ── Token present: set a new password ──────────────────────────────────
+  if (token) {
+    if (done) {
+      return (
+        <Shell>
+          <Brand icon={ShieldCheck} title={rt.resetDoneTitle} subtitle={rt.resetDoneSubtitle} href={base || '/'} label={brand} />
+          <Link href={`${base}/login`} className={cn(buttonVariants({ size: 'lg' }), 'w-full gap-2')}>
+            {t.signIn} <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Shell>
+      );
+    }
+    return (
+      <Shell>
+        <Brand icon={KeyRound} title={rt.resetTitle} subtitle={rt.resetSubtitle} href={base || '/'} label={brand} />
+        <form onSubmit={submitReset} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">{rt.newPassword}</label>
+            <div className="relative">
+              <Lock className={iconCls} />
+              <Input autoFocus type={showPw ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder={rt.pwMin8Ph} autoComplete="new-password" className="h-11 pl-10 pr-10" />
+              <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground" aria-label={t.showPassword}>
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <StrengthMeter score={pwScore} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">{rt.repeatPassword}</label>
+            <div className="relative">
+              <Lock className={iconCls} />
+              <Input type={showPw ? 'text' : 'password'} required value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={t.repeatPlaceholder} autoComplete="new-password" className="h-11 pl-10 pr-10" />
+              {confirm.length > 0 && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {confirm === password ? <Check className="h-4 w-4 text-green-500" /> : <span className="block h-2 w-2 rounded-full bg-red-500" />}
+                </span>
+              )}
+            </div>
+          </div>
+          {error && <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>}
+          <Button type="submit" disabled={busy} size="lg" className="w-full gap-2">
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />} {rt.savePassword}
+          </Button>
+        </form>
+      </Shell>
+    );
+  }
+
+  // ── No token: forgot-password request ──────────────────────────────────
+  if (sent) {
+    return (
+      <Shell>
+        <Brand icon={MailCheck} title={rt.forgotSentTitle} subtitle={rt.forgotSent} href={base || '/'} label={brand} />
+        <p className="mt-5 text-center text-sm text-muted-foreground">
+          <Link href={`${base}/login`} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+            <ArrowLeft className="h-3.5 w-3.5" /> {rt.backToLogin}
+          </Link>
+        </p>
+      </Shell>
+    );
+  }
+
+  return (
+    <Shell>
+      <Brand icon={KeyRound} title={rt.forgotTitle} subtitle={rt.forgotSubtitle} href={base || '/'} label={brand} />
+      <form onSubmit={submitForgot} className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">{t.email}</label>
+          <div className="relative">
+            <Mail className={iconCls} />
+            <Input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailPlaceholder} autoComplete="email" className="h-11 pl-10" />
+          </div>
+        </div>
+        {error && <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>}
+        <Button type="submit" disabled={busy} size="lg" className="w-full gap-2">
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />} {rt.sendLink}
+        </Button>
+      </form>
+      <p className="mt-5 text-center text-sm text-muted-foreground">
+        <Link href={`${base}/login`} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+          <ArrowLeft className="h-3.5 w-3.5" /> {rt.backToLogin}
+        </Link>
+      </p>
+    </Shell>
+  );
+}
+
 export function SiteAuthClient({ siteId, base, brand, mode }: Props) {
   if (mode === 'account') return <AccountView siteId={siteId} base={base} brand={brand} />;
   if (mode === 'register') return <RegisterWizard siteId={siteId} base={base} brand={brand} />;
+  if (mode === 'reset') return <ResetView siteId={siteId} base={base} brand={brand} />;
   return <LoginForm siteId={siteId} base={base} brand={brand} />;
 }

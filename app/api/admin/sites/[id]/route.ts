@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSuperadmin } from '@/lib/auth';
-import { deleteSiteById, unpublishSiteById } from '@/lib/admin';
+import { unpublishSiteById } from '@/lib/admin';
+import { trashSite } from '@/lib/trash';
 import { recordAudit } from '@/lib/audit';
 import { getDb, sites } from '@/lib/db';
 import { eq } from 'drizzle-orm';
@@ -22,8 +23,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   const { id } = await params;
   if (!siteExists(id)) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
-  deleteSiteById(id);
-  recordAudit({ id: me.id, email: me.email }, 'site.delete', id);
+  trashSite(id, me.id);
+  recordAudit({ id: me.id, email: me.email }, 'site.trash', id);
   return NextResponse.json({ ok: true, id });
 }
 

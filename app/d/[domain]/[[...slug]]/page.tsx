@@ -48,7 +48,7 @@ export default async function CustomDomainPage({ params }: Props) {
   if (!resolved) notFound();
   const parts = slug ?? [];
   if (parts.length === 1 && AUTH_PATHS.has(parts[0])) {
-    return <SiteAuthPage doc={resolved.doc} mode={parts[0] as 'login' | 'register' | 'account'} />;
+    return <SiteAuthPage doc={resolved.doc} mode={parts[0] as 'login' | 'register' | 'account' | 'reset'} />;
   }
   const page = findPageByPath(resolved.doc, parts);
   if (!page) notFound();

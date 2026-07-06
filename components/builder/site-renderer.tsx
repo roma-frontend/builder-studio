@@ -20,12 +20,12 @@ export function findPageByPath(doc: BuilderDoc, slug: string[]): BuilderPage | n
 }
 
 /** Reserved built-in auth paths (per tenant), not editable in the builder. */
-export const AUTH_PATHS = new Set(['login', 'register', 'account']);
+export const AUTH_PATHS = new Set(['login', 'register', 'account', 'reset']);
 
 /** Beautiful, non-editable login / register / account page — same construction
  *  as the platform auth (glass Shell), themed with the tenant's theme and wired
  *  to the isolated per-site auth. Standalone (no site chrome). */
-export function SiteAuthPage({ doc, mode }: { doc: BuilderDoc; mode: 'login' | 'register' | 'account' }) {
+export function SiteAuthPage({ doc, mode }: { doc: BuilderDoc; mode: 'login' | 'register' | 'account' | 'reset' }) {
   const theme = doc.themeId && doc.themeId !== 'auto' ? getTheme(doc.themeId) : DEFAULT_THEME;
   const base = doc.base === undefined ? '/site' : doc.base || '';
   return (

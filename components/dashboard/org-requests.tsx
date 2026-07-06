@@ -51,7 +51,7 @@ export function OrgRequests({ onChange }: { onChange?: () => void }) {
             <span className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg ${r.type === 'create' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
               {r.type === 'create' ? <Plus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-[220px] flex-1">
               <p className="truncate text-sm font-medium">
                 {r.type === 'create' ? <>{t.create} «{r.requestedName}» <span className="text-muted-foreground">/s/{r.requestedSlug}</span></> : <>{t.joinTo} «{r.targetName ?? '—'}»</>}
               </p>

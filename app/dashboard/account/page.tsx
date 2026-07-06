@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { statsForUser } from '@/lib/sites';
 import { PageHeader } from '@/components/dashboard/ui';
 import { LogoutButton } from '@/components/dashboard/logout-button';
+import { TwoFactor } from '@/components/dashboard/two-factor';
 import { getLocale } from '@/lib/i18n';
 import { dashDict } from '@/lib/dashboard-dict';
 import { BCP47 } from '@/lib/seo';
@@ -72,6 +73,8 @@ export default async function AccountPage() {
           <LogoutButton />
         </div>
       </div>
+
+      <TwoFactor />
     </>
   );
 }

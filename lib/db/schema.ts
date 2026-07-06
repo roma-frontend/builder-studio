@@ -20,6 +20,10 @@ export const users = sqliteTable(
     failedAttempts: integer('failed_attempts').notNull().default(0),
     /** Login refused until this moment after too many failed attempts. */
     lockedUntil: integer('locked_until', { mode: 'timestamp_ms' }),
+    /** Base32 TOTP secret (authenticator app). Null until enrollment begins. */
+    totpSecret: text('totp_secret'),
+    /** When true, TOTP replaces the emailed login code as the second factor. */
+    totpEnabled: integer('totp_enabled', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [uniqueIndex('users_email_idx').on(t.email)],
@@ -348,6 +352,80 @@ export const accessControl = sqliteTable(
   (t) => [primaryKey({ columns: [t.role, t.capability] })],
 );
 export type AccessControl = typeof accessControl.$inferSelect;
+
+// Time-limited capability grants (ported from caron's accessGrants): the
+// superadmin can temporarily re-enable a capability that the matrix disabled
+// for a role, until `expiresAt`. Live grants are subtracted from the disabled
+// set in lib/access.ts, so access reverts automatically when they expire.
+export const accessGrants = sqliteTable(
+  'access_grants',
+  {
+    id: text('id').primaryKey(),
+    role: text('role').notNull(),
+    capability: text('capability').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    grantedBy: text('granted_by').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('access_grants_role_idx').on(t.role)],
+);
+export type AccessGrant = typeof accessGrants.$inferSelect;
+
+// Staff activity trail (ported from caron's activity.ts): one row per dashboard
+// route a staff member visits — a lightweight "session replay" the superadmin
+// can review. Bounded by a best-effort TTL prune in lib/activity.ts.
+export const activityTrail = sqliteTable(
+  'activity_trail',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    at: integer('at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('activity_trail_user_idx').on(t.userId), index('activity_trail_at_idx').on(t.at)],
+);
+export type ActivityTrail = typeof activityTrail.$inferSelect;
+
+// Soft-delete recycle bin for sites (ported concept from caron's trash). A
+// superadmin "delete" snapshots the site here and removes it from `sites`, so
+// every existing site query stays correct (deleted sites truly leave `sites`),
+// and it can be restored or purged from the Trash screen. Related rows
+// (domains/submissions/members) are not snapshotted — restore recovers the
+// site content itself.
+export const trashedSites = sqliteTable('trashed_sites', {
+  /** Original site id (reused on restore). */
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+  draftDoc: text('draft_doc').notNull(),
+  publishedDoc: text('published_doc'),
+  memberApproval: integer('member_approval', { mode: 'boolean' }).notNull().default(true),
+  publishedAt: integer('published_at', { mode: 'timestamp_ms' }),
+  originalCreatedAt: integer('original_created_at', { mode: 'timestamp_ms' }).notNull(),
+  deletedBy: text('deleted_by').notNull().default(''),
+  deletedAt: integer('deleted_at', { mode: 'timestamp_ms' }).notNull(),
+});
+export type TrashedSite = typeof trashedSites.$inferSelect;
+
+// Saved filter presets for admin tables (ported from caron's savedViews). Each
+// row is one named filter for a (user, route) pair; `query` is an opaque JSON
+// blob the client table interprets (e.g. { search, role, status }).
+export const savedViews = sqliteTable(
+  'saved_views',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** Table identity, e.g. 'users' | 'allSites'. */
+    route: text('route').notNull(),
+    name: text('name').notNull(),
+    /** JSON-encoded filter state. */
+    query: text('query').notNull().default('{}'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('saved_views_user_route_idx').on(t.userId, t.route)],
+);
+export type SavedView = typeof savedViews.$inferSelect;
 
 export const submissions = sqliteTable(
   'submissions',
