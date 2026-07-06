@@ -650,6 +650,24 @@ const CONTENT: Record<string, Tr> = {
 
   // kit sub-pages (about/portfolio/contact in landing style families)
   'Мы создаём продукты, которыми гордимся, и растим команду профессионалов.': { en: 'We build products we are proud of and grow a team of professionals.', hy: 'Մենք ստեղծում ենք արտադրանք, որով հպարտ ենք, և աճեցնում ենք պրոֆեսիոնալների թիմ։' },
+
+  // ── stragglers found by coverage diagnostic ──
+  'Пользователи': { en: 'Users', hy: 'Օգտատերեր' },
+  'Анна П.': { en: 'Anna P.', hy: 'Աննա Պ.' },
+  'Иван С.': { en: 'Ivan S.', hy: 'Իվան Ս.' },
+  'Мария К.': { en: 'Maria K.', hy: 'Մարիա Կ.' },
+  'Ольга Н.': { en: 'Olga N.', hy: 'Օլգա Ն.' },
+  'Работа 1': { en: 'Work 1', hy: 'Աշխատանք 1' },
+  'Работа 2': { en: 'Work 2', hy: 'Աշխատանք 2' },
+  'Работа 3': { en: 'Work 3', hy: 'Աշխատանք 3' },
+  'Работа 4': { en: 'Work 4', hy: 'Աշխատանք 4' },
+  'Работа 5': { en: 'Work 5', hy: 'Աշխատանք 5' },
+  'Работа 6': { en: 'Work 6', hy: 'Աշխատանք 6' },
+  'Премиальный лендинг ресторана.': { en: 'A premium restaurant landing.', hy: 'Պրեմիում ռեստորանի լենդինգ։' },
+  'Наши продукты': { en: 'Our products', hy: 'Մեր ապրանքները' },
+  '3.2с': { en: '3.2s', hy: '3.2վ' },
+  'Метрики в реальном времени': { en: 'Real-time metrics', hy: 'Իրական ժամանակի մետրիկաներ' },
+  '0x7a9f…3C2e · подключено': { en: '0x7a9f…3C2e · connected', hy: '0x7a9f…3C2e · միացված' },
 };
 
 /** Translate a single atomic string (no delimiters). RU / unmapped → original. */
