@@ -25,7 +25,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const t = apiErrors(await getLocale());
+  const locale = await getLocale();
+  const t = apiErrors(locale);
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
 
@@ -50,6 +51,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: t.maxSites.replace('{max}', String(MAX_SITES_PER_USER)) }, { status: 400 });
   }
 
-  const site = createSite(user.id, name);
+  const site = createSite(user.id, name, locale);
   return NextResponse.json({ ok: true, site: { id: site.id, name: site.name, slug: site.slug } });
 }

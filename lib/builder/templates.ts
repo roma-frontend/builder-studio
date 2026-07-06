@@ -1,4 +1,6 @@
 import { makeNode, newId, type BuilderNode, type BuilderPage, type NodeType } from './types';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/seo';
+import { translatePage, translateNode, trc } from './templates-i18n';
 
 // Ready-made, fully editable page templates. Each build() returns a fresh
 // BuilderPage (with new node ids) that the editor inserts as a new page.
@@ -359,7 +361,7 @@ const gallerySection = (title: string): BuilderNode =>
 
 // Minimal first page for a freshly created tenant site: enough to publish
 // right away — hero with the brand name, three feature cards and a lead form.
-export const starterPage = (brand: string): BuilderPage => ({
+export const starterPageRu = (brand: string): BuilderPage => ({
   id: newId('page'),
   path: '',
   title: 'Главная',
@@ -391,14 +393,32 @@ export const starterPage = (brand: string): BuilderPage => ({
   ],
 });
 
-// Unique marker text of the auto-generated starter home page — lets the builder
-// detect an untouched home and replace it in place when a landing is applied.
+// Locale-aware starter page: build the Russian tree, then translate.
+export const starterPage = (brand: string, locale: Locale = DEFAULT_LOCALE): BuilderPage =>
+  translatePage(starterPageRu(brand), locale);
+
+// ---- locale-aware builders used by the editor (RU source → translated tree) ----
+export function buildTemplatePage(def: TemplateDef, locale: Locale = DEFAULT_LOCALE): BuilderPage {
+  return translatePage(def.build(), locale);
+}
+export function buildSubpages(def: TemplateDef, locale: Locale = DEFAULT_LOCALE): BuilderPage[] {
+  return (def.subpages?.() ?? []).map((p) => translatePage(p, locale));
+}
+export function tplText(s: string, locale: Locale = DEFAULT_LOCALE): string {
+  return trc(s, locale);
+}
+
+// Marker substrings of the auto-generated starter home page in each locale —
+// lets the builder detect an untouched home and replace it in place when a
+// landing is applied, regardless of the site's creation locale.
 export const STARTER_MARKER = 'Эта страница создана автоматически';
+const STARTER_MARKERS = [STARTER_MARKER, 'created automatically', 'ստեղծվել է ավտոմատ'];
 
 /** True when a page is still the untouched auto-generated starter (by marker). */
 export function isPristineStarter(page: BuilderPage): boolean {
   try {
-    return JSON.stringify(page.blocks).includes(STARTER_MARKER);
+    const json = JSON.stringify(page.blocks);
+    return STARTER_MARKERS.some((m) => json.includes(m));
   } catch {
     return false;
   }
@@ -1192,6 +1212,11 @@ export interface SectionPreset {
   id: string;
   label: string;
   build: () => BuilderNode;
+}
+
+/** Locale-aware section-preset builder (RU source → translated node). */
+export function buildSection(p: SectionPreset, locale: Locale = DEFAULT_LOCALE): BuilderNode {
+  return translateNode(p.build(), locale);
 }
 
 export const SECTION_PRESETS: SectionPreset[] = [

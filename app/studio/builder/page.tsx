@@ -22,7 +22,7 @@ import { THEMES, getTheme, themeCss } from '@/lib/themes';
 import { RenderNode } from '@/components/builder/render-node';
 import { RevealDisabled } from '@/components/builder/reveal';
 import { Header as ChromeHeader, Footer as ChromeFooter } from '@/components/builder/site-chrome';
-import { TEMPLATES, LANDINGS, SECTION_PRESETS, isPristineStarter } from '@/lib/builder/templates';
+import { TEMPLATES, LANDINGS, SECTION_PRESETS, isPristineStarter, buildTemplatePage, buildSubpages, buildSection, tplText } from '@/lib/builder/templates';
 import {
   type BuilderDoc, type BuilderNode, type NodeType, type BuilderPage,
   NODE_LABELS, isContainer, makeNode, newId,
@@ -317,7 +317,8 @@ interface SiteMeta {
 
 function BuilderEditor() {
   const router = useRouter();
-  const tr = builderTr(useLocale().locale);
+  const locale = useLocale().locale;
+  const tr = builderTr(locale);
   const siteId = useSearchParams().get('site');
   const [siteMeta, setSiteMeta] = useState<SiteMeta | null>(null);
   const [doc, setDoc] = useState<BuilderDoc>(seed as unknown as BuilderDoc);
@@ -874,7 +875,7 @@ function BuilderEditor() {
   const addTemplate = (id: string) => {
     const t = [...LANDINGS, ...TEMPLATES].find((x) => x.id === id);
     if (!t) return;
-    const built = t.build();
+    const built = buildTemplatePage(t, locale);
     const chrome = {
       ...(t.themeId ? { themeId: t.themeId } : {}),
       ...(t.asideVariant ? { asideVariant: t.asideVariant } : {}),
@@ -897,7 +898,7 @@ function BuilderEditor() {
     // Sub-pages are upserted by path (existing ones are re-styled, not
     // duplicated); everything is one undoable step (Ctrl+Z reverts it all).
     if (t.subpages) {
-      const subs = t.subpages();
+      const subs = buildSubpages(t, locale);
       const homeId = doc.pages.find((p) => p.path === '')?.id ?? built.id;
       setDoc((d) => {
         const hasHome = d.pages.some((p) => p.path === '');
@@ -909,13 +910,13 @@ function BuilderEditor() {
             ? pages.map((p) => (p.path === s.path ? { ...p, title: s.title, description: s.description, blocks: s.blocks } : p))
             : [...pages, s];
         }
-        const nav = [{ label: 'Главная', href: '/site' }, ...pages.filter((p) => p.path !== '').map((p) => ({ label: p.title, href: `/site/${p.path}` }))];
+        const nav = [{ label: tplText('Главная', locale), href: '/site' }, ...pages.filter((p) => p.path !== '').map((p) => ({ label: p.title, href: `/site/${p.path}` }))];
         const footerLinks = pages.filter((p) => p.path === 'about' || p.path === 'contact').map((p) => ({ label: p.title, href: `/site/${p.path}` }));
         return { ...d, pages, nav, footer: { ...d.footer, links: footerLinks.length ? footerLinks : d.footer.links }, ...chrome };
       });
       setPageId(homeId);
       setSelectedId(null);
-      setMsg(tr('Сайт собран в стиле «{label}»: Главная + О нас + Портфолио + Контакты. Тема, меню и подвал применены. Ctrl+Z отменит.').replace('{label}', t.label));
+      setMsg(tr('Сайт собран в стиле «{label}»: Главная + О нас + Портфолио + Контакты. Тема, меню и подвал применены. Ctrl+Z отменит.').replace('{label}', tplText(t.label, locale)));
       return;
     }
 
@@ -934,23 +935,23 @@ function BuilderEditor() {
       }));
       setPageId(home.id);
       setSelectedId(null);
-      setMsg(tr('«{label}» стал главной страницей сайта{suffix}.').replace('{label}', t.label).replace('{suffix}', t.themeId ? tr(' (тема применена)') : ''));
+      setMsg(tr('«{label}» стал главной страницей сайта{suffix}.').replace('{label}', tplText(t.label, locale)).replace('{suffix}', t.themeId ? tr(' (тема применена)') : ''));
       return;
     }
 
     const created = addPageDoc(built);
     if (Object.keys(chrome).length) setDoc((d) => ({ ...d, ...chrome }));
     setMsg(created.path === ''
-      ? tr('«{label}» добавлен как главная страница{suffix}.').replace('{label}', t.label).replace('{suffix}', t.themeId ? tr(' (тема применена)') : '')
-      : tr('«{label}» — новая страница /{path}{suffix}. Посетители по-прежнему увидят текущую главную — чтобы показать эту страницу первой, нажмите домик в списке страниц.').replace('{label}', t.label).replace('{path}', created.path).replace('{suffix}', t.themeId ? tr(' (тема применена)') : ''));
+      ? tr('«{label}» добавлен как главная страница{suffix}.').replace('{label}', tplText(t.label, locale)).replace('{suffix}', t.themeId ? tr(' (тема применена)') : '')
+      : tr('«{label}» — новая страница /{path}{suffix}. Посетители по-прежнему увидят текущую главную — чтобы показать эту страницу первой, нажмите домик в списке страниц.').replace('{label}', tplText(t.label, locale)).replace('{path}', created.path).replace('{suffix}', t.themeId ? tr(' (тема применена)') : ''));
   };
   const addSectionPreset = (id: string) => {
     const s = SECTION_PRESETS.find((x) => x.id === id);
     if (!s || !page) return;
-    const node = s.build();
+    const node = buildSection(s, locale);
     setBlocks((b) => [...b, node]);
     setSelectedId(node.id);
-    setMsg(tr('Секция «{label}» добавлена в конец страницы.').replace('{label}', s.label));
+    setMsg(tr('Секция «{label}» добавлена в конец страницы.').replace('{label}', tplText(s.label, locale)));
   };
 
   // ---- nav / footer / brand ----
@@ -1236,8 +1237,8 @@ function BuilderEditor() {
               {LANDINGS.map((t) => (
                 <div key={t.id} role="button" tabIndex={0} onClick={() => addTemplate(t.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addTemplate(t.id); } }} className="cursor-pointer overflow-hidden rounded-lg border border-border/60 text-left transition-colors hover:border-primary/60">
                   <LandingThumb def={t} />
-                  <span className="block px-2 pt-1.5 text-xs font-semibold">{t.label}</span>
-                  <span className="block px-2 pb-2 text-[10px] leading-tight text-muted-foreground">{t.description}</span>
+                  <span className="block px-2 pt-1.5 text-xs font-semibold">{tplText(t.label, locale)}</span>
+                  <span className="block px-2 pb-2 text-[10px] leading-tight text-muted-foreground">{tplText(t.description, locale)}</span>
                 </div>
               ))}
             </div>
@@ -1258,8 +1259,8 @@ function BuilderEditor() {
             <div className="space-y-1.5">
               {TEMPLATES.map((t) => (
                 <button key={t.id} onClick={() => addTemplate(t.id)} className="w-full rounded-lg border border-border/60 p-2 text-left transition-colors hover:border-primary/50 hover:bg-muted/50">
-                  <span className="flex items-center justify-between text-sm font-medium">{t.label}<Plus className="h-3.5 w-3.5 text-muted-foreground" /></span>
-                  <span className="text-xs text-muted-foreground">{t.description}</span>
+                  <span className="flex items-center justify-between text-sm font-medium">{tplText(t.label, locale)}<Plus className="h-3.5 w-3.5 text-muted-foreground" /></span>
+                  <span className="text-xs text-muted-foreground">{tplText(t.description, locale)}</span>
                 </button>
               ))}
             </div>
@@ -1341,7 +1342,7 @@ function BuilderEditor() {
             <div className="grid grid-cols-2 gap-1.5">
               {SECTION_PRESETS.map((s) => (
                 <Button key={s.id} size="sm" variant="outline" className="justify-start gap-1 text-xs" onClick={() => addSectionPreset(s.id)}>
-                  <Plus className="h-3.5 w-3.5" /> {s.label}
+                  <Plus className="h-3.5 w-3.5" /> {tplText(s.label, locale)}
                 </Button>
               ))}
             </div>

@@ -5,6 +5,7 @@ import {
   SECTION_PRESETS,
   starterPage,
   isPristineStarter,
+  buildTemplatePage,
 } from '@/lib/builder/templates';
 import type { BuilderNode, BuilderPage } from '@/lib/builder/types';
 
@@ -109,5 +110,26 @@ describe('isPristineStarter', () => {
     const p = starterPage('Acme');
     const edited = { ...p, blocks: LANDINGS[0].build().blocks };
     expect(isPristineStarter(edited)).toBe(false);
+  });
+});
+
+describe('seed content localization', () => {
+  it('ru build keeps the original Russian copy', () => {
+    const json = JSON.stringify(buildTemplatePage(TEMPLATES[0], 'ru'));
+    expect(json).toContain('Возможности');
+  });
+
+  it('en/hy output differs from ru and translates known strings', () => {
+    const def = TEMPLATES[0];
+    const ru = JSON.stringify(buildTemplatePage(def, 'ru'));
+    const en = JSON.stringify(buildTemplatePage(def, 'en'));
+    expect(en).not.toBe(ru);
+    expect(en).toContain('Features');
+    expect(JSON.stringify(buildTemplatePage(def, 'hy'))).not.toBe(ru);
+  });
+
+  it('translated starter page is still detected as pristine (locale-robust marker)', () => {
+    expect(isPristineStarter(starterPage('Acme', 'en'))).toBe(true);
+    expect(isPristineStarter(starterPage('Acme', 'hy'))).toBe(true);
   });
 });

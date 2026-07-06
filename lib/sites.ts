@@ -7,6 +7,8 @@ import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { getDb, newId, sites, domains, submissions, type Site, type Domain } from '@/lib/db';
 import { DEFAULT_DOC, type BuilderDoc, type BuilderNode } from '@/lib/builder/types';
 import { starterPage } from '@/lib/builder/templates';
+import { trc } from '@/lib/builder/templates-i18n';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/seo';
 
 export const RESERVED_SLUGS = new Set([
   'www', 'app', 'api', 'admin', 'dashboard', 'studio', 'site', 'sites', 's', 'd',
@@ -42,7 +44,7 @@ function uniqueSlug(base: string): string {
   }
 }
 
-export function createSite(userId: string, name: string): Site {
+export function createSite(userId: string, name: string, locale: Locale = DEFAULT_LOCALE): Site {
   const db = getDb();
   const trimmed = name.trim() || 'Мой сайт';
   const now = new Date();
@@ -52,8 +54,8 @@ export function createSite(userId: string, name: string): Site {
     ...structuredClone(DEFAULT_DOC),
     brand: trimmed,
     nav: [],
-    footer: { text: `© ${new Date().getFullYear()} ${trimmed}. Все права защищены.`, links: [] },
-    pages: [starterPage(trimmed)],
+    footer: { text: `© ${new Date().getFullYear()} ${trimmed}. ${trc('Все права защищены', locale)}.`, links: [] },
+    pages: [starterPage(trimmed, locale)],
   };
   const site: Site = {
     id: newId('s'),
