@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,9 @@ import {
   NODE_LABELS, isContainer, makeNode, newId,
 } from '@/lib/builder/types';
 import { updateProps, removeNode, insertChild, moveNode, findNode, duplicateNode, moveTo, insertAfter, ancestorTypes, ancestorPath, cloneWithNewIds } from '@/lib/builder/tree';
+import { useLocale } from '@/hooks/use-locale';
+import { builderTr } from '@/lib/builder-dict';
+import { cn } from '@/lib/utils';
 
 type Field = { k: string; label: string; kind?: 'text' | 'textarea'; opts?: string[] };
 
@@ -34,6 +38,13 @@ const FIELDS: Record<NodeType, Field[]> = {
   section: [
     { k: 'padding', label: 'Отступы', opts: ['none', 'sm', 'md', 'lg'] },
     { k: 'minH', label: 'Мин. высота', opts: ['none', 'half', 'screen'] },
+    { k: 'layout', label: 'Раскладка содержимого', opts: ['block', 'flex-row', 'flex-col', 'grid'] },
+    { k: 'columns', label: 'Колонок (для grid)', opts: ['1', '2', '3', '4'] },
+    { k: 'gap', label: 'Промежуток (flex/grid)', opts: ['none', 'sm', 'md', 'lg'] },
+    { k: 'align', label: 'Выравнивание (align-items)', opts: ['—', 'start', 'center', 'end', 'stretch'] },
+    { k: 'justify', label: 'Распределение (justify-content)', opts: ['—', 'start', 'center', 'end', 'between', 'around', 'evenly'] },
+    { k: 'justifyItems', label: 'justify-items (grid)', opts: ['—', 'start', 'center', 'end', 'stretch'] },
+    { k: 'colWidth', label: 'Ширина колонок (flex-row)', opts: ['equal', 'auto'] },
     { k: 'bg', label: 'Фон', opts: ['none', 'muted', 'card', 'primary', 'gradient'] },
     { k: 'fx', label: 'Спецэффект фона', opts: ['none', 'aurora', 'grid', 'dots'] },
     { k: 'width', label: 'Ширина', opts: ['narrow', 'normal', 'wide'] },
@@ -44,19 +55,22 @@ const FIELDS: Record<NodeType, Field[]> = {
   ],
   stack: [
     { k: 'gap', label: 'Промежуток', opts: ['none', 'sm', 'md', 'lg'] },
-    { k: 'align', label: 'Выравнивание', opts: ['start', 'center', 'end', 'stretch'] },
+    { k: 'align', label: 'Выравнивание (align-items)', opts: ['start', 'center', 'end', 'stretch'] },
+    { k: 'justify', label: 'Распределение (justify-content)', opts: ['start', 'center', 'end', 'between', 'around', 'evenly'] },
     { k: 'stagger', label: 'Появление по очереди', opts: ['false', 'true'] },
   ],
   row: [
     { k: 'gap', label: 'Промежуток', opts: ['none', 'sm', 'md', 'lg'] },
-    { k: 'align', label: 'По верт.', opts: ['start', 'center', 'end'] },
-    { k: 'justify', label: 'По гориз.', opts: ['start', 'center', 'end', 'between'] },
+    { k: 'align', label: 'По верт. (align-items)', opts: ['start', 'center', 'end', 'stretch'] },
+    { k: 'justify', label: 'По гориз. (justify-content)', opts: ['start', 'center', 'end', 'between', 'around', 'evenly'] },
     { k: 'wrap', label: 'Перенос', opts: ['wrap', 'nowrap'] },
     { k: 'stagger', label: 'Появление по очереди', opts: ['false', 'true'] },
   ],
   grid: [
     { k: 'columns', label: 'Колонок', opts: ['1', '2', '3', '4'] },
     { k: 'gap', label: 'Промежуток', opts: ['none', 'sm', 'md', 'lg'] },
+    { k: 'align', label: 'Выравнивание (align-items)', opts: ['stretch', 'start', 'center', 'end'] },
+    { k: 'justifyItems', label: 'Распределение (justify-items)', opts: ['stretch', 'start', 'center', 'end'] },
     { k: 'stagger', label: 'Появление по очереди', opts: ['false', 'true'] },
   ],
   card: [
@@ -202,6 +216,15 @@ const STYLE_GROUPS: { title: string; fields: Field[] }[] = [
     ],
   },
   {
+    title: 'Размещение (внутри колонки / ряда / сетки)',
+    fields: [
+      { k: 'alignSelf', label: 'align-self', opts: ['—', 'auto', 'start', 'center', 'end', 'stretch'] },
+      { k: 'justifySelf', label: 'justify-self (в сетке)', opts: ['—', 'auto', 'start', 'center', 'end', 'stretch'] },
+      { k: 'grow', label: 'Растяжение (flex)', opts: ['—', 'none', 'grow', 'shrink'] },
+      { k: 'width', label: 'Ширина', opts: ['—', 'auto', 'full', 'fit'] },
+    ],
+  },
+  {
     title: 'Отступы',
     fields: [
       { k: 'mt', label: 'Отступ сверху', opts: ['—', 'none', 'sm', 'md', 'lg'] },
@@ -257,6 +280,7 @@ interface SiteMeta {
 
 function BuilderEditor() {
   const router = useRouter();
+  const tr = builderTr(useLocale().locale);
   const siteId = useSearchParams().get('site');
   const [siteMeta, setSiteMeta] = useState<SiteMeta | null>(null);
   const [doc, setDoc] = useState<BuilderDoc>(seed as unknown as BuilderDoc);
@@ -353,7 +377,7 @@ function BuilderEditor() {
         }
         setSiteMeta(d.site);
       })
-      .catch(() => setMsg('Не удалось загрузить сайт.'));
+      .catch(() => setMsg(tr('Не удалось загрузить сайт.')));
      
   }, [siteId, router]);
 
@@ -428,14 +452,14 @@ function BuilderEditor() {
     if (nodeType === 'input' || nodeType === 'textarea') {
       const anc = targetId ? ancestorTypes(pg.blocks, targetId) : [];
       const insideForm = target?.type === 'form' || anc.includes('form');
-      if (!insideForm) setMsg('⚠ Поля ввода работают внутри «Формы». Добавьте блок «Форма» и перетащите поле в неё — иначе данные не отправятся.');
+      if (!insideForm) setMsg(tr('⚠ Поля ввода работают внутри «Формы». Добавьте блок «Форма» и перетащите поле в неё — иначе данные не отправятся.'));
     }
     if (target) {
       if (isContainer(target.type)) applyBlocks(insertChild(pg.blocks, target.id, node));
       else applyBlocks(insertAfter(pg.blocks, target.id, node));
     } else {
       applyBlocks([...pg.blocks, node]);
-      if (nodeType !== 'section') setMsg('💡 Совет: на верхнем уровне лучше сначала добавить «Секцию», а элементы помещать внутрь неё.');
+      if (nodeType !== 'section') setMsg(tr('💡 Совет: на верхнем уровне лучше сначала добавить «Секцию», а элементы помещать внутрь неё.'));
     }
     setSelectedId(node.id);
     setTab('blocks');
@@ -499,12 +523,18 @@ function BuilderEditor() {
   const [hasClip, setHasClip] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState('');
+  // Pointer-based palette drag (works across the preview iframe boundary, where
+  // native HTML5 DnD does not). `dragType` = element being dragged, `ghost` =
+  // floating label position following the cursor.
+  const [dragType, setDragType] = useState<NodeType | null>(null);
+  const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
+  const dragActive = useRef(false);
   const copyNode = (id: string) => {
     const n = page ? findNode(page.blocks, id) : null;
     if (!n) return;
     clipboard.current = cloneWithNewIds(n); // pre-freshened snapshot, independent of edits
     setHasClip(true);
-    setMsg('Блок скопирован — Ctrl+V, чтобы вставить.');
+    setMsg(tr('Блок скопирован — Ctrl+V, чтобы вставить.'));
   };
   const pasteNode = () => {
     if (!page || !clipboard.current) return;
@@ -522,6 +552,79 @@ function BuilderEditor() {
   // Drag-and-drop within the structure tree.
   const dragId = useRef<string | null>(null);
   const paletteDrag = useRef<NodeType | null>(null);
+  // Pointer-drag a palette element onto the live preview. We follow the cursor
+  // with a ghost label and, while over the iframe, ask it (by coordinates) to
+  // highlight the container under the cursor; on release we drop into it. This
+  // sidesteps native HTML5 DnD, which does not cross the iframe boundary.
+  const startPaletteDrag = (t: NodeType, e: ReactMouseEvent) => {
+    if (e.button !== 0) return;
+    const startX = e.clientX, startY = e.clientY;
+    dragActive.current = false;
+    const post = (msg: Record<string, unknown>) => previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', ...msg }, '*');
+    const inFrame = (x: number, y: number) => {
+      const r = previewRef.current?.getBoundingClientRect();
+      return r ? x >= r.left && x <= r.right && y >= r.top && y <= r.bottom : false;
+    };
+    let hlRow: Element | null = null;
+    const highlightTreeRow = (el: Element | null) => {
+      if (hlRow === el) return;
+      hlRow?.classList.remove('b-drop-into');
+      hlRow = el;
+      hlRow?.classList.add('b-drop-into');
+    };
+    const move = (ev: MouseEvent) => {
+      if (!dragActive.current) {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 5) return; // click, not drag
+        dragActive.current = true;
+        paletteDrag.current = t;
+        setDragType(t);
+      }
+      setGhost({ x: ev.clientX, y: ev.clientY });
+      const r = previewRef.current?.getBoundingClientRect();
+      if (r && inFrame(ev.clientX, ev.clientY)) {
+        post({ type: 'dragpoint', x: ev.clientX - r.left, y: ev.clientY - r.top });
+        highlightTreeRow(null);
+      } else {
+        post({ type: 'dragpoint', x: -1, y: -1 });
+        const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
+        highlightTreeRow(el?.closest('[data-tree-nid]') ?? null);
+      }
+    };
+    const up = (ev: MouseEvent) => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      const wasDrag = dragActive.current;
+      dragActive.current = false;
+      setDragType(null);
+      setGhost(null);
+      highlightTreeRow(null);
+      const type = paletteDrag.current;
+      paletteDrag.current = null;
+      if (!wasDrag) { addNode(t); return; } // treated as a click → insert into selection
+      const r = previewRef.current?.getBoundingClientRect();
+      if (type && r && inFrame(ev.clientX, ev.clientY)) {
+        post({ type: 'dropAt', x: ev.clientX - r.left, y: ev.clientY - r.top, nodeType: type });
+        return;
+      }
+      // Dropped over the structure tree → insert into/after that node (fully
+      // reliable, same document).
+      if (type) {
+        const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
+        const row = el?.closest('[data-tree-nid]') as HTMLElement | null;
+        if (row) {
+          const id = row.getAttribute('data-tree-nid')!;
+          const isCont = row.getAttribute('data-tree-container') === '1';
+          const node = makeNode(type);
+          setBlocks((b) => (isCont ? insertChild(b, id, node) : insertAfter(b, id, node)));
+          setSelectedId(node.id);
+          return;
+        }
+      }
+      post({ type: 'dragpoint', x: -1, y: -1 });
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
   // Drop a palette element onto the empty page area (append to root).
   const onRootDrop = () => {
     const pType = paletteDrag.current;
@@ -548,9 +651,9 @@ function BuilderEditor() {
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       const data = await res.json();
       if (res.ok) setDoc((d) => ({ ...d, logoUrl: data.url, brandMode: d.brandMode === 'text' || !d.brandMode ? 'both' : d.brandMode }));
-      else setMsg(data.error || 'Ошибка загрузки');
+      else setMsg(data.error || tr('Ошибка загрузки'));
     } catch {
-      setMsg('Ошибка загрузки');
+      setMsg(tr('Ошибка загрузки'));
     } finally {
       setLogoBusy(false);
     }
@@ -564,9 +667,9 @@ function BuilderEditor() {
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       const data = await res.json();
       if (res.ok) patch(nodeId, { src: data.url });
-      else setMsg(data.error || 'Ошибка загрузки');
+      else setMsg(data.error || tr('Ошибка загрузки'));
     } catch {
-      setMsg('Ошибка загрузки');
+      setMsg(tr('Ошибка загрузки'));
     } finally {
       setUploadBusy(false);
     }
@@ -589,10 +692,10 @@ function BuilderEditor() {
       if (res.ok && data.page) {
         addPageDoc(data.page as BuilderPage);
         setBrief('');
-        setMsg(`Страница создана (${data.source === 'llm' ? 'LLM' : 'шаблон'}). Не забудьте «Сохранить».`);
-      } else setMsg(data.error || 'Ошибка генерации');
+        setMsg(tr('Страница создана ({src}). Не забудьте «Сохранить».').replace('{src}', data.source === 'llm' ? 'LLM' : tr('шаблон')));
+      } else setMsg(data.error || tr('Ошибка генерации'));
     } catch {
-      setMsg('Ошибка генерации');
+      setMsg(tr('Ошибка генерации'));
     } finally {
       setGenBusy(false);
     }
@@ -600,10 +703,10 @@ function BuilderEditor() {
 
   // ---- pages ----
   const addPage = () => {
-    const title = newTitle.trim() || 'Новая страница';
+    const title = newTitle.trim() || tr('Новая страница');
     const path = newPath.trim().replace(/^\/+|\/+$/g, '');
     if (doc.pages.some((p) => p.path === path)) {
-      setMsg(`Путь "${path}" уже занят`);
+      setMsg(tr('Путь "{path}" уже занят').replace('{path}', path));
       return;
     }
     const p: BuilderPage = { id: newId('page'), path, title, blocks: [] };
@@ -633,8 +736,8 @@ function BuilderEditor() {
       ),
     }));
     setMsg(oldHome
-      ? `«${target.title}» теперь главная страница. Прежняя главная («${oldHome.title}») доступна по /${target.path}.`
-      : `«${target.title}» теперь главная страница.`);
+      ? tr('«{title}» теперь главная страница. Прежняя главная («{old}») доступна по /{path}.').replace('{title}', target.title).replace('{old}', oldHome.title).replace('{path}', target.path)
+      : tr('«{title}» теперь главная страница.').replace('{title}', target.title));
   };
 
   // Adds a page, ensuring its path is unique; selects it.
@@ -686,7 +789,7 @@ function BuilderEditor() {
       });
       setPageId(homeId);
       setSelectedId(null);
-      setMsg(`Сайт собран в стиле «${t.label}»: Главная + О нас + Портфолио + Контакты. Тема, меню и подвал применены. Ctrl+Z отменит.`);
+      setMsg(tr('Сайт собран в стиле «{label}»: Главная + О нас + Портфолио + Контакты. Тема, меню и подвал применены. Ctrl+Z отменит.').replace('{label}', t.label));
       return;
     }
 
@@ -705,7 +808,7 @@ function BuilderEditor() {
       }));
       setPageId(home.id);
       setSelectedId(null);
-      setMsg(`«${t.label}» стал главной страницей сайта${t.themeId ? ' (тема применена)' : ''}.`);
+      setMsg(tr('«{label}» стал главной страницей сайта{suffix}.').replace('{label}', t.label).replace('{suffix}', t.themeId ? tr(' (тема применена)') : ''));
       return;
     }
 
@@ -716,8 +819,8 @@ function BuilderEditor() {
     if (t.headerBehavior) setDoc((d) => ({ ...d, headerBehavior: t.headerBehavior! }));
     if (t.footerVariant) setDoc((d) => ({ ...d, footerVariant: t.footerVariant! }));
     setMsg(created.path === ''
-      ? `«${t.label}» добавлен как главная страница${t.themeId ? ' (тема применена)' : ''}.`
-      : `«${t.label}» — новая страница /${created.path}${t.themeId ? ' (тема применена)' : ''}. Посетители по-прежнему увидят текущую главную — чтобы показать эту страницу первой, нажмите домик в списке страниц.`);
+      ? tr('«{label}» добавлен как главная страница{suffix}.').replace('{label}', t.label).replace('{suffix}', t.themeId ? tr(' (тема применена)') : '')
+      : tr('«{label}» — новая страница /{path}{suffix}. Посетители по-прежнему увидят текущую главную — чтобы показать эту страницу первой, нажмите домик в списке страниц.').replace('{label}', t.label).replace('{path}', created.path).replace('{suffix}', t.themeId ? tr(' (тема применена)') : ''));
   };
   const addSectionPreset = (id: string) => {
     const s = SECTION_PRESETS.find((x) => x.id === id);
@@ -725,7 +828,7 @@ function BuilderEditor() {
     const node = s.build();
     setBlocks((b) => [...b, node]);
     setSelectedId(node.id);
-    setMsg(`Секция «${s.label}» добавлена в конец страницы.`);
+    setMsg(tr('Секция «{label}» добавлена в конец страницы.').replace('{label}', s.label));
   };
 
   // ---- nav / footer / brand ----
@@ -770,12 +873,12 @@ function BuilderEditor() {
         const data = await res.json();
         if (res.ok) {
           if (stateRef.current.doc === sentDoc) setDirty(false);
-          const liveMsg = data.published ? ' · обновлено в live' : '';
-          setMsg(auto ? `Автосохранено${liveMsg}` : `Сохранено · страниц: ${data.pages}${liveMsg}`);
+          const liveMsg = data.published ? tr(' · обновлено в live') : '';
+          setMsg(auto ? tr('Автосохранено{live}').replace('{live}', liveMsg) : tr('Сохранено · страниц: {n}{live}').replace('{n}', String(data.pages)).replace('{live}', liveMsg));
           if (!auto) setPreviewKey((k) => k + 1);
           return true;
         }
-        setMsg(data.error || 'Ошибка');
+        setMsg(data.error || tr('Ошибка'));
         return false;
       } finally {
         savingRef.current = null;
@@ -792,7 +895,7 @@ function BuilderEditor() {
     try {
       await saveDraft();
     } catch {
-      setMsg('Ошибка сохранения');
+      setMsg(tr('Ошибка сохранения'));
     } finally {
       setBusy(false);
     }
@@ -828,7 +931,7 @@ function BuilderEditor() {
   useEffect(() => {
     if (!dirty || !siteMeta) return;
     const t = setTimeout(() => {
-      saveDraft(true).catch(() => setMsg('Автосохранение не удалось — проверьте сеть.'));
+      saveDraft(true).catch(() => setMsg(tr('Автосохранение не удалось — проверьте сеть.')));
     }, 2000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -884,10 +987,10 @@ function BuilderEditor() {
       const data = await res.json();
       if (res.ok) {
         setSiteMeta((m) => (m ? { ...m, published: true } : m));
-        setMsg(siteMeta?.slug === '__landing__' ? 'Опубликовано — лендинг обновлён на «/»' : `Опубликовано — сайт доступен по /s/${siteMeta?.slug ?? ''}`);
-      } else setMsg(data.error || 'Ошибка публикации');
+        setMsg(siteMeta?.slug === '__landing__' ? tr('Опубликовано — лендинг обновлён на «/»') : tr('Опубликовано — сайт доступен по /s/{slug}').replace('{slug}', siteMeta?.slug ?? ''));
+      } else setMsg(data.error || tr('Ошибка публикации'));
     } catch {
-      setMsg('Ошибка публикации');
+      setMsg(tr('Ошибка публикации'));
     } finally {
       setPubBusy(false);
     }
@@ -906,22 +1009,22 @@ function BuilderEditor() {
       {/* Toolbar */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-3 px-4">
-          <Link href={isLanding ? '/studio' : '/dashboard'} className="flex items-center gap-2 font-bold tracking-tight" title={isLanding ? 'Назад в Студию' : 'К списку сайтов'}>
-            <LayoutTemplate className="h-5 w-5 text-primary" /> Конструктор
+          <Link href={isLanding ? '/studio' : '/dashboard'} className="flex items-center gap-2 font-bold tracking-tight" title={isLanding ? tr('Назад в Студию') : tr('К списку сайтов')}>
+            <LayoutTemplate className="h-5 w-5 text-primary" /> {tr('Конструктор')}
           </Link>
           <div className="mx-2 h-6 w-px bg-border" />
           {isLanding && (
-            <span className="mr-1 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary" title="Вы редактируете главную страницу сайта (/)">
-              <Home className="h-3.5 w-3.5" /> Лендинг «/»
+            <span className="mr-1 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary" title={tr('Вы редактируете главную страницу сайта (/)')}>
+              <Home className="h-3.5 w-3.5" /> {tr('Лендинг «/»')}
             </span>
           )}
-          <Input value={doc.brand} onChange={(e) => setDoc((d) => ({ ...d, brand: e.target.value }))} className="h-8 w-44" aria-label="Название сайта" />
+          <Input value={doc.brand} onChange={(e) => setDoc((d) => ({ ...d, brand: e.target.value }))} className="h-8 w-44" aria-label={tr('Название сайта')} />
           <div className="hidden items-center gap-1 sm:flex">
             <Palette className="h-4 w-4 text-muted-foreground" />
             <Select value={doc.themeId} onValueChange={(v) => { setDoc((d) => ({ ...d, themeId: v })); }}>
-              <SelectTrigger className="h-8 w-40"><SelectValue placeholder="Тема" /></SelectTrigger>
+              <SelectTrigger className="h-8 w-40"><SelectValue placeholder={tr('Тема')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Авто</SelectItem>
+                <SelectItem value="auto">{tr('Авто')}</SelectItem>
                 {THEMES.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -936,14 +1039,14 @@ function BuilderEditor() {
               );
             })}
           </div>
-          <Link href={previewSrc} target="_blank"><Button size="sm" variant="outline" className="gap-1.5"><ExternalLink className="h-4 w-4" /> Открыть</Button></Link>
+          <Link href={previewSrc} target="_blank"><Button size="sm" variant="outline" className="gap-1.5"><ExternalLink className="h-4 w-4" /> {tr('Открыть')}</Button></Link>
           <div className="relative">
-            <button onClick={() => setShowKeys((v) => !v)} className={`rounded-md p-1.5 ${showKeys ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'}`} aria-label="Горячие клавиши" title="Горячие клавиши"><Keyboard className="h-4 w-4" /></button>
+            <button onClick={() => setShowKeys((v) => !v)} className={`rounded-md p-1.5 ${showKeys ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'}`} aria-label={tr('Горячие клавиши')} title={tr('Горячие клавиши')}><Keyboard className="h-4 w-4" /></button>
             {showKeys && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowKeys(false)} aria-hidden />
                 <div className="absolute right-0 top-9 z-50 w-64 rounded-xl border border-border bg-card p-3 text-xs shadow-xl">
-                  <p className="mb-2 font-semibold text-foreground">Горячие клавиши</p>
+                  <p className="mb-2 font-semibold text-foreground">{tr('Горячие клавиши')}</p>
                   <ul className="space-y-1.5 text-muted-foreground">
                     {([
                       ['Сохранить', 'Ctrl S'], ['Отменить', 'Ctrl Z'], ['Повторить', 'Ctrl ⇧ Z'],
@@ -951,7 +1054,7 @@ function BuilderEditor() {
                       ['Удалить блок', 'Delete'], ['Снять выделение', 'Esc'],
                     ] as [string, string][]).map(([label, keys]) => (
                       <li key={label} className="flex items-center justify-between gap-2">
-                        <span>{label}</span>
+                        <span>{tr(label)}</span>
                         <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">{keys}</kbd>
                       </li>
                     ))}
@@ -960,15 +1063,15 @@ function BuilderEditor() {
               </>
             )}
           </div>
-          <button onClick={undo} disabled={!canUndo} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label="Отменить" title="Отменить (Ctrl+Z)"><Undo2 className="h-4 w-4" /></button>
-          <button onClick={redo} disabled={!canRedo} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label="Повторить" title="Повторить (Ctrl+Shift+Z)"><Redo2 className="h-4 w-4" /></button>
-          <Button size="sm" onClick={save} disabled={busy || pubBusy} className="relative gap-1.5" title={dirty ? 'Есть несохранённые изменения (автосохранение через пару секунд)' : 'Всё сохранено'}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Сохранить
-            {dirty && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-background bg-amber-500" aria-label="Несохранённые изменения" />}
+          <button onClick={undo} disabled={!canUndo} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label={tr('Отменить')} title={tr('Отменить (Ctrl+Z)')}><Undo2 className="h-4 w-4" /></button>
+          <button onClick={redo} disabled={!canRedo} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label={tr('Повторить')} title={tr('Повторить (Ctrl+Shift+Z)')}><Redo2 className="h-4 w-4" /></button>
+          <Button size="sm" onClick={save} disabled={busy || pubBusy} className="relative gap-1.5" title={dirty ? tr('Есть несохранённые изменения (автосохранение через пару секунд)') : tr('Всё сохранено')}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr('Сохранить')}
+            {dirty && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-background bg-amber-500" aria-label={tr('Несохранённые изменения')} />}
           </Button>
-          <Button size="sm" variant={siteMeta?.published ? 'outline' : 'default'} onClick={publish} disabled={busy || pubBusy} className="gap-1.5" title="Сохранить черновик и опубликовать">
+          <Button size="sm" variant={siteMeta?.published ? 'outline' : 'default'} onClick={publish} disabled={busy || pubBusy} className="gap-1.5" title={tr('Сохранить черновик и опубликовать')}>
             {pubBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-            {siteMeta?.published ? 'Обновить' : 'Опубликовать'}
+            {siteMeta?.published ? tr('Обновить') : tr('Опубликовать')}
           </Button>
         </div>
         {msg && <div className="border-t border-border/60 bg-muted/40 px-4 py-1 text-center text-xs text-muted-foreground">{msg}</div>}
@@ -979,7 +1082,7 @@ function BuilderEditor() {
           {/* Tabs */}
           <div className="mb-3 grid grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1">
             {([['pages', 'Страницы'], ['blocks', 'Блоки'], ['design', 'Сайт']] as const).map(([id, label]) => (
-              <button key={id} onClick={() => setTab(id)} className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${tab === id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>{label}</button>
+              <button key={id} onClick={() => setTab(id)} className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${tab === id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>{tr(label)}</button>
             ))}
           </div>
 
@@ -987,15 +1090,15 @@ function BuilderEditor() {
           <div className={tab === 'pages' ? 'space-y-4' : 'hidden'}>
           {isLanding && (
             <Card className="border-primary/40 p-3">
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-primary"><Home className="h-4 w-4" /> Редактирование лендинга</p>
-              <p className="mt-1 text-xs text-muted-foreground">Это главная страница сайта («/»). Здесь только она — без других страниц и без путаницы с проектами тенантов. Меняйте блоки на вкладках «Блоки» и «Сайт», жмите «Сохранить» — изменения уйдут именно в лендинг.</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-primary"><Home className="h-4 w-4" /> {tr('Редактирование лендинга')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{tr('Это главная страница сайта («/»). Здесь только она — без других страниц и без путаницы с проектами тенантов. Меняйте блоки на вкладках «Блоки» и «Сайт», жмите «Сохранить» — изменения уйдут именно в лендинг.')}</p>
             </Card>
           )}
           {!isLanding && (<>
           {/* Ready-made landings */}
           <Card className="p-3">
-            <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold"><LayoutTemplate className="h-4 w-4 text-primary" /> Готовые лендинги</p>
-            <p className="mb-2 text-xs text-muted-foreground">Выберите лендинг — добавится как страница с подходящей темой, дальше меняйте под себя.</p>
+            <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold"><LayoutTemplate className="h-4 w-4 text-primary" /> {tr('Готовые лендинги')}</p>
+            <p className="mb-2 text-xs text-muted-foreground">{tr('Выберите лендинг — добавится как страница с подходящей темой, дальше меняйте под себя.')}</p>
             <div className="grid grid-cols-2 gap-1.5">
               {LANDINGS.map((t) => (
                 <div key={t.id} role="button" tabIndex={0} onClick={() => addTemplate(t.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addTemplate(t.id); } }} className="cursor-pointer overflow-hidden rounded-lg border border-border/60 text-left transition-colors hover:border-primary/60">
@@ -1009,16 +1112,16 @@ function BuilderEditor() {
 
           {/* Generate page from brief */}
           <Card className="p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><Wand2 className="h-4 w-4 text-primary" /> Сгенерировать страницу</p>
-            <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} rows={2} placeholder="Опишите сайт: напр. «лендинг кофейни с меню и формой заявки»" className="mb-2" />
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><Wand2 className="h-4 w-4 text-primary" /> {tr('Сгенерировать страницу')}</p>
+            <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} rows={2} placeholder={tr('Опишите сайт: напр. «лендинг кофейни с меню и формой заявки»')} className="mb-2" />
             <Button size="sm" onClick={generatePage} disabled={genBusy || !brief.trim()} className="w-full gap-1.5">
-              {genBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} Создать по брифу
+              {genBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} {tr('Создать по брифу')}
             </Button>
           </Card>
 
           {/* Ready-made templates */}
           <Card className="p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><LayoutGrid className="h-4 w-4 text-primary" /> Отдельные страницы</p>
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><LayoutGrid className="h-4 w-4 text-primary" /> {tr('Отдельные страницы')}</p>
             <div className="space-y-1.5">
               {TEMPLATES.map((t) => (
                 <button key={t.id} onClick={() => addTemplate(t.id)} className="w-full rounded-lg border border-border/60 p-2 text-left transition-colors hover:border-primary/50 hover:bg-muted/50">
@@ -1031,7 +1134,7 @@ function BuilderEditor() {
 
           {/* Pages */}
           <Card className="p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><FileText className="h-4 w-4 text-primary" /> Страницы</p>
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><FileText className="h-4 w-4 text-primary" /> {tr('Страницы')}</p>
             <div className="space-y-1">
               {doc.pages.map((p) => (
                 <div key={p.id} className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm ${p.id === page?.id ? 'bg-primary/10 text-foreground' : 'hover:bg-muted'}`}>
@@ -1039,25 +1142,25 @@ function BuilderEditor() {
                     {p.title} <span className="text-xs text-muted-foreground">{siteMeta ? `/s/${siteMeta.slug}${p.path ? `/${p.path}` : ''}` : `/${p.path}`}</span>
                   </button>
                   {p.path === '' ? (
-                    <span title="Главная страница — открывается по адресу сайта" className="shrink-0 text-primary"><Home className="h-3.5 w-3.5" /></span>
+                    <span title={tr('Главная страница — открывается по адресу сайта')} className="shrink-0 text-primary"><Home className="h-3.5 w-3.5" /></span>
                   ) : (
-                    <button onClick={() => makeHomepage(p.id)} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-primary focus-visible:opacity-100 group-hover:opacity-100" title="Сделать главной страницей" aria-label="Сделать главной страницей"><Home className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => makeHomepage(p.id)} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-primary focus-visible:opacity-100 group-hover:opacity-100" title={tr('Сделать главной страницей')} aria-label={tr('Сделать главной страницей')}><Home className="h-3.5 w-3.5" /></button>
                   )}
                   {doc.pages.length > 1 && (
-                    <button onClick={() => deletePage(p.id)} className="text-muted-foreground hover:text-red-500" aria-label="Удалить страницу"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => deletePage(p.id)} className="text-muted-foreground hover:text-red-500" aria-label={tr('Удалить страницу')}><Trash2 className="h-3.5 w-3.5" /></button>
                   )}
                 </div>
               ))}
             </div>
             <div className="mt-2 space-y-1.5 border-t border-border/60 pt-2">
-              <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Название" className="h-8" />
+              <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={tr('Название')} className="h-8" />
               <div className="flex gap-1.5">
-                <Input value={newPath} onChange={(e) => setNewPath(e.target.value)} placeholder="путь (напр. pricing)" className="h-8" />
+                <Input value={newPath} onChange={(e) => setNewPath(e.target.value)} placeholder={tr('путь (напр. pricing)')} className="h-8" />
                 <Button size="sm" onClick={addPage} className="shrink-0 gap-1"><Plus className="h-4 w-4" /></Button>
               </div>
               {siteMeta && (
                 <p className="text-xs text-muted-foreground">
-                  Адрес: <span className="font-mono">/s/{siteMeta.slug}/{newPath.trim().replace(/^\/+|\/+$/g, '') || '…'}</span>
+                  {tr('Адрес:')} <span className="font-mono">/s/{siteMeta.slug}/{newPath.trim().replace(/^\/+|\/+$/g, '') || '…'}</span>
                 </p>
               )}
             </div>
@@ -1067,17 +1170,17 @@ function BuilderEditor() {
           {/* Current page settings */}
           {page && (
             <Card className="space-y-2 p-3">
-              <p className="text-sm font-semibold">{isLanding ? 'Лендинг' : 'Страница'}</p>
-              <Input value={page.title} onChange={(e) => renamePage('title', e.target.value)} placeholder="Заголовок" className="h-8" />
+              <p className="text-sm font-semibold">{isLanding ? tr('Лендинг') : tr('Страница')}</p>
+              <Input value={page.title} onChange={(e) => renamePage('title', e.target.value)} placeholder={tr('Заголовок')} className="h-8" />
               {!isLanding && (
-                <Input value={page.path} onChange={(e) => renamePage('path', e.target.value)} placeholder="путь (пусто = главная)" className="h-8" />
+                <Input value={page.path} onChange={(e) => renamePage('path', e.target.value)} placeholder={tr('путь (пусто = главная)')} className="h-8" />
               )}
               {!isLanding && siteMeta && (
                 <p className="text-xs text-muted-foreground">
-                  Адрес: <span className="font-mono">/s/{siteMeta.slug}{page.path ? `/${page.path}` : ''}</span>
+                  {tr('Адрес:')} <span className="font-mono">/s/{siteMeta.slug}{page.path ? `/${page.path}` : ''}</span>
                 </p>
               )}
-              <Textarea value={page.description ?? ''} onChange={(e) => renamePage('description', e.target.value)} rows={2} placeholder="SEO-описание (meta description)" />
+              <Textarea value={page.description ?? ''} onChange={(e) => renamePage('description', e.target.value)} rows={2} placeholder={tr('SEO-описание (meta description)')} />
             </Card>
           )}
           </div>{/* end Страницы */}
@@ -1087,13 +1190,13 @@ function BuilderEditor() {
           <div className="space-y-4">
           {/* Palette */}
           <Card className="p-3">
-            <p className="mb-1 text-sm font-semibold">Добавить элемент</p>
-            <p className="mb-2 text-xs text-muted-foreground">{selected && isContainer(selected.type) ? `Клик — внутрь: ${NODE_LABELS[selected.type]}` : 'Клик — в конец страницы'} · или перетащите на блок</p>
-            <Input value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} placeholder="Поиск элемента…" className="mb-2 h-8" />
+            <p className="mb-1 text-sm font-semibold">{tr('Добавить элемент')}</p>
+            <p className="mb-2 text-xs text-muted-foreground">{selected && isContainer(selected.type) ? tr('Клик — внутрь: {label}').replace('{label}', tr(NODE_LABELS[selected.type])) : tr('Клик — в конец страницы')} · {tr('или перетащите на блок')}</p>
+            <Input value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} placeholder={tr('Поиск элемента…')} className="mb-2 h-8" />
             <div className="grid grid-cols-2 gap-1.5">
               {PALETTE.filter((t) => NODE_LABELS[t].toLowerCase().includes(paletteQuery.trim().toLowerCase())).map((t) => (
-                <Button key={t} size="sm" variant="outline" draggable onDragStart={(e) => { paletteDrag.current = t; e.dataTransfer.setData('text/builder-type', t); e.dataTransfer.effectAllowed = 'copy'; }} className="cursor-grab justify-start gap-1 text-xs active:cursor-grabbing" onClick={() => addNode(t)}>
-                  <Plus className="h-3.5 w-3.5" /> {NODE_LABELS[t]}
+                <Button key={t} size="sm" variant="outline" onMouseDown={(e) => startPaletteDrag(t, e)} className="cursor-grab justify-start gap-1 text-xs active:cursor-grabbing">
+                  <Plus className="h-3.5 w-3.5" /> {tr(NODE_LABELS[t])}
                 </Button>
               ))}
             </div>
@@ -1101,7 +1204,7 @@ function BuilderEditor() {
 
           {/* Section presets */}
           <Card className="p-3">
-            <p className="mb-2 text-sm font-semibold">Готовые секции</p>
+            <p className="mb-2 text-sm font-semibold">{tr('Готовые секции')}</p>
             <div className="grid grid-cols-2 gap-1.5">
               {SECTION_PRESETS.map((s) => (
                 <Button key={s.id} size="sm" variant="outline" className="justify-start gap-1 text-xs" onClick={() => addSectionPreset(s.id)}>
@@ -1113,8 +1216,8 @@ function BuilderEditor() {
 
           {/* Tree */}
           <Card className="p-3" onDragOver={(e) => e.preventDefault()} onDrop={onRootDrop}>
-            <p className="mb-1 text-sm font-semibold">Структура</p>
-            <p className="mb-2 text-xs text-muted-foreground">Перетащите элемент из палитры сюда или на нужный блок.</p>
+            <p className="mb-1 text-sm font-semibold">{tr('Структура')}</p>
+            <p className="mb-2 text-xs text-muted-foreground">{tr('Перетащите элемент из палитры сюда или на нужный блок.')}</p>
             {page && page.blocks.length > 0 ? (
               <Tree nodes={page.blocks} depth={0} selectedId={selectedId} onSelect={setSelectedId}
                 collapsed={collapsed} onToggle={toggleCollapse}
@@ -1125,7 +1228,7 @@ function BuilderEditor() {
                 onDropRow={(id, pos) => { const dg = dragId.current; if (dg) setBlocks((b) => moveTo(b, dg, id, pos)); dragId.current = null; setDropHint(null); }}
                 onDelete={(id) => { setBlocks((b) => removeNode(b, id)); if (selectedId === id) setSelectedId(null); }} />
             ) : (
-              <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">Пусто — добавьте элемент из палитры.</p>
+              <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">{tr('Пусто — добавьте элемент из палитры.')}</p>
             )}
           </Card>
           </div>{/* col A */}
@@ -1133,34 +1236,34 @@ function BuilderEditor() {
           {/* Properties */}
           <div className="space-y-4">
           <Card className="p-3">
-            <p className="mb-2 text-sm font-semibold">Свойства</p>
+            <p className="mb-2 text-sm font-semibold">{tr('Свойства')}</p>
             {selected ? (
               <div className="space-y-2.5">
                 {page && (
                   <div className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
                     {ancestorPath(page.blocks, selected.id).map((a) => (
                       <span key={a.id} className="flex items-center gap-1">
-                        <button className="hover:text-foreground" onClick={() => setSelectedId(a.id)}>{NODE_LABELS[a.type as NodeType] ?? a.type}</button>
+                        <button className="hover:text-foreground" onClick={() => setSelectedId(a.id)}>{tr(NODE_LABELS[a.type as NodeType] ?? a.type)}</button>
                         <span>›</span>
                       </span>
                     ))}
-                    <span className="font-medium text-foreground">{NODE_LABELS[selected.type]}</span>
+                    <span className="font-medium text-foreground">{tr(NODE_LABELS[selected.type])}</span>
                   </div>
                 )}
                 <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-1">
-                  <button onClick={() => duplicate(selected.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Дублировать (Ctrl+D)" aria-label="Дублировать"><CopyPlus className="h-4 w-4" /></button>
-                  <button onClick={() => copyNode(selected.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Копировать (Ctrl+C)" aria-label="Копировать"><Copy className="h-4 w-4" /></button>
-                  <button onClick={pasteNode} disabled={!hasClip} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30" title="Вставить (Ctrl+V)" aria-label="Вставить"><ClipboardPaste className="h-4 w-4" /></button>
+                  <button onClick={() => duplicate(selected.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title={tr('Дублировать (Ctrl+D)')} aria-label={tr('Дублировать')}><CopyPlus className="h-4 w-4" /></button>
+                  <button onClick={() => copyNode(selected.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title={tr('Копировать (Ctrl+C)')} aria-label={tr('Копировать')}><Copy className="h-4 w-4" /></button>
+                  <button onClick={pasteNode} disabled={!hasClip} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30" title={tr('Вставить (Ctrl+V)')} aria-label={tr('Вставить')}><ClipboardPaste className="h-4 w-4" /></button>
                   <span className="mx-0.5 h-4 w-px bg-border" />
-                  <button onClick={() => setBlocks((b) => moveNode(b, selected.id, -1))} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Выше" aria-label="Выше"><ArrowUp className="h-4 w-4" /></button>
-                  <button onClick={() => setBlocks((b) => moveNode(b, selected.id, 1))} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Ниже" aria-label="Ниже"><ArrowDown className="h-4 w-4" /></button>
+                  <button onClick={() => setBlocks((b) => moveNode(b, selected.id, -1))} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title={tr('Выше')} aria-label={tr('Выше')}><ArrowUp className="h-4 w-4" /></button>
+                  <button onClick={() => setBlocks((b) => moveNode(b, selected.id, 1))} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title={tr('Ниже')} aria-label={tr('Ниже')}><ArrowDown className="h-4 w-4" /></button>
                   <span className="mx-0.5 h-4 w-px bg-border" />
-                  <button onClick={() => deleteNode(selected.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-red-500" title="Удалить (Delete)" aria-label="Удалить"><Trash2 className="h-4 w-4" /></button>
+                  <button onClick={() => deleteNode(selected.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-red-500" title={tr('Удалить (Delete)')} aria-label={tr('Удалить')}><Trash2 className="h-4 w-4" /></button>
                 </div>
-                {FIELDS[selected.type].length === 0 && <p className="text-xs text-muted-foreground">Нет настроек контента.</p>}
+                {FIELDS[selected.type].length === 0 && <p className="text-xs text-muted-foreground">{tr('Нет настроек контента.')}</p>}
                 {FIELDS[selected.type].map((f) => (
                   <div key={f.k}>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{f.label}</label>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{tr(f.label)}</label>
                     {f.opts ? (
                       <Select value={selected.props[f.k] ?? f.opts[0]} onValueChange={(v) => patch(selected.id, { [f.k]: v })}>
                         <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
@@ -1176,8 +1279,8 @@ function BuilderEditor() {
                 {selected.type === 'image' && (
                   <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5">
                     <div className="mb-1.5 flex items-center justify-between">
-                      <label className="text-xs font-medium text-muted-foreground">Режим отображения</label>
-                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{IMG_DEVICE_LABEL[device]}</span>
+                      <label className="text-xs font-medium text-muted-foreground">{tr('Режим отображения')}</label>
+                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{tr(IMG_DEVICE_LABEL[device])}</span>
                     </div>
                     <Select
                       value={effectiveImgMode(selected.props, device)}
@@ -1187,14 +1290,14 @@ function BuilderEditor() {
                       <SelectContent>{IMG_MODE_OPTS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                     </Select>
                     <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
-                      Переключай устройство сверху (моб./планшет/десктоп), чтобы задать свой режим для каждого экрана. «background» = фон на всю секцию, текст поверх.
+                      {tr('Переключай устройство сверху (моб./планшет/десктоп), чтобы задать свой режим для каждого экрана. «background» = фон на всю секцию, текст поверх.')}
                     </p>
                   </div>
                 )}
                 {selected.type === 'image' && (
                   <div className="border-t border-border/60 pt-2">
                     <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={uploadBusy} onClick={() => uploadRef.current?.click()}>
-                      {uploadBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Загрузить картинку
+                      {uploadBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} {tr('Загрузить картинку')}
                     </Button>
                     <input ref={uploadRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], selected.id)} />
                   </div>
@@ -1203,17 +1306,17 @@ function BuilderEditor() {
                 {/* Styling for every element */}
                 {STYLE_GROUPS.map((g) => (
                   <div key={g.title} className="border-t border-border/60 pt-2.5">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.title}</p>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr(g.title)}</p>
                     <div className="grid grid-cols-2 gap-2">
                       {g.fields.map((f) => {
                         const isColor = f.k === 'textColor' || f.k === 'bgColor' || f.k === 'borderColor';
                         const val = selected.props[f.k];
                         return (
                           <div key={f.k}>
-                            <label className="mb-1 block text-[11px] font-medium text-muted-foreground">{f.label}</label>
+                            <label className="mb-1 block text-[11px] font-medium text-muted-foreground">{tr(f.label)}</label>
                             <div className="flex gap-1">
                               <Select value={val && !val.startsWith('#') ? val : '—'} onValueChange={(v) => patch(selected.id, { [f.k]: v === '—' ? '' : v })}>
-                                <SelectTrigger className="h-8 min-w-0 flex-1"><SelectValue placeholder={val?.startsWith('#') ? 'свой' : undefined} /></SelectTrigger>
+                                <SelectTrigger className="h-8 min-w-0 flex-1"><SelectValue placeholder={val?.startsWith('#') ? tr('свой') : undefined} /></SelectTrigger>
                                 <SelectContent>{f.opts!.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                               </Select>
                               {isColor && (
@@ -1221,7 +1324,7 @@ function BuilderEditor() {
                                   type="color"
                                   value={val?.startsWith('#') ? val : '#000000'}
                                   onChange={(e) => patch(selected.id, { [f.k]: e.target.value })}
-                                  title="Выбрать свой цвет"
+                                  title={tr('Выбрать свой цвет')}
                                   className="h-8 w-8 shrink-0 cursor-pointer rounded-md border border-border bg-transparent p-0.5"
                                 />
                               )}
@@ -1234,7 +1337,7 @@ function BuilderEditor() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">Выберите элемент в структуре, чтобы редактировать.</p>
+              <p className="text-xs text-muted-foreground">{tr('Выберите элемент в структуре, чтобы редактировать.')}</p>
             )}
           </Card>
           </div>{/* col B */}
@@ -1244,74 +1347,74 @@ function BuilderEditor() {
           <div className={tab === 'design' ? 'space-y-4' : 'hidden'}>
           {/* Chrome variants */}
           <Card className="p-3">
-            <p className="mb-2 text-sm font-semibold">Логотип</p>
+            <p className="mb-2 text-sm font-semibold">{tr('Логотип')}</p>
             <div className="mb-2 flex gap-1.5">
               {(['text', 'logo', 'both'] as const).map((m) => (
                 <Button key={m} size="sm" variant={(doc.brandMode || (doc.logoUrl ? 'both' : 'text')) === m ? 'default' : 'outline'} className="h-7 flex-1 text-xs" onClick={() => setDoc((d) => ({ ...d, brandMode: m }))}>
-                  {m === 'text' ? 'Текст' : m === 'logo' ? 'Лого' : 'Лого + текст'}
+                  {m === 'text' ? tr('Текст') : m === 'logo' ? tr('Лого') : tr('Лого + текст')}
                 </Button>
               ))}
             </div>
             <div className="flex gap-1.5">
-              <Input value={doc.logoUrl ?? ''} onChange={(e) => setDoc((d) => ({ ...d, logoUrl: e.target.value }))} placeholder="URL логотипа" className="h-8" />
+              <Input value={doc.logoUrl ?? ''} onChange={(e) => setDoc((d) => ({ ...d, logoUrl: e.target.value }))} placeholder={tr('URL логотипа')} className="h-8" />
               <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLogo(f); e.currentTarget.value = ''; }} />
-              <Button size="sm" variant="outline" className="shrink-0 gap-1" disabled={logoBusy} onClick={() => logoInputRef.current?.click()} title="Загрузить логотип">
+              <Button size="sm" variant="outline" className="shrink-0 gap-1" disabled={logoBusy} onClick={() => logoInputRef.current?.click()} title={tr('Загрузить логотип')}>
                 {logoBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               </Button>
             </div>
             {doc.logoUrl && (
               <div className="mt-2 grid grid-cols-2 gap-1.5">
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Высота, px</label>
+                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">{tr('Высота, px')}</label>
                   <Input value={doc.logoHeight ?? ''} onChange={(e) => setDoc((d) => ({ ...d, logoHeight: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="32" className="h-8" inputMode="numeric" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Макс. ширина, px</label>
+                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">{tr('Макс. ширина, px')}</label>
                   <Input value={doc.logoWidth ?? ''} onChange={(e) => setDoc((d) => ({ ...d, logoWidth: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="120" className="h-8" inputMode="numeric" />
                 </div>
                 <div className="col-span-2">
-                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Alt-текст (для доступности/SEO)</label>
+                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">{tr('Alt-текст (для доступности/SEO)')}</label>
                   <Input value={doc.logoAlt ?? ''} onChange={(e) => setDoc((d) => ({ ...d, logoAlt: e.target.value }))} placeholder={doc.brand} className="h-8" />
                 </div>
                 <Button size="sm" variant="ghost" className="col-span-2 h-7 text-xs text-muted-foreground hover:text-red-500" onClick={() => setDoc((d) => ({ ...d, logoUrl: '', brandMode: 'text' }))}>
-                  Удалить логотип
+                  {tr('Удалить логотип')}
                 </Button>
               </div>
             )}
-            <p className="mt-2 text-[11px] text-muted-foreground">Alt и размеры задаются автоматически, чтобы не было ошибок Lighthouse (CLS/доступность).</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">{tr('Alt и размеры задаются автоматически, чтобы не было ошибок Lighthouse (CLS/доступность).')}</p>
           </Card>
           <Card className="p-3">
-            <p className="mb-2 text-sm font-semibold">Шапка (header)</p>
+            <p className="mb-2 text-sm font-semibold">{tr('Шапка (header)')}</p>
             <div className="grid grid-cols-2 gap-2">
               {(['minimal', 'centered', 'split', 'cta'] as const).map((v) => (
                 <div key={v} role="button" tabIndex={0} onClick={() => setDoc((d) => ({ ...d, headerVariant: v }))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDoc((d) => ({ ...d, headerVariant: v })); }} className={`cursor-pointer overflow-hidden rounded-lg border p-1 text-left transition-colors ${(doc.headerVariant || 'minimal') === v ? 'border-primary bg-primary/5' : 'border-border/60 hover:border-primary/50'}`}>
                   <ChromeThumb doc={doc} kind="header" variant={v} />
-                  <span className="mt-1 block text-[11px] font-medium">{HEADER_LABELS[v]}</span>
+                  <span className="mt-1 block text-[11px] font-medium">{tr(HEADER_LABELS[v])}</span>
                 </div>
               ))}
             </div>
             <div className="mt-2 flex items-center gap-1.5">
-              <span className="text-[11px] font-medium text-muted-foreground">Поведение:</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{tr('Поведение:')}</span>
               {(['solid', 'transparent'] as const).map((b) => (
                 <Button key={b} size="sm" variant={(doc.headerBehavior || 'solid') === b ? 'default' : 'outline'} className="h-7 flex-1 text-xs" onClick={() => setDoc((d) => ({ ...d, headerBehavior: b }))}>
-                  {b === 'solid' ? 'Сплошная' : 'Прозрачная'}
+                  {b === 'solid' ? tr('Сплошная') : tr('Прозрачная')}
                 </Button>
               ))}
             </div>
-            <p className="mb-2 mt-3 text-sm font-semibold">Подвал (footer)</p>
+            <p className="mb-2 mt-3 text-sm font-semibold">{tr('Подвал (footer)')}</p>
             <div className="grid grid-cols-2 gap-2">
               {(['simple', 'columns', 'centered', 'newsletter'] as const).map((v) => (
                 <div key={v} role="button" tabIndex={0} onClick={() => setDoc((d) => ({ ...d, footerVariant: v }))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDoc((d) => ({ ...d, footerVariant: v })); }} className={`cursor-pointer overflow-hidden rounded-lg border p-1 text-left transition-colors ${(doc.footerVariant || 'simple') === v ? 'border-primary bg-primary/5' : 'border-border/60 hover:border-primary/50'}`}>
                   <ChromeThumb doc={doc} kind="footer" variant={v} />
-                  <span className="mt-1 block text-[11px] font-medium">{FOOTER_LABELS[v]}</span>
+                  <span className="mt-1 block text-[11px] font-medium">{tr(FOOTER_LABELS[v])}</span>
                 </div>
               ))}
             </div>
-            <p className="mb-1 mt-3 text-sm font-semibold">Боковая панель (aside)</p>
+            <p className="mb-1 mt-3 text-sm font-semibold">{tr('Боковая панель (aside)')}</p>
             <div className="flex gap-1.5">
               {(['none', 'left', 'right'] as const).map((v) => (
                 <Button key={v} size="sm" variant={(doc.asideVariant || 'none') === v ? 'default' : 'outline'} className="flex-1 text-xs" onClick={() => setDoc((d) => ({ ...d, asideVariant: v }))}>
-                  {v === 'none' ? 'Нет' : v === 'left' ? 'Слева' : 'Справа'}
+                  {v === 'none' ? tr('Нет') : v === 'left' ? tr('Слева') : tr('Справа')}
                 </Button>
               ))}
             </div>
@@ -1319,7 +1422,7 @@ function BuilderEditor() {
               <div className="mt-1.5 flex gap-1.5">
                 {(['default', 'compact', 'icons'] as const).map((v) => (
                   <Button key={v} size="sm" variant={(doc.asideStyle || 'default') === v ? 'default' : 'outline'} className="flex-1 text-xs" onClick={() => setDoc((d) => ({ ...d, asideStyle: v }))}>
-                    {v === 'default' ? 'Обычный' : v === 'compact' ? 'Компакт' : 'Иконки'}
+                    {v === 'default' ? tr('Обычный') : v === 'compact' ? tr('Компакт') : tr('Иконки')}
                   </Button>
                 ))}
               </div>
@@ -1329,34 +1432,34 @@ function BuilderEditor() {
           {/* Navigation editor */}
           <Card className="p-3">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-semibold">Меню (шапка)</p>
-              <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" onClick={addNavLink}><Plus className="h-3.5 w-3.5" /> Пункт</Button>
+              <p className="text-sm font-semibold">{tr('Меню (шапка)')}</p>
+              <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" onClick={addNavLink}><Plus className="h-3.5 w-3.5" /> {tr('Пункт')}</Button>
             </div>
             <div className="space-y-1.5">
               {doc.nav.map((l, i) => (
                 <div key={i} className="flex items-center gap-1.5">
-                  <Input value={l.label} onChange={(e) => setNavLink(i, 'label', e.target.value)} placeholder="Текст" className="h-8" />
+                  <Input value={l.label} onChange={(e) => setNavLink(i, 'label', e.target.value)} placeholder={tr('Текст')} className="h-8" />
                   <Input value={l.href} onChange={(e) => setNavLink(i, 'href', e.target.value)} placeholder="/site/..." className="h-8" />
                   <select
                     value={doc.pages.some((p) => (p.path ? `/site/${p.path}` : '/site') === l.href) ? l.href : ''}
                     onChange={(e) => { if (e.target.value) setNavLink(i, 'href', e.target.value); }}
                     className="h-8 shrink-0 rounded-md border border-input bg-background px-1 text-xs"
-                    title="Связать со страницей сайта"
-                    aria-label="Связать со страницей сайта"
+                    title={tr('Связать со страницей сайта')}
+                    aria-label={tr('Связать со страницей сайта')}
                   >
-                    <option value="">Страница…</option>
+                    <option value="">{tr('Страница…')}</option>
                     {doc.pages.map((p) => (
                       <option key={p.id} value={p.path ? `/site/${p.path}` : '/site'}>
-                        {p.title}{p.path ? ` (/${p.path})` : ' (главная)'}
+                        {p.title}{p.path ? ` (/${p.path})` : tr(' (главная)')}
                       </option>
                     ))}
                   </select>
-                  <button onClick={() => removeNavLink(i)} className="shrink-0 text-muted-foreground hover:text-red-500" aria-label="Удалить"><X className="h-4 w-4" /></button>
+                  <button onClick={() => removeNavLink(i)} className="shrink-0 text-muted-foreground hover:text-red-500" aria-label={tr('Удалить')}><X className="h-4 w-4" /></button>
                 </div>
               ))}
             </div>
             <div className="mt-3 border-t border-border/60 pt-2">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Текст футера</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">{tr('Текст футера')}</label>
               <Input value={doc.footer.text} onChange={(e) => setDoc((d) => ({ ...d, footer: { ...d.footer, text: e.target.value } }))} className="h-8" />
             </div>
           </Card>
@@ -1367,7 +1470,7 @@ function BuilderEditor() {
         <div
           onMouseDown={startResize}
           className={`w-1.5 shrink-0 cursor-col-resize bg-border/60 transition-colors hover:bg-primary/60 ${fullscreen ? 'hidden' : ''}`}
-          title="Потяните, чтобы изменить ширину"
+          title={tr('Потяните, чтобы изменить ширину')}
         />
 
         {/* Live preview canvas */}
@@ -1378,33 +1481,43 @@ function BuilderEditor() {
           <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground">
             <ChevronRight className="h-4 w-4 text-primary" />
             <span className="truncate">{previewSrc}</span>
-            <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">в реальном времени</span>
+            <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{tr('в реальном времени')}</span>
             <div className="ml-auto flex items-center gap-1">
-              <button onClick={() => setPreviewDark((v) => !v)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title="Светлая / тёмная тема предпросмотра">
+              <button onClick={() => setPreviewDark((v) => !v)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title={tr('Светлая / тёмная тема предпросмотра')}>
                 {previewDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                {previewDark ? 'Светлая' : 'Тёмная'}
+                {previewDark ? tr('Светлая') : tr('Тёмная')}
               </button>
-              <button onClick={() => setPreviewKey((k) => k + 1)} className="rounded-md px-2 py-1 hover:bg-muted">Перезагрузить</button>
-              <button onClick={() => setFullscreen((f) => !f)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title="Полноэкранный предпросмотр">
+              <button onClick={() => setPreviewKey((k) => k + 1)} className="rounded-md px-2 py-1 hover:bg-muted">{tr('Перезагрузить')}</button>
+              <button onClick={() => setFullscreen((f) => !f)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title={tr('Полноэкранный предпросмотр')}>
                 {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                {fullscreen ? 'Свернуть' : 'На весь экран'}
+                {fullscreen ? tr('Свернуть') : tr('На весь экран')}
               </button>
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-4">
             <div className="mx-auto h-full transition-[width] duration-300" style={{ width: fullscreen ? DEVICE[device] : (device === 'full' ? '100%' : DEVICE[device]) }}>
-              <iframe
-                ref={previewRef}
-                key={previewKey}
-                src="/builder-preview"
-                title="Предпросмотр"
-                onLoad={postPreview}
-                className="h-full w-full rounded-xl border border-border bg-background shadow-2xl"
-              />
+              <div className="relative h-full w-full">
+                <iframe
+                  ref={previewRef}
+                  key={previewKey}
+                  src="/builder-preview"
+                  title={tr('Предпросмотр')}
+                  onLoad={postPreview}
+                  className={cn('h-full w-full rounded-xl border border-border bg-background shadow-2xl', dragType && 'pointer-events-none')}
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
+      {dragType && ghost && (
+        <div
+          className="pointer-events-none fixed z-[100] -translate-x-1/2 -translate-y-1/2 rounded-md border border-primary bg-primary px-2 py-1 text-xs font-medium text-primary-foreground shadow-lg"
+          style={{ left: ghost.x, top: ghost.y }}
+        >
+          {NODE_LABELS[dragType] ?? dragType}
+        </div>
+      )}
     </main>
   );
 }
@@ -1497,6 +1610,7 @@ function Tree({
   dropHint: { id: string; pos: 'before' | 'after' } | null;
   setDropHint: (h: { id: string; pos: 'before' | 'after' } | null) => void;
 }) {
+  const tr = builderTr(useLocale().locale);
   return (
     <div className="space-y-1">
       {nodes.map((n, i) => {
@@ -1509,6 +1623,8 @@ function Tree({
             {hint === 'before' && <div className="my-0.5 h-0.5 rounded bg-primary" style={{ marginLeft: depth * 12 + 6 }} />}
             <div
               draggable
+              data-tree-nid={n.id}
+              data-tree-container={container ? '1' : undefined}
               onDragStart={(e) => { e.stopPropagation(); onDragStartId(n.id); }}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -1520,7 +1636,7 @@ function Tree({
               style={{ paddingLeft: depth * 12 + 2 }}
             >
               {container && hasKids ? (
-                <button onClick={() => onToggle(n.id)} className="text-muted-foreground hover:text-foreground" aria-label={isCollapsed ? 'Развернуть' : 'Свернуть'}>
+                <button onClick={() => onToggle(n.id)} className="text-muted-foreground hover:text-foreground" aria-label={isCollapsed ? tr('Развернуть') : tr('Свернуть')}>
                   {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                 </button>
               ) : (
@@ -1528,13 +1644,13 @@ function Tree({
               )}
               <span className="cursor-grab text-muted-foreground/50 active:cursor-grabbing" aria-hidden>⋮⋮</span>
               <button className="min-w-0 flex-1 truncate text-left" onClick={() => onSelect(n.id)}>
-                {NODE_LABELS[n.type]}
+                {tr(NODE_LABELS[n.type])}
                 {n.props.text ? <span className="text-muted-foreground"> — {n.props.text.slice(0, 16)}</span> : null}
               </button>
-              <button onClick={() => onMove(n.id, -1)} disabled={i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Вверх"><ArrowUp className="h-3.5 w-3.5" /></button>
-              <button onClick={() => onMove(n.id, 1)} disabled={i === nodes.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Вниз"><ArrowDown className="h-3.5 w-3.5" /></button>
-              <button onClick={() => onDuplicate(n.id)} className="text-muted-foreground hover:text-foreground" aria-label="Дублировать"><Copy className="h-3.5 w-3.5" /></button>
-              <button onClick={() => onDelete(n.id)} className="text-muted-foreground hover:text-red-500" aria-label="Удалить"><X className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onMove(n.id, -1)} disabled={i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label={tr('Вверх')}><ArrowUp className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onMove(n.id, 1)} disabled={i === nodes.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label={tr('Вниз')}><ArrowDown className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onDuplicate(n.id)} className="text-muted-foreground hover:text-foreground" aria-label={tr('Дублировать')}><Copy className="h-3.5 w-3.5" /></button>
+              <button onClick={() => onDelete(n.id)} className="text-muted-foreground hover:text-red-500" aria-label={tr('Удалить')}><X className="h-3.5 w-3.5" /></button>
             </div>
             {hint === 'after' && <div className="my-0.5 h-0.5 rounded bg-primary" style={{ marginLeft: depth * 12 + 6 }} />}
             {hasKids && !isCollapsed && (
