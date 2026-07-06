@@ -44,6 +44,13 @@ export type UiDict = {
     startFree: string;
     rights: string;
     madeOn: string;
+    legal: string;
+  };
+  legal: {
+    privacy: string;
+    terms: string;
+    cookies: string;
+    acceptableUse: string;
   };
   errors: {
     errTitle: string;
@@ -104,6 +111,13 @@ const ru: UiDict = {
     startFree: 'Начать бесплатно',
     rights: 'Все права защищены.',
     madeOn: 'Собрано на платформе',
+    legal: 'Правовая информация',
+  },
+  legal: {
+    privacy: 'Политика конфиденциальности',
+    terms: 'Условия использования',
+    cookies: 'Файлы cookie',
+    acceptableUse: 'Допустимое использование',
   },
   errors: {
     errTitle: 'Что-то пошло не так',
@@ -164,6 +178,13 @@ const en: UiDict = {
     startFree: 'Start free',
     rights: 'All rights reserved.',
     madeOn: 'Built on the platform',
+    legal: 'Legal',
+  },
+  legal: {
+    privacy: 'Privacy Policy',
+    terms: 'Terms of Service',
+    cookies: 'Cookie Policy',
+    acceptableUse: 'Acceptable Use',
   },
   errors: {
     errTitle: 'Something went wrong',
@@ -224,6 +245,13 @@ const hy: UiDict = {
     startFree: 'Սկսել անվճար',
     rights: 'Բոլոր իրավունքները պաշտպանված են։',
     madeOn: 'Ստեղծված հարթակում',
+    legal: 'Իրավական տեղեկություններ',
+  },
+  legal: {
+    privacy: 'Գաղտնիության քաղաքականություն',
+    terms: 'Օգտագործման պայմաններ',
+    cookies: 'Cookie քաղաքականություն',
+    acceptableUse: 'Ընդունելի օգտագործում',
   },
   errors: {
     errTitle: 'Ինչ-որ բան սխալ գնաց',

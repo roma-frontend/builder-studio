@@ -46,12 +46,21 @@ export async function SiteFooter() {
         { href: '/vitals', label: 'Web Vitals' },
       ],
     },
+    {
+      title: t.footer.legal,
+      links: [
+        { href: '/legal/privacy', label: t.legal.privacy },
+        { href: '/legal/terms', label: t.legal.terms },
+        { href: '/legal/cookies', label: t.legal.cookies },
+        { href: '/legal/acceptable-use', label: t.legal.acceptableUse },
+      ],
+    },
   ];
 
   return (
     <footer className="border-t border-border/60 bg-card/30">
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-14 sm:px-10">
-        <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
           {/* Brand + CTA */}
           <div>
             <Link href="/" className="flex items-center gap-2.5">

@@ -14,6 +14,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${APP_URL}/register`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${APP_URL}/themes`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${APP_URL}/presets`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${APP_URL}/legal/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${APP_URL}/legal/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${APP_URL}/legal/cookies`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${APP_URL}/legal/acceptable-use`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
   let sites: MetadataRoute.Sitemap = [];
