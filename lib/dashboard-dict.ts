@@ -128,6 +128,15 @@ export type DashDict = {
     welcomeTitle: string;
     welcomeDesc: string;
   };
+  account: {
+    metaTitle: string;
+    subtitle: string;
+    registered: string;
+    statSites: string;
+    statPublished: string;
+    statSubmissions: string;
+    logout: string;
+  };
 };
 
 const ru: DashDict = {
@@ -254,6 +263,15 @@ const ru: DashDict = {
     errGeneric: 'Ошибка',
     welcomeTitle: 'Добро пожаловать',
     welcomeDesc: 'Чтобы пользоваться платформой, создайте организацию или присоединитесь к существующей. Доступ откроется после одобрения суперадмином.',
+  },
+  account: {
+    metaTitle: 'Аккаунт',
+    subtitle: 'Данные вашего профиля и сессии.',
+    registered: 'Регистрация',
+    statSites: 'сайтов',
+    statPublished: 'опубликовано',
+    statSubmissions: 'заявок',
+    logout: 'Выйти',
   },
 };
 
@@ -382,6 +400,15 @@ const en: DashDict = {
     welcomeTitle: 'Welcome',
     welcomeDesc: 'To use the platform, create an organization or join an existing one. Access opens once a superadmin approves.',
   },
+  account: {
+    metaTitle: 'Account',
+    subtitle: 'Your profile details and session.',
+    registered: 'Registered',
+    statSites: 'sites',
+    statPublished: 'published',
+    statSubmissions: 'submissions',
+    logout: 'Sign out',
+  },
 };
 
 const hy: DashDict = {
@@ -508,6 +535,15 @@ const hy: DashDict = {
     errGeneric: 'Սխալ',
     welcomeTitle: 'Բարի գալուստ',
     welcomeDesc: 'Հարթակն օգտագործելու համար ստեղծեք կազմակերպություն կամ միացեք գոյություն ունեցողին։ Մուտքը կբացվի գերադմինի հաստատումից հետո։',
+  },
+  account: {
+    metaTitle: 'Հաշիվ',
+    subtitle: 'Ձեր պրոֆիլի տվյալները և սեսիան։',
+    registered: 'Գրանցում',
+    statSites: 'կայք',
+    statPublished: 'հրապարակված',
+    statSubmissions: 'հայտ',
+    logout: 'Ելք',
   },
 };
 
