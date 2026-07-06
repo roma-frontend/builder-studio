@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser, getUserByToken, isSuperadmin, ADMIN_RETURN_COOKIE } from '@/lib/auth';
 import { listSitesForUser } from '@/lib/sites';
 import { countPendingOrgRequests } from '@/lib/org-requests';
+import { countPendingMembersForOwner } from '@/lib/site-membership';
 import { DashboardShell, type Role } from '@/components/dashboard/shell';
 import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner';
 import { PageHeader } from '@/components/dashboard/ui';
@@ -28,6 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const hasOrg = listSitesForUser(user.id).length > 0;
   const gated = !isSuperadmin(user) && !hasOrg;
   const orgRequests = isSuperadmin(user) ? countPendingOrgRequests() : 0;
+  const siteMembers = gated ? 0 : countPendingMembersForOwner(user);
 
   return (
     <DashboardShell
@@ -35,6 +37,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       banner={impersonating ? <ImpersonationBanner name={user.name || user.email} /> : null}
       gated={gated}
       orgRequests={orgRequests}
+      siteMembers={siteMembers}
     >
       {gated ? (
         <>

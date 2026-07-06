@@ -9,6 +9,7 @@ import {
   updateMaterial,
   deleteMaterial,
   listPublishedMaterials,
+  countPendingMembersForOwner,
 } from '@/lib/site-membership';
 import { createUser } from '@/lib/auth';
 import { createSite } from '@/lib/sites';
@@ -190,5 +191,30 @@ describe('listPublishedMaterials', () => {
     const list = listPublishedMaterials(site.id);
     expect(list.length).toBe(1);
     expect(list[0].title).toBe('Pub');
+  });
+});
+
+
+describe('countPendingMembersForOwner', () => {
+  it('counts only the owner’s pending members; superadmin sees the platform total', () => {
+    const { superadmin, owner, site } = seed();
+    createSiteUser(site.id, 'a@x.com', 'password123', 'A', 'pending');
+    createSiteUser(site.id, 'b@x.com', 'password123', 'B', 'pending');
+    createSiteUser(site.id, 'c@x.com', 'password123', 'C', 'approved'); // not counted
+
+    // A second owner with their own pending member — must not leak into `owner`.
+    const owner2 = createUser('owner2@example.com', 'password123', 'Owner2');
+    const site2 = createSite(owner2.id, 'Org2');
+    createSiteUser(site2.id, 'd@x.com', 'password123', 'D', 'pending');
+
+    expect(countPendingMembersForOwner(owner)).toBe(2);
+    expect(countPendingMembersForOwner(owner2)).toBe(1);
+    expect(countPendingMembersForOwner(superadmin)).toBe(3);
+  });
+
+  it('returns 0 when the owner has no pending members', () => {
+    const { owner, site } = seed();
+    createSiteUser(site.id, 'a@x.com', 'password123', 'A', 'approved');
+    expect(countPendingMembersForOwner(owner)).toBe(0);
   });
 });

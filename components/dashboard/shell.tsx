@@ -15,6 +15,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { CommandPalette, type Command } from '@/components/dashboard/command-palette';
 import { OrgRequestsBadge } from '@/components/dashboard/org-requests-badge';
+import { SiteMembersBadge } from '@/components/dashboard/site-members-badge';
 
 export type Role = 'customer' | 'admin' | 'superadmin';
 export interface ShellUser { name: string; email: string; role: Role }
@@ -40,7 +41,7 @@ const ROLE_META: Record<Role, { label: string; cls: string; icon: React.Componen
   customer: { label: 'Клиент', cls: 'bg-muted text-muted-foreground', icon: UserCircle },
 };
 
-export function DashboardShell({ user, banner, gated, orgRequests = 0, children }: { user: ShellUser; banner?: React.ReactNode; gated?: boolean; orgRequests?: number; children: React.ReactNode }) {
+export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembers = 0, children }: { user: ShellUser; banner?: React.ReactNode; gated?: boolean; orgRequests?: number; siteMembers?: number; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -116,6 +117,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, children 
             >
               <item.icon className="h-4 w-4 shrink-0" />
               <span className="truncate">{item.label}</span>
+              {item.href === '/dashboard/sites' && <SiteMembersBadge initialCount={siteMembers} />}
               {item.staff && <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-amber-500">staff</span>}
             </Link>
           );

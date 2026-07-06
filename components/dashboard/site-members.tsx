@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Check, X, Ban, Clock, Plus, Trash2, Users, Library, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SITE_MEMBERS_SEEN_EVENT } from '@/components/dashboard/site-members-badge';
 
 type Member = { id: string; email: string; name: string; status: string; rejectionReason: string; createdAt: string | number; approvedAt: string | number | null };
 type Material = { id: string; title: string; body: string; url: string; published: boolean; createdAt: string | number };
@@ -33,7 +34,12 @@ export function SiteMembers({ siteId, memberApproval }: { siteId: string; member
   const load = useCallback(() => {
     fetch(`/api/site-members?site=${encodeURIComponent(siteId)}`)
       .then((r) => r.json())
-      .then((d) => { setMembers(d.members ?? []); setMaterials(d.materials ?? []); })
+      .then((d) => {
+        setMembers(d.members ?? []);
+        setMaterials(d.materials ?? []);
+        // Owner opened the members panel → clear the nav badge blink.
+        window.dispatchEvent(new CustomEvent(SITE_MEMBERS_SEEN_EVENT));
+      })
       .catch(() => { setMembers([]); setMaterials([]); });
   }, [siteId]);
   useEffect(() => { load(); }, [load]);

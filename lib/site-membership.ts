@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { getDb, newId, sites, siteUsers, siteMaterials, siteNotifications, type SiteMaterial, type User } from '@/lib/db';
 import { isSuperadmin } from '@/lib/auth';
 
@@ -46,6 +46,22 @@ export function listMembers(siteId: string): MemberRow[] {
     .where(eq(siteUsers.siteId, siteId))
     .orderBy(desc(siteUsers.createdAt))
     .all();
+}
+
+/** Count pending members across every site owned by a platform user. A
+ *  superadmin sees the platform-wide pending total. */
+export function countPendingMembersForOwner(user: User): number {
+  const row = getDb()
+    .select({ n: sql<number>`count(*)` })
+    .from(siteUsers)
+    .innerJoin(sites, eq(siteUsers.siteId, sites.id))
+    .where(
+      isSuperadmin(user)
+        ? eq(siteUsers.status, 'pending')
+        : and(eq(siteUsers.status, 'pending'), eq(sites.userId, user.id)),
+    )
+    .get();
+  return row?.n ?? 0;
 }
 
 /** Insert a notification for one member of a site. */

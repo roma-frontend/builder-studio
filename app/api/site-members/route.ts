@@ -8,6 +8,7 @@ import {
   createMaterial,
   updateMaterial,
   deleteMaterial,
+  countPendingMembersForOwner,
   type MemberStatus,
 } from '@/lib/site-membership';
 import { getDb, sites } from '@/lib/db';
@@ -24,6 +25,12 @@ export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
   const siteId = new URL(request.url).searchParams.get('site') ?? '';
+  // No `site` param → aggregate pending-member count across the owner's sites
+  // (used by the live nav badge). No ownership check needed: it only counts the
+  // caller's own sites (superadmin: platform-wide).
+  if (!siteId) {
+    return NextResponse.json({ pending: countPendingMembersForOwner(user) });
+  }
   try {
     requireSiteOwner(user, siteId);
   } catch {
