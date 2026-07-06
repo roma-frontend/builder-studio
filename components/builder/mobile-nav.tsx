@@ -6,16 +6,19 @@ import { Menu, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { NavLink } from '@/lib/builder/types';
 import { SiteAuthButtons } from './site-auth-blocks';
+import { useLocale } from '@/hooks/use-locale';
+import { siteRt } from '@/lib/site-runtime-dict';
 
 // Burger menu shown on mobile/tablet — nav links + auth buttons collapse into a
 // single dropdown. The theme toggle stays outside, always visible on the bar.
 export function MobileNav({ links, authBase, showAuth }: { links: NavLink[]; authBase?: string; showAuth?: boolean }) {
   const [open, setOpen] = useState(false);
+  const t = siteRt(useLocale().locale);
   return (
     <div className="md:hidden">
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label={open ? 'Закрыть меню' : 'Открыть меню'}
+        aria-label={open ? t.closeMenu : t.openMenu}
         aria-expanded={open}
         className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 text-foreground"
       >

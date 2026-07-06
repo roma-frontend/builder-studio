@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Check } from 'lucide-react';
+import { useLocale } from '@/hooks/use-locale';
+import { siteRt } from '@/lib/site-runtime-dict';
 
 // Wraps builder-generated form fields (native <input>/<textarea> with name)
 // and submits them to /api/form. Success/error state is shown inline.
@@ -18,6 +20,7 @@ export function BuilderForm({
   children: React.ReactNode;
 }) {
   const [status, setStatus] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
+  const t = siteRt(useLocale().locale);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,12 +51,12 @@ export function BuilderForm({
   return (
     <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
       {children}
-      <Button type="submit" disabled={status === 'busy'} className="gap-2 self-start">
+      <Button type="submit" disabled={status === 'busy'} className="gap-2 self-start rounded-full px-6">
         {status === 'busy' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         {submitText}
       </Button>
       {status === 'error' && (
-        <p className="text-sm text-red-500">Не удалось отправить. Попробуйте ещё раз.</p>
+        <p className="text-sm text-red-500">{t.formError}</p>
       )}
     </form>
   );

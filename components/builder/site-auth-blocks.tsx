@@ -4,9 +4,11 @@
 // They read the current site id from context (injected by SiteRenderer) and
 // talk to /api/site-auth, which is fully isolated from the platform auth.
 
-import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import { useLocale } from '@/hooks/use-locale';
+import { siteRt } from '@/lib/site-runtime-dict';
 
 const SiteAuthContext = createContext<string>('');
 export function SiteAuthProvider({ siteId, children }: { siteId: string; children: ReactNode }) {
@@ -19,25 +21,43 @@ const useSiteId = () => useContext(SiteAuthContext);
  *  «Кабинет» link once the visitor is signed in. */
 export function SiteAuthButtons({ base, size = 'sm', stacked = false }: { base: string; size?: 'sm' | 'md'; stacked?: boolean }) {
   const siteId = useSiteId();
+  const t = siteRt(useLocale().locale);
   const { user, loading } = useCurrentUser(siteId);
   const pad = size === 'md' ? 'px-4 py-2 text-sm' : 'px-3 py-1.5 text-sm';
   const full = stacked ? 'w-full justify-center' : '';
-  if (loading) return <span className="inline-block h-8 w-24" aria-hidden />;
-  if (user) {
+  const outlineCls = `inline-flex items-center rounded-full border border-border ${pad} ${full} font-medium text-foreground transition-colors hover:bg-muted`;
+  const solidCls = `inline-flex items-center rounded-full bg-primary ${pad} ${full} font-semibold text-primary-foreground transition-opacity hover:opacity-90`;
+
+  // Mobile burger: vertical, no fixed slot needed.
+  if (stacked) {
+    if (loading) return null;
+    if (user) return <Link href={`${base}/account`} className={solidCls}>{t.account}</Link>;
     return (
-      <Link href={`${base}/account`} className={`inline-flex items-center rounded-lg bg-primary ${pad} ${full} font-semibold text-primary-foreground transition-opacity hover:opacity-90`}>
-        Кабинет
-      </Link>
+      <div className="flex w-full flex-col gap-2">
+        <Link href={`${base}/login`} className={outlineCls}>{t.login}</Link>
+        <Link href={`${base}/register`} className={solidCls}>{t.registerFree}</Link>
+      </div>
     );
   }
+
+  const actual = loading ? null : user ? (
+    <Link href={`${base}/account`} className={solidCls}>{t.account}</Link>
+  ) : (
+    <>
+      <Link href={`${base}/login`} className={outlineCls}>{t.login}</Link>
+      <Link href={`${base}/register`} className={solidCls}>{t.registerFree}</Link>
+    </>
+  );
+  // Constant-width slot: an invisible sizer reserves the widest state so the
+  // header layout never shifts when auth resolves or when navigating between
+  // pages (the actual buttons are overlaid, right-aligned).
   return (
-    <div className={stacked ? 'flex w-full flex-col gap-2' : 'flex items-center gap-2'}>
-      <Link href={`${base}/login`} className={`inline-flex items-center rounded-lg border border-border ${pad} ${full} font-medium text-foreground transition-colors hover:bg-muted`}>
-        Войти
-      </Link>
-      <Link href={`${base}/register`} className={`inline-flex items-center rounded-lg bg-primary ${pad} ${full} font-semibold text-primary-foreground transition-opacity hover:opacity-90`}>
-        Начать бесплатно
-      </Link>
+    <div className="relative inline-flex items-center">
+      <div className="pointer-events-none invisible flex items-center gap-2" aria-hidden>
+        <span className={outlineCls}>{t.login}</span>
+        <span className={solidCls}>{t.registerFree}</span>
+      </div>
+      <div className="absolute inset-0 flex items-center justify-end gap-2">{actual}</div>
     </div>
   );
 }
@@ -48,20 +68,51 @@ const field = 'w-full rounded-lg border border-border bg-background px-3 py-2 te
 const btn = 'inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60';
 const wrap = 'mx-auto w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-sm';
 
+// Cross-navigation cache of the tenant auth state so the header buttons don't
+// blank out and re-fetch on every page load (which made the header flicker).
+// The cache is a subscribable store (useSyncExternalStore below): a login in
+// one block instantly updates every other block on the page.
+const authCache = new Map<string, PublicUser | null>();
+const authListeners = new Set<() => void>();
+const notifyAuth = () => authListeners.forEach((l) => l());
+const subscribeAuth = (cb: () => void) => {
+  authListeners.add(cb);
+  return () => { authListeners.delete(cb); };
+};
+function readAuthCache(siteId: string): PublicUser | null | undefined {
+  if (authCache.has(siteId)) return authCache.get(siteId);
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const v = sessionStorage.getItem(`site-auth:${siteId}`);
+    if (v != null) { const u = JSON.parse(v) as PublicUser | null; authCache.set(siteId, u); return u; }
+  } catch { /* ignore */ }
+  return undefined;
+}
+function writeAuthCache(siteId: string, u: PublicUser | null) {
+  authCache.set(siteId, u);
+  try { if (typeof window !== 'undefined') sessionStorage.setItem(`site-auth:${siteId}`, JSON.stringify(u)); } catch { /* ignore */ }
+  notifyAuth();
+}
+
 function useCurrentUser(siteId: string) {
-  const [user, setUser] = useState<PublicUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  // `undefined` = not checked yet (spinner); instant paint from a previous
+  // check, then the effect revalidates against the server.
+  const cached = useSyncExternalStore(
+    subscribeAuth,
+    () => (siteId ? readAuthCache(siteId) : null),
+    () => undefined,
+  );
   useEffect(() => {
-    if (!siteId) { setLoading(false); return; }
+    if (!siteId) return;
     let alive = true;
     fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}`)
       .then((r) => r.json())
-      .then((d) => { if (alive) setUser(d.user ?? null); })
-      .catch(() => {})
-      .finally(() => { if (alive) setLoading(false); });
+      .then((d) => { if (alive) writeAuthCache(siteId, (d.user ?? null) as PublicUser | null); })
+      .catch(() => { if (alive && readAuthCache(siteId) === undefined) writeAuthCache(siteId, null); });
     return () => { alive = false; };
   }, [siteId]);
-  return { user, setUser, loading };
+  const setUser = useCallback((u: PublicUser | null) => writeAuthCache(siteId, u), [siteId]);
+  return { user: cached ?? null, setUser, loading: cached === undefined };
 }
 
 export function SiteAuthForm({ mode, title, submitText, successMsg, showName }: {
@@ -72,6 +123,7 @@ export function SiteAuthForm({ mode, title, submitText, successMsg, showName }: 
   showName?: boolean;
 }) {
   const siteId = useSiteId();
+  const t = siteRt(useLocale().locale);
   const { user, setUser, loading } = useCurrentUser(siteId);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -84,7 +136,7 @@ export function SiteAuthForm({ mode, title, submitText, successMsg, showName }: 
   if (user) {
     return (
       <div className={wrap}>
-        <p className="text-sm text-muted-foreground">Вы вошли как</p>
+        <p className="text-sm text-muted-foreground">{t.loggedInAs}</p>
         <p className="font-semibold">{user.name || user.email}</p>
       </div>
     );
@@ -100,23 +152,23 @@ export function SiteAuthForm({ mode, title, submitText, successMsg, showName }: 
         body: JSON.stringify({ action: mode, siteId, email, password, name }),
       });
       const data = await res.json();
-      if (res.ok) { setUser(data.user); setMsg(successMsg || 'Готово.'); }
-      else setErr(data.error || 'Ошибка');
-    } catch { setErr('Сеть недоступна'); }
+      if (res.ok) { setUser(data.user); setMsg(successMsg || t.done); }
+      else setErr(data.error || t.error);
+    } catch { setErr(t.network); }
     finally { setBusy(false); }
   };
 
   return (
     <form onSubmit={submit} className={wrap}>
-      <h3 className="mb-4 text-lg font-bold tracking-tight">{title || (mode === 'login' ? 'Вход' : 'Регистрация')}</h3>
+      <h3 className="mb-4 text-lg font-bold tracking-tight">{title || (mode === 'login' ? t.loginTitle : t.registerTitle)}</h3>
       <div className="space-y-2.5">
         {mode === 'register' && showName && (
-          <input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="Имя" autoComplete="name" />
+          <input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder={t.name} autoComplete="name" />
         )}
-        <input className={field} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" autoComplete="email" required />
-        <input className={field} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Пароль" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required />
+        <input className={field} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.email} type="email" autoComplete="email" required />
+        <input className={field} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t.password} type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required />
         <button className={btn} disabled={busy} type="submit">
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />} {submitText || (mode === 'login' ? 'Войти' : 'Создать аккаунт')}
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />} {submitText || (mode === 'login' ? t.login : t.createAccount)}
         </button>
       </div>
       {err && <p className="mt-2 text-sm text-red-500">{err}</p>}
@@ -127,11 +179,12 @@ export function SiteAuthForm({ mode, title, submitText, successMsg, showName }: 
 
 export function SiteAccount({ title, logoutText }: { title?: string; logoutText?: string }) {
   const siteId = useSiteId();
+  const t = siteRt(useLocale().locale);
   const { user, setUser, loading } = useCurrentUser(siteId);
   const [busy, setBusy] = useState(false);
 
   if (loading) return <div className={wrap}><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>;
-  if (!user) return <div className={wrap}><p className="text-sm text-muted-foreground">Войдите, чтобы увидеть личный кабинет.</p></div>;
+  if (!user) return <div className={wrap}><p className="text-sm text-muted-foreground">{t.signInToSee}</p></div>;
 
   const logout = async () => {
     setBusy(true);
@@ -143,13 +196,13 @@ export function SiteAccount({ title, logoutText }: { title?: string; logoutText?
 
   return (
     <div className={wrap}>
-      <h3 className="mb-3 text-lg font-bold tracking-tight">{title || 'Личный кабинет'}</h3>
+      <h3 className="mb-3 text-lg font-bold tracking-tight">{title || t.accountTitle}</h3>
       <dl className="space-y-1 text-sm">
-        {user.name && <div className="flex gap-2"><dt className="w-20 text-muted-foreground">Имя</dt><dd>{user.name}</dd></div>}
-        <div className="flex gap-2"><dt className="w-20 text-muted-foreground">Email</dt><dd>{user.email}</dd></div>
+        {user.name && <div className="flex gap-2"><dt className="w-20 text-muted-foreground">{t.nameLabel}</dt><dd>{user.name}</dd></div>}
+        <div className="flex gap-2"><dt className="w-20 text-muted-foreground">{t.email}</dt><dd>{user.email}</dd></div>
       </dl>
       <button className={`${btn} mt-4`} disabled={busy} onClick={logout}>
-        {busy && <Loader2 className="h-4 w-4 animate-spin" />} {logoutText || 'Выйти'}
+        {busy && <Loader2 className="h-4 w-4 animate-spin" />} {logoutText || t.logout}
       </button>
     </div>
   );
