@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { THEMES, pickTheme, getTheme } from '@/lib/themes';
 import { requireUser, unauthorized } from '@/lib/api-guard';
+import { rateLimit } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -52,7 +53,11 @@ async function classifyWithLLM(brief: string): Promise<string | null> {
 
 export async function POST(request: Request) {
   // May call the configured LLM on the server's key — signed-in users only.
-  if (!(await requireUser())) return unauthorized();
+  const user = await requireUser();
+  if (!user) return unauthorized();
+  if (!rateLimit(`pick-theme:${user.id}`, 30)) {
+    return NextResponse.json({ error: 'Слишком много запросов подряд, подождите немного.' }, { status: 429 });
+  }
   let brief = '';
   try {
     const body = await request.json();

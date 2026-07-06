@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { makeNode, newId, type BuilderNode, type NodeType } from '@/lib/builder/types';
 import { requireUser, unauthorized } from '@/lib/api-guard';
+import { rateLimit } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -116,7 +117,11 @@ async function llmBlocks(brief: string): Promise<BuilderNode[] | null> {
 
 export async function POST(request: Request) {
   // May call the configured LLM on the server's key — signed-in users only.
-  if (!(await requireUser())) return unauthorized();
+  const user = await requireUser();
+  if (!user) return unauthorized();
+  if (!rateLimit(`generate-page:${user.id}`, 10)) {
+    return NextResponse.json({ error: 'Слишком много генераций подряд, подождите немного.' }, { status: 429 });
+  }
   let brief = '';
   let title = 'Новая страница';
   let path = '';

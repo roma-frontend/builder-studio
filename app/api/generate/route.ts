@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { requireStaff, forbidden } from '@/lib/api-guard';
+import { rateLimit } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 // This route shells out to the media pipeline (ffmpeg + optional muapi.ai call
@@ -57,7 +58,12 @@ function argsFrom(body: GenerateBody): string[] {
 
 export async function POST(request: Request) {
   // Spawns the media pipeline and spends the server's MUAPI credits — staff only.
-  if (!(await requireStaff())) return forbidden();
+  const user = await requireStaff();
+  if (!user) return forbidden();
+  // Each run is a long ffmpeg/muapi job — cap runs per user, not per IP.
+  if (!rateLimit(`generate:${user.id}`, 5)) {
+    return NextResponse.json({ error: 'Слишком много генераций подряд, подождите немного.' }, { status: 429 });
+  }
   let body: GenerateBody;
   try {
     body = (await request.json()) as GenerateBody;
