@@ -30,10 +30,10 @@ export const KEYWORDS = [
 ];
 
 // ── i18n scaffold ───────────────────────────────────────────────────────────
-export const LOCALES = ['ru', 'en'] as const;
+export const LOCALES = ['ru', 'en', 'hy'] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = 'ru';
-export const OG_LOCALE: Record<Locale, string> = { ru: 'ru_RU', en: 'en_US' };
+export const OG_LOCALE: Record<Locale, string> = { ru: 'ru_RU', en: 'en_US', hy: 'hy_AM' };
 
 /** Cookie that persists the visitor's chosen UI locale. */
 export const LOCALE_COOKIE = 'NEXT_LOCALE';
@@ -44,7 +44,7 @@ export function isLocale(v: string | undefined | null): v is Locale {
 }
 
 /** BCP-47 tag for a locale (used for `<html lang>` and hreflang). */
-export const BCP47: Record<Locale, string> = { ru: 'ru-RU', en: 'en-US' };
+export const BCP47: Record<Locale, string> = { ru: 'ru-RU', en: 'en-US', hy: 'hy-AM' };
 
 // ── URLs ──────────────────────────────────────────────────────────────────
 const APP_HOST = (process.env.NEXT_PUBLIC_APP_HOST || 'localhost:3000').toLowerCase();
@@ -99,7 +99,7 @@ export function siteJsonLd(): Record<string, unknown> {
         name: SITE_NAME,
         url: APP_URL,
         description: DEFAULT_DESCRIPTION,
-        inLanguage: LOCALES.map((l) => (l === 'ru' ? 'ru-RU' : 'en-US')),
+        inLanguage: LOCALES.map((l) => BCP47[l]),
         publisher: { '@id': `${APP_URL}/#organization` },
       },
     ],

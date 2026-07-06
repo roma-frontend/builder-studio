@@ -1,5 +1,6 @@
 import landingData from '@/data/landing.json';
 import landingDataEn from '@/data/landing.en.json';
+import landingDataHy from '@/data/landing.hy.json';
 import type { Locale } from '@/lib/seo';
 
 export type LandingCta = {
@@ -22,5 +23,7 @@ export type LandingContent = {
  * active locale to render the matching copy.
  */
 export function getLanding(locale: Locale = 'ru'): LandingContent {
-  return (locale === 'en' ? landingDataEn : landingData) as LandingContent;
+  if (locale === 'en') return landingDataEn as LandingContent;
+  if (locale === 'hy') return landingDataHy as LandingContent;
+  return landingData as LandingContent;
 }

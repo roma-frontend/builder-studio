@@ -22,28 +22,38 @@ describe('locale helpers', () => {
 });
 
 describe('ui dictionary', () => {
-  it('has matching key shape across locales', () => {
-    const ru = ui('ru');
-    const en = ui('en');
-    expect(Object.keys(ru).sort()).toEqual(Object.keys(en).sort());
-    expect(Object.keys(ru.nav).sort()).toEqual(Object.keys(en.nav).sort());
-    expect(Object.keys(ru.actions).sort()).toEqual(Object.keys(en.actions).sort());
+  it('has matching key shape across all locales', () => {
+    const shape = (d: Record<string, unknown>) => Object.keys(d).sort();
+    const base = shape(ui('ru'));
+    for (const l of LOCALES) {
+      const d = ui(l);
+      expect(shape(d)).toEqual(base);
+      expect(Object.keys(d.nav).sort()).toEqual(Object.keys(ui('ru').nav).sort());
+      expect(Object.keys(d.actions).sort()).toEqual(Object.keys(ui('ru').actions).sort());
+      expect(Object.keys(d.footer).sort()).toEqual(Object.keys(ui('ru').footer).sort());
+    }
   });
 
   it('translates a known key differently per locale', () => {
     expect(UI.ru.actions.login).toBe('Войти');
     expect(UI.en.actions.login).toBe('Sign in');
+    expect(UI.hy.actions.login).toBe('Մուտք');
   });
 });
 
 describe('getLanding', () => {
-  it('returns ru by default and en when requested, with same shape', () => {
+  it('returns ru by default and en/hy when requested, with same shape', () => {
     const ru = getLanding('ru');
     const en = getLanding('en');
+    const hy = getLanding('hy');
     expect(getLanding()).toBe(ru);
     expect(ru.hero.title).not.toBe(en.hero.title);
-    expect(ru.steps.items.length).toBe(en.steps.items.length);
-    expect(ru.features.items.length).toBe(en.features.items.length);
+    expect(ru.hero.title).not.toBe(hy.hero.title);
+    expect(en.hero.title).not.toBe(hy.hero.title);
+    for (const l of [en, hy]) {
+      expect(l.steps.items.length).toBe(ru.steps.items.length);
+      expect(l.features.items.length).toBe(ru.features.items.length);
+    }
   });
 });
 

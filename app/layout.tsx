@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Playfair_Display, Montserrat } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
+import { PrefsSync } from '@/components/prefs-sync';
 import { Analytics } from '@/components/analytics';
 import {
   SITE_NAME,
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
     title: `${SITE_NAME} — кинематографичный конструктор сайтов`,
     description: DEFAULT_DESCRIPTION,
     locale: OG_LOCALE[DEFAULT_LOCALE],
-    alternateLocale: [OG_LOCALE.en],
+    alternateLocale: [OG_LOCALE.en, OG_LOCALE.hy],
   },
   twitter: {
     card: 'summary_large_image',
@@ -72,6 +73,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className={`${inter.variable} ${playfair.variable} ${montserrat.variable} font-sans antialiased`}>
         <ThemeProvider disableTransitionOnChange attribute="class" defaultTheme="dark" enableSystem>
+          <PrefsSync />
           {children}
         </ThemeProvider>
         <Analytics />

@@ -1,36 +1,39 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Film, Sparkles, ArrowRight } from 'lucide-react';
-
-const COLS: { title: string; links: { href: string; label: string }[] }[] = [
-  {
-    title: 'Продукт',
-    links: [
-      { href: '/studio', label: 'Студия' },
-      { href: '/studio/builder', label: 'Конструктор' },
-      { href: '/themes', label: 'Темы' },
-      { href: '/presets', label: 'Пресеты' },
-    ],
-  },
-  {
-    title: 'Аккаунт',
-    links: [
-      { href: '/register', label: 'Регистрация' },
-      { href: '/login', label: 'Войти' },
-      { href: '/dashboard', label: 'Мои сайты' },
-    ],
-  },
-  {
-    title: 'Ресурсы',
-    links: [
-      { href: '/dashboard/sites', label: 'Мои сайты' },
-      { href: '/vitals', label: 'Web Vitals' },
-    ],
-  },
-];
+import { getLocale } from '@/lib/i18n';
+import { ui } from '@/lib/ui-dict';
 
 /** Rich multi-column footer with brand, CTA and grouped navigation. */
-export function SiteFooter() {
+export async function SiteFooter() {
+  const t = ui(await getLocale());
+  const COLS: { title: string; links: { href: string; label: string }[] }[] = [
+    {
+      title: t.footer.product,
+      links: [
+        { href: '/studio', label: t.nav.studio },
+        { href: '/studio/builder', label: t.nav.builder },
+        { href: '/themes', label: t.nav.themes },
+        { href: '/presets', label: t.nav.presets },
+      ],
+    },
+    {
+      title: t.footer.account,
+      links: [
+        { href: '/register', label: t.footer.register },
+        { href: '/login', label: t.actions.login },
+        { href: '/dashboard', label: t.footer.mySites },
+      ],
+    },
+    {
+      title: t.footer.resources,
+      links: [
+        { href: '/dashboard/sites', label: t.footer.mySites },
+        { href: '/vitals', label: 'Web Vitals' },
+      ],
+    },
+  ];
+
   return (
     <footer className="border-t border-border/60 bg-card/30">
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-14 sm:px-10">
@@ -47,10 +50,10 @@ export function SiteFooter() {
               </span>
             </Link>
             <p className="mt-4 max-w-xs text-sm text-muted-foreground">
-              Опишите идею — платформа сгенерирует видео и тему, соберёт страницы и опубликует сайт на вашем поддомене.
+              {t.footer.blurb}
             </p>
             <Link href="/register" className="mt-5 inline-block">
-              <Button size="sm" className="gap-1.5 shadow-lg"><Sparkles className="h-4 w-4" /> Начать бесплатно <ArrowRight className="h-4 w-4" /></Button>
+              <Button size="sm" className="gap-1.5 shadow-lg"><Sparkles className="h-4 w-4" /> {t.footer.startFree} <ArrowRight className="h-4 w-4" /></Button>
             </Link>
           </div>
 
@@ -72,9 +75,9 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border/60 pt-6 text-xs text-muted-foreground sm:flex-row">
-          <span>© {new Date().getFullYear()} Cinematic Web Kit. Все права защищены.</span>
+          <span>© {new Date().getFullYear()} Cinematic Web Kit. {t.footer.rights}</span>
           <span className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-primary" /> Собрано на платформе
+            <Sparkles className="h-3.5 w-3.5 text-primary" /> {t.footer.madeOn}
           </span>
         </div>
       </div>

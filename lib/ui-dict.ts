@@ -31,6 +31,17 @@ export type UiDict = {
   a11y: { openMenu: string; closeMenu: string; language: string };
   examples: { badge: string; title: string; subtitle: string };
   active: string;
+  footer: {
+    product: string;
+    account: string;
+    resources: string;
+    register: string;
+    mySites: string;
+    blurb: string;
+    startFree: string;
+    rights: string;
+    madeOn: string;
+  };
 };
 
 const ru: UiDict = {
@@ -61,6 +72,17 @@ const ru: UiDict = {
     subtitle: 'Эти секции с ИИ-видео собраны прямо в Студии — так выглядит результат.',
   },
   active: 'активна',
+  footer: {
+    product: 'Продукт',
+    account: 'Аккаунт',
+    resources: 'Ресурсы',
+    register: 'Регистрация',
+    mySites: 'Мои сайты',
+    blurb: 'Опишите идею — платформа сгенерирует видео и тему, соберёт страницы и опубликует сайт на вашем поддомене.',
+    startFree: 'Начать бесплатно',
+    rights: 'Все права защищены.',
+    madeOn: 'Собрано на платформе',
+  },
 };
 
 const en: UiDict = {
@@ -91,9 +113,61 @@ const en: UiDict = {
     subtitle: 'These AI-video sections were composed right in the Studio — this is the result.',
   },
   active: 'active',
+  footer: {
+    product: 'Product',
+    account: 'Account',
+    resources: 'Resources',
+    register: 'Sign up',
+    mySites: 'My sites',
+    blurb: 'Describe your idea — the platform generates video and a theme, composes the pages and publishes your site on your subdomain.',
+    startFree: 'Start free',
+    rights: 'All rights reserved.',
+    madeOn: 'Built on the platform',
+  },
 };
 
-export const UI: Record<Locale, UiDict> = { ru, en };
+const hy: UiDict = {
+  nav: {
+    how: 'Ինչպես է աշխատում',
+    features: 'Հնարավորություններ',
+    themes: 'Թեմաներ',
+    examples: 'Օրինակներ',
+    builder: 'Կառուցիչ',
+    studio: 'Ստուդիա',
+    presets: 'Կաղապարներ',
+  },
+  actions: {
+    login: 'Մուտք',
+    start: 'Սկսել',
+    logout: 'Ելք',
+    dashboard: 'Վահանակ',
+    sites: 'Իմ կայքերը',
+    account: 'Հաշիվ',
+    allThemes: 'Բոլոր թեմաները',
+  },
+  roles: { superadmin: 'Գերադմին', admin: 'Ադմին' },
+  header: { tagline: 'AI կայքերի կառուցիչ', noName: 'Առանց անվան' },
+  a11y: { openMenu: 'Բացել ընտրացանկը', closeMenu: 'Փակել ընտրացանկը', language: 'Լեզու' },
+  examples: {
+    badge: 'Ստեղծված հարթակում',
+    title: 'Կենդանի կայքի օրինակ',
+    subtitle: 'Այս AI-վիդեո բաժինները հավաքվել են հենց Ստուդիայում — ահա արդյունքը։',
+  },
+  active: 'ակտիվ',
+  footer: {
+    product: 'Արտադրանք',
+    account: 'Հաշիվ',
+    resources: 'Ռեսուրսներ',
+    register: 'Գրանցում',
+    mySites: 'Իմ կայքերը',
+    blurb: 'Նկարագրեք գաղափարը — հարթակը կստեղծի վիդեո և թեմա, կհավաքի էջերը և կհրապարակի կայքը ձեր ենթատիրույթում։',
+    startFree: 'Սկսել անվճար',
+    rights: 'Բոլոր իրավունքները պաշտպանված են։',
+    madeOn: 'Ստեղծված հարթակում',
+  },
+};
+
+export const UI: Record<Locale, UiDict> = { ru, en, hy };
 
 /** Dictionary for a locale. */
 export function ui(locale: Locale): UiDict {
