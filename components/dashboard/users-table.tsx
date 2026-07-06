@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { Crown, ShieldCheck, UserCircle, Loader2, Globe, KeyRound, Ban, LockOpen, IdCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useLocale } from '@/hooks/use-locale';
+import { staffDict, type StaffDict } from '@/lib/staff-dict';
+import { BCP47 } from '@/lib/seo';
 
 type Role = 'customer' | 'admin' | 'superadmin';
 interface Row {
@@ -13,34 +16,39 @@ interface Row {
   siteCount: number; activeSessions: number; lastSeen: string | null; online: boolean;
 }
 
-const ROLE_META: Record<Role, { label: string; cls: string; Icon: React.ComponentType<{ className?: string }> }> = {
-  superadmin: { label: 'Суперадмин', cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400', Icon: Crown },
-  admin: { label: 'Админ', cls: 'bg-primary/15 text-primary', Icon: ShieldCheck },
-  customer: { label: 'Клиент', cls: 'bg-muted text-muted-foreground', Icon: UserCircle },
+const ROLE_CLS: Record<Role, string> = {
+  superadmin: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  admin: 'bg-primary/15 text-primary',
+  customer: 'bg-muted text-muted-foreground',
+};
+const ROLE_ICON: Record<Role, React.ComponentType<{ className?: string }>> = {
+  superadmin: Crown, admin: ShieldCheck, customer: UserCircle,
 };
 const ROLES: Role[] = ['customer', 'admin', 'superadmin'];
 
-function ago(iso: string | null): string {
-  if (!iso) return '—';
+function ago(iso: string | null, t: StaffDict, locale: 'ru' | 'en' | 'hy'): string {
+  if (!iso) return t.dash;
   const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60_000) return 'только что';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} мин назад`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} ч назад`;
-  return new Date(iso).toLocaleDateString('ru-RU');
+  if (diff < 60_000) return t.justNow;
+  if (diff < 3_600_000) return t.minAgo.replace('{n}', String(Math.floor(diff / 60_000)));
+  if (diff < 86_400_000) return t.hAgo.replace('{n}', String(Math.floor(diff / 3_600_000)));
+  return new Date(iso).toLocaleDateString(BCP47[locale]);
 }
 
-function StatusBadge({ u }: { u: Pick<Row, 'online' | 'lastSeen' | 'isActive'> }) {
+function StatusBadge({ u, t, locale }: { u: Pick<Row, 'online' | 'lastSeen' | 'isActive'>; t: StaffDict; locale: 'ru' | 'en' | 'hy' }) {
   if (!u.isActive) {
-    return <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] font-semibold text-red-600 dark:text-red-400"><Ban className="h-3 w-3" /> Заблокирован</span>;
+    return <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] font-semibold text-red-600 dark:text-red-400"><Ban className="h-3 w-3" /> {t.blocked}</span>;
   }
   if (u.online) {
-    return <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-[11px] font-semibold text-green-600 dark:text-green-400"><span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-60" /><span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" /></span> Онлайн</span>;
+    return <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-[11px] font-semibold text-green-600 dark:text-green-400"><span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-60" /><span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" /></span> {t.online}</span>;
   }
-  return <span className="text-xs text-muted-foreground">{ago(u.lastSeen)}</span>;
+  return <span className="text-xs text-muted-foreground">{ago(u.lastSeen, t, locale)}</span>;
 }
 
 export function UsersTable({ users, canEdit, meId }: { users: Row[]; canEdit: boolean; meId: string }) {
   const router = useRouter();
+  const locale = useLocale().locale;
+  const t = staffDict(locale);
   const [rows, setRows] = useState(users);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -59,11 +67,11 @@ export function UsersTable({ users, canEdit, meId }: { users: Row[]; canEdit: bo
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Не удалось изменить роль.');
+        setError(data.error || t.roleChangeFailed);
         setRows(prev);
       }
     } catch {
-      setError('Сеть недоступна.');
+      setError(t.networkError);
       setRows(prev);
     } finally {
       setBusy(null);
@@ -74,14 +82,14 @@ export function UsersTable({ users, canEdit, meId }: { users: Row[]; canEdit: bo
     const suspend = u.isActive;
     const ok = await confirm(suspend
       ? {
-          title: `Заблокировать ${u.name || u.email}?`,
-          description: 'Все сессии будут завершены, вход станет невозможен.',
-          confirmLabel: 'Заблокировать',
+          title: t.blockTitle.replace('{name}', u.name || u.email),
+          description: t.blockDesc,
+          confirmLabel: t.block,
           tone: 'warning',
         }
       : {
-          title: `Разблокировать ${u.name || u.email}?`,
-          confirmLabel: 'Разблокировать',
+          title: t.unblockTitle.replace('{name}', u.name || u.email),
+          confirmLabel: t.unblock,
           tone: 'neutral',
         });
     if (!ok) return;
@@ -94,11 +102,11 @@ export function UsersTable({ users, canEdit, meId }: { users: Row[]; canEdit: bo
         body: JSON.stringify({ action: suspend ? 'suspend' : 'activate' }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(data.error || 'Не удалось изменить статус.'); return; }
+      if (!res.ok) { setError(data.error || t.statusChangeFailed); return; }
       setRows((r) => r.map((x) => (x.id === u.id ? { ...x, isActive: !suspend, online: suspend ? false : x.online, activeSessions: suspend ? 0 : x.activeSessions } : x)));
       router.refresh();
     } catch {
-      setError('Сеть недоступна.');
+      setError(t.networkError);
     } finally {
       setBusy(null);
     }
@@ -112,18 +120,19 @@ export function UsersTable({ users, canEdit, meId }: { users: Row[]; canEdit: bo
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 font-semibold">Пользователь</th>
-              <th className="px-4 py-3 font-semibold">Статус</th>
-              <th className="hidden px-4 py-3 font-semibold sm:table-cell">Сайты</th>
-              <th className="hidden px-4 py-3 font-semibold lg:table-cell">Сессии</th>
-              <th className="hidden px-4 py-3 font-semibold md:table-cell">Регистрация</th>
-              <th className="px-4 py-3 font-semibold">Роль</th>
+              <th className="px-4 py-3 font-semibold">{t.colUser}</th>
+              <th className="px-4 py-3 font-semibold">{t.colStatus}</th>
+              <th className="hidden px-4 py-3 font-semibold sm:table-cell">{t.colSites}</th>
+              <th className="hidden px-4 py-3 font-semibold lg:table-cell">{t.colSessions}</th>
+              <th className="hidden px-4 py-3 font-semibold md:table-cell">{t.colRegistered}</th>
+              <th className="px-4 py-3 font-semibold">{t.colRole}</th>
               {canEdit && <th className="px-4 py-3" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">
             {rows.map((u) => {
-              const meta = ROLE_META[u.role];
+              const cls = ROLE_CLS[u.role];
+              const RoleIcon = ROLE_ICON[u.role];
               const self = u.id === meId;
               const nameBlock = (
                 <div className="flex items-center gap-3">
@@ -131,7 +140,7 @@ export function UsersTable({ users, canEdit, meId }: { users: Row[]; canEdit: bo
                     {(u.name || u.email).charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{u.name || 'Без имени'}{self && <span className="ml-1 text-xs text-muted-foreground">(вы)</span>}</p>
+                    <p className="truncate font-medium">{u.name || t.noName}{self && <span className="ml-1 text-xs text-muted-foreground">{t.you}</span>}</p>
                     <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                   </div>
                 </div>
@@ -141,14 +150,14 @@ export function UsersTable({ users, canEdit, meId }: { users: Row[]; canEdit: bo
                   <td className="px-4 py-3">
                     {canEdit ? <Link href={`/dashboard/users/${u.id}`} className="[&_p:first-of-type]:hover:text-primary">{nameBlock}</Link> : nameBlock}
                   </td>
-                  <td className="px-4 py-3"><StatusBadge u={u} /></td>
+                  <td className="px-4 py-3"><StatusBadge u={u} t={t} locale={locale} /></td>
                   <td className="hidden px-4 py-3 sm:table-cell">
                     <span className="inline-flex items-center gap-1 text-muted-foreground"><Globe className="h-3.5 w-3.5" /> {u.siteCount}</span>
                   </td>
                   <td className="hidden px-4 py-3 lg:table-cell">
                     <span className="inline-flex items-center gap-1 text-muted-foreground"><KeyRound className="h-3.5 w-3.5" /> {u.activeSessions}</span>
                   </td>
-                  <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
+                  <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{new Date(u.createdAt).toLocaleDateString(BCP47[locale])}</td>
                   <td className="px-4 py-3">
                     {canEdit && !self ? (
                       <div className="flex items-center gap-2">
@@ -158,22 +167,22 @@ export function UsersTable({ users, canEdit, meId }: { users: Row[]; canEdit: bo
                           onChange={(e) => changeRole(u.id, e.target.value as Role)}
                           className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary"
                         >
-                          {ROLES.map((r) => <option key={r} value={r}>{ROLE_META[r].label}</option>)}
+                          {ROLES.map((r) => <option key={r} value={r}>{t.roles[r]}</option>)}
                         </select>
                         {busy === u.id && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                       </div>
                     ) : (
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${meta.cls}`}>
-                        <meta.Icon className="h-3 w-3" /> {meta.label}
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>
+                        <RoleIcon className="h-3 w-3" /> {t.roles[u.role]}
                       </span>
                     )}
                   </td>
                   {canEdit && (
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Link href={`/dashboard/users/${u.id}`}><Button size="sm" variant="ghost" title="Досье"><IdCard className="h-3.5 w-3.5" /></Button></Link>
+                        <Link href={`/dashboard/users/${u.id}`}><Button size="sm" variant="ghost" title={t.dossier}><IdCard className="h-3.5 w-3.5" /></Button></Link>
                         {!self && (
-                          <Button size="sm" variant="ghost" disabled={busy === `sus-${u.id}`} onClick={() => toggleActive(u)} className={u.isActive ? 'text-amber-500 hover:text-amber-600' : 'text-green-500 hover:text-green-600'} title={u.isActive ? 'Заблокировать' : 'Разблокировать'}>
+                          <Button size="sm" variant="ghost" disabled={busy === `sus-${u.id}`} onClick={() => toggleActive(u)} className={u.isActive ? 'text-amber-500 hover:text-amber-600' : 'text-green-500 hover:text-green-600'} title={u.isActive ? t.block : t.unblock}>
                             {busy === `sus-${u.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : u.isActive ? <Ban className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
                           </Button>
                         )}

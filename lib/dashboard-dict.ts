@@ -173,6 +173,16 @@ export type DashDict = {
     assignedAdmin: string; // {email}
     ownershipNote: string;
   };
+  tenantUsers: {
+    search: string;
+    noUsers: string;
+    noName: string;
+    now: string;
+    assign: string;
+    error: string;
+    approve: string;
+    suspend: string;
+  };
 };
 
 const ru: DashDict = {
@@ -344,6 +354,16 @@ const ru: DashDict = {
     assignError: 'Ошибка',
     assignedAdmin: 'Админом назначен {email}',
     ownershipNote: 'Владение организацией перейдёт выбранному пользователю (роль → admin). Если выбран участник (tenant), он будет перенесён в платформенные администраторы и удалён из участников — без дублей.',
+  },
+  tenantUsers: {
+    search: 'Поиск по имени, email, организации',
+    noUsers: 'Пользователей нет.',
+    noName: 'Без имени',
+    now: 'сейчас:',
+    assign: 'Присвоить',
+    error: 'Ошибка',
+    approve: 'Одобрить',
+    suspend: 'Приостановить',
   },
 };
 
@@ -517,6 +537,16 @@ const en: DashDict = {
     assignedAdmin: 'Admin assigned: {email}',
     ownershipNote: 'Ownership of the organization transfers to the selected user (role → admin). If a member (tenant) is chosen, they are moved to platform admins and removed from members — no duplicates.',
   },
+  tenantUsers: {
+    search: 'Search by name, email, organization',
+    noUsers: 'No users.',
+    noName: 'No name',
+    now: 'now:',
+    assign: 'Assign',
+    error: 'Error',
+    approve: 'Approve',
+    suspend: 'Suspend',
+  },
 };
 
 const hy: DashDict = {
@@ -688,6 +718,16 @@ const hy: DashDict = {
     assignError: 'Սխալ',
     assignedAdmin: 'Ադմին նշանակվեց՝ {email}',
     ownershipNote: 'Կազմակերպության սեփականությունը կանցնի ընտրված օգտատիրոջը (դեր → admin)։ Եթե ընտրված է մասնակից (tenant), նա կտեղափոխվի հարթակի ադմիններ և կհեռացվի մասնակիցներից — առանց կրկնօրինակների։',
+  },
+  tenantUsers: {
+    search: 'Որոնում ըստ անվան, email-ի, կազմակերպության',
+    noUsers: 'Օգտատերեր չկան։',
+    noName: 'Առանց անվան',
+    now: 'այժմ՝',
+    assign: 'Վերագրել',
+    error: 'Սխալ',
+    approve: 'Հաստատել',
+    suspend: 'Կասեցնել',
   },
 };
 
