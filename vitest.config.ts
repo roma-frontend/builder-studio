@@ -9,6 +9,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['lib/**/*.test.ts', 'tests/**/*.test.ts'],
+    // Clear ambient R2_* env before any module import so storage tests are
+    // hermetic (local-mode fallback) regardless of the developer's .env.local.
+    setupFiles: ['tests/setup-env.ts'],
     // DB tests share one throwaway SQLite file (singleton connection on
     // globalThis), so run test files sequentially and reset tables per test.
     fileParallelism: false,
