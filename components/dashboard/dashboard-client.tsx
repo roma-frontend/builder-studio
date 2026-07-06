@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader, EmptyState } from '@/components/dashboard/ui';
 import { SITE_MEMBERS_SEEN_EVENT } from '@/components/dashboard/site-members-badge';
+import { useLocale } from '@/hooks/use-locale';
+import { dashDict } from '@/lib/dashboard-dict';
 
 export interface DashSite {
   id: string;
@@ -25,6 +27,7 @@ export interface DashSite {
 
 export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) {
   const router = useRouter();
+  const t = dashDict(useLocale().locale).sites;
   const [sites, setSites] = useState(initialSites);
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -49,10 +52,10 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
         body: JSON.stringify({ name: newName }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Не удалось создать сайт.'); return; }
+      if (!res.ok) { setError(data.error || t.createFailed); return; }
       router.push(`/studio/builder?site=${data.site.id}`);
     } catch {
-      setError('Сеть недоступна.');
+      setError(t.networkError);
     } finally {
       setBusy(false);
     }
@@ -64,7 +67,7 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
       const res = await fetch(`/api/sites/${site.id}/publish`, { method: site.published ? 'DELETE' : 'POST' });
       const data = await res.json();
       if (res.ok) setSites((list) => list.map((s) => (s.id === site.id ? { ...s, published: !site.published } : s)));
-      else setError(data.error || 'Ошибка публикации.');
+      else setError(data.error || t.publishError);
     } finally {
       setPubBusy(null);
     }
@@ -72,25 +75,25 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
 
   return (
     <>
-      <PageHeader title="Мои сайты" description="Создавайте, редактируйте и публикуйте свои сайты." />
+      <PageHeader title={t.title} description={t.subtitle} />
 
       <form onSubmit={createSite} className="flex flex-col gap-2 rounded-2xl border border-border/60 bg-card/50 p-4 sm:flex-row sm:items-center">
         <Input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="Название нового сайта, например «Кофейня У Ромы»"
+          placeholder={t.newNamePlaceholder}
           className="sm:max-w-md"
-          aria-label="Название нового сайта"
+          aria-label={t.newNamePlaceholder}
         />
         <Button type="submit" disabled={busy || !newName.trim()} className="gap-1.5">
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Создать сайт
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t.create}
         </Button>
         {error && <p className="text-sm text-red-500 sm:ml-2" role="alert">{error}</p>}
       </form>
 
       {sites.length === 0 ? (
         <div className="mt-6">
-          <EmptyState icon={Globe} title="Пока ни одного сайта" description="Создайте первый — конструктор откроется автоматически." />
+          <EmptyState icon={Globe} title={t.emptyTitle} description={t.emptyDesc} />
         </div>
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -103,7 +106,7 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
                 </div>
                 <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${site.published ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                   {site.published ? <Rocket className="h-3 w-3" /> : <CircleDashed className="h-3 w-3" />}
-                  {site.published ? 'Опубликован' : 'Черновик'}
+                  {site.published ? t.published : t.draft}
                 </span>
               </div>
 
@@ -113,25 +116,23 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
                   className="mt-3 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-500/15 dark:text-amber-400"
                 >
                   <Clock className="h-4 w-4" />
-                  {site.pendingMembers === 1
-                    ? '1 заявка на вступление'
-                    : `${site.pendingMembers} заявок на вступление`}
-                  <span className="ml-auto text-xs font-normal opacity-80">Рассмотреть →</span>
+                  {site.pendingMembers === 1 ? t.reqOne : t.reqMany.replace('{n}', String(site.pendingMembers))}
+                  <span className="ml-auto text-xs font-normal opacity-80">{t.review}</span>
                 </Link>
               )}
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Link href={`/studio/builder?site=${site.id}`}>
-                  <Button size="sm" className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Редактировать</Button>
+                  <Button size="sm" className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> {t.edit}</Button>
                 </Link>
                 <Link href={`/s/${site.slug}?draft=1`} target="_blank">
-                  <Button size="sm" variant="outline" className="gap-1.5"><ExternalLink className="h-3.5 w-3.5" /> Открыть</Button>
+                  <Button size="sm" variant="outline" className="gap-1.5"><ExternalLink className="h-3.5 w-3.5" /> {t.open}</Button>
                 </Link>
                 <Button size="sm" variant="outline" disabled={pubBusy === site.id} onClick={() => togglePublish(site)} className="gap-1.5">
                   {pubBusy === site.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
-                  {site.published ? 'Снять' : 'Опубликовать'}
+                  {site.published ? t.unpublish : t.publish}
                 </Button>
                 <Link href={`/dashboard/sites/${site.id}`} className="ml-auto">
-                  <Button size="sm" variant="ghost" className="gap-1.5"><Settings2 className="h-3.5 w-3.5" /> Настройки</Button>
+                  <Button size="sm" variant="ghost" className="gap-1.5"><Settings2 className="h-3.5 w-3.5" /> {t.settings}</Button>
                 </Link>
               </div>
             </div>
