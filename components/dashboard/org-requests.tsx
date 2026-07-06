@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Check, X, Plus, LogIn, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ORG_REQ_SEEN_EVENT } from '@/components/dashboard/org-requests-badge';
+import { useLocale } from '@/hooks/use-locale';
+import { dashDict } from '@/lib/dashboard-dict';
 
 type Req = {
   id: string; type: string; requesterName: string; requesterEmail: string;
@@ -14,6 +16,8 @@ type Req = {
 };
 
 export function OrgRequests({ onChange }: { onChange?: () => void }) {
+  const d = dashDict(useLocale().locale);
+  const t = d.orgReview;
   const [items, setItems] = useState<Req[] | null>(null);
   const [busy, setBusy] = useState('');
 
@@ -29,7 +33,7 @@ export function OrgRequests({ onChange }: { onChange?: () => void }) {
 
   const act = async (id: string, action: 'approve' | 'reject') => {
     let reason = '';
-    if (action === 'reject') reason = window.prompt('Причина отклонения (необязательно):') ?? '';
+    if (action === 'reject') reason = window.prompt(t.rejectReason) ?? '';
     setBusy(id);
     await fetch('/api/admin/org-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, requestId: id, reason }) });
     setBusy(''); load(); onChange?.();
@@ -40,7 +44,7 @@ export function OrgRequests({ onChange }: { onChange?: () => void }) {
 
   return (
     <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Inbox className="h-4 w-4 text-amber-500" /> Заявки организаций <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-600">{items.length}</span></h2>
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Inbox className="h-4 w-4 text-amber-500" /> {t.title} <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-600">{items.length}</span></h2>
       <ul className="space-y-2">
         {items.map((r) => (
           <li key={r.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3">
@@ -49,16 +53,16 @@ export function OrgRequests({ onChange }: { onChange?: () => void }) {
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">
-                {r.type === 'create' ? <>Создать «{r.requestedName}» <span className="text-muted-foreground">/s/{r.requestedSlug}</span></> : <>Присоединиться к «{r.targetName ?? '—'}»</>}
+                {r.type === 'create' ? <>{t.create} «{r.requestedName}» <span className="text-muted-foreground">/s/{r.requestedSlug}</span></> : <>{t.joinTo} «{r.targetName ?? '—'}»</>}
               </p>
               <p className="truncate text-xs text-muted-foreground">{r.requesterName || r.requesterEmail} · {r.requesterEmail}{r.message ? ` · «${r.message}»` : ''}</p>
             </div>
             <div className="flex gap-2">
               <Button size="sm" className="gap-1.5 bg-green-600 text-white hover:bg-green-700" disabled={busy === r.id} onClick={() => act(r.id, 'approve')}>
-                {busy === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Одобрить
+                {busy === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {d.members.approve}
               </Button>
               <Button size="sm" variant="outline" className="gap-1.5 border-red-500/40 text-red-500 hover:bg-red-500/10" disabled={busy === r.id} onClick={() => act(r.id, 'reject')}>
-                <X className="h-4 w-4" /> Отклонить
+                <X className="h-4 w-4" /> {d.members.reject}
               </Button>
             </div>
           </li>

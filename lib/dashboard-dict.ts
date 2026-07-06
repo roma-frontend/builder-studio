@@ -137,6 +137,42 @@ export type DashDict = {
     statSubmissions: string;
     logout: string;
   };
+  orgReview: {
+    rejectReason: string;
+    title: string;
+    create: string;
+    joinTo: string;
+  };
+  orgConsole: {
+    metaTitle: string;
+    subtitle: string;
+    noOrgs: string;
+    tenantUsersTitle: string;
+    tenantUsersDesc: string;
+    searchOrg: string;
+    nothingFound: string;
+    chooseOrg: string;
+    createdOn: string;
+    published: string;
+    draft: string;
+    open: string;
+    statMembers: string;
+    statPending: string;
+    statMaterials: string;
+    statSubmissions: string;
+    adminOf: string; // {name}
+    noName: string;
+    noAdmin: string;
+    assignNewAdmin: string; // {name}
+    searchByNameEmail: string;
+    platform: string;
+    member: string;
+    assign: string;
+    picked: string;
+    assignError: string;
+    assignedAdmin: string; // {email}
+    ownershipNote: string;
+  };
 };
 
 const ru: DashDict = {
@@ -272,6 +308,42 @@ const ru: DashDict = {
     statPublished: 'опубликовано',
     statSubmissions: 'заявок',
     logout: 'Выйти',
+  },
+  orgReview: {
+    rejectReason: 'Причина отклонения (необязательно):',
+    title: 'Заявки организаций',
+    create: 'Создать',
+    joinTo: 'Присоединиться к',
+  },
+  orgConsole: {
+    metaTitle: 'Организации',
+    subtitle: 'Выберите организацию, чтобы увидеть её данные и назначить администратора.',
+    noOrgs: 'Организаций пока нет',
+    tenantUsersTitle: 'Пользователи тенантов',
+    tenantUsersDesc: 'Клиенты сайтов, зарегистрированные на организациях. Здесь можно присвоить пользователю организацию и статус (в т.ч. тем, кто регистрировался до появления организаций).',
+    searchOrg: 'Поиск организации',
+    nothingFound: 'Ничего не найдено.',
+    chooseOrg: 'Выберите организацию.',
+    createdOn: 'создана',
+    published: 'Опубликован',
+    draft: 'Черновик',
+    open: 'Открыть',
+    statMembers: 'Участники',
+    statPending: 'Ожидают',
+    statMaterials: 'Материалы',
+    statSubmissions: 'Заявки',
+    adminOf: 'Администратор организации «{name}»',
+    noName: 'Без имени',
+    noAdmin: 'Админ не назначен.',
+    assignNewAdmin: 'Назначить нового админа организации «{name}»',
+    searchByNameEmail: 'Поиск по имени или email',
+    platform: 'Платформа',
+    member: 'Участник',
+    assign: 'Назначить',
+    picked: 'Выбран:',
+    assignError: 'Ошибка',
+    assignedAdmin: 'Админом назначен {email}',
+    ownershipNote: 'Владение организацией перейдёт выбранному пользователю (роль → admin). Если выбран участник (tenant), он будет перенесён в платформенные администраторы и удалён из участников — без дублей.',
   },
 };
 
@@ -409,6 +481,42 @@ const en: DashDict = {
     statSubmissions: 'submissions',
     logout: 'Sign out',
   },
+  orgReview: {
+    rejectReason: 'Rejection reason (optional):',
+    title: 'Organization requests',
+    create: 'Create',
+    joinTo: 'Join',
+  },
+  orgConsole: {
+    metaTitle: 'Organizations',
+    subtitle: 'Pick an organization to see its data and assign an administrator.',
+    noOrgs: 'No organizations yet',
+    tenantUsersTitle: 'Tenant users',
+    tenantUsersDesc: 'Site customers registered on organizations. Here you can assign a user an organization and status (including those who registered before organizations existed).',
+    searchOrg: 'Search organization',
+    nothingFound: 'Nothing found.',
+    chooseOrg: 'Pick an organization.',
+    createdOn: 'created',
+    published: 'Published',
+    draft: 'Draft',
+    open: 'Open',
+    statMembers: 'Members',
+    statPending: 'Pending',
+    statMaterials: 'Materials',
+    statSubmissions: 'Submissions',
+    adminOf: 'Administrator of “{name}”',
+    noName: 'No name',
+    noAdmin: 'No admin assigned.',
+    assignNewAdmin: 'Assign a new admin for “{name}”',
+    searchByNameEmail: 'Search by name or email',
+    platform: 'Platform',
+    member: 'Member',
+    assign: 'Assign',
+    picked: 'Picked:',
+    assignError: 'Error',
+    assignedAdmin: 'Admin assigned: {email}',
+    ownershipNote: 'Ownership of the organization transfers to the selected user (role → admin). If a member (tenant) is chosen, they are moved to platform admins and removed from members — no duplicates.',
+  },
 };
 
 const hy: DashDict = {
@@ -544,6 +652,42 @@ const hy: DashDict = {
     statPublished: 'հրապարակված',
     statSubmissions: 'հայտ',
     logout: 'Ելք',
+  },
+  orgReview: {
+    rejectReason: 'Մերժման պատճառ (ըստ ցանկության)՝',
+    title: 'Կազմակերպությունների հայտեր',
+    create: 'Ստեղծել',
+    joinTo: 'Միանալ',
+  },
+  orgConsole: {
+    metaTitle: 'Կազմակերպություններ',
+    subtitle: 'Ընտրեք կազմակերպությունը՝ տեսնելու տվյալները և նշանակելու ադմինիստրատոր։',
+    noOrgs: 'Կազմակերպություններ դեռ չկան',
+    tenantUsersTitle: 'Թենանտների օգտատերեր',
+    tenantUsersDesc: 'Կազմակերպություններում գրանցված կայքի հաճախորդներ։ Այստեղ կարող եք օգտատիրոջը վերագրել կազմակերպություն և կարգավիճակ (այդ թվում՝ նրանց, ովքեր գրանցվել են մինչև կազմակերպությունների հայտնվելը)։',
+    searchOrg: 'Կազմակերպության որոնում',
+    nothingFound: 'Ոչինչ չի գտնվել։',
+    chooseOrg: 'Ընտրեք կազմակերպությունը։',
+    createdOn: 'ստեղծված',
+    published: 'Հրապարակված',
+    draft: 'Սևագիր',
+    open: 'Բացել',
+    statMembers: 'Մասնակիցներ',
+    statPending: 'Սպասում են',
+    statMaterials: 'Նյութեր',
+    statSubmissions: 'Հայտեր',
+    adminOf: '«{name}» կազմակերպության ադմինիստրատոր',
+    noName: 'Առանց անվան',
+    noAdmin: 'Ադմին նշանակված չէ։',
+    assignNewAdmin: 'Նշանակել «{name}»-ի նոր ադմին',
+    searchByNameEmail: 'Որոնում ըստ անվան կամ email-ի',
+    platform: 'Հարթակ',
+    member: 'Մասնակից',
+    assign: 'Նշանակել',
+    picked: 'Ընտրված է՝',
+    assignError: 'Սխալ',
+    assignedAdmin: 'Ադմին նշանակվեց՝ {email}',
+    ownershipNote: 'Կազմակերպության սեփականությունը կանցնի ընտրված օգտատիրոջը (դեր → admin)։ Եթե ընտրված է մասնակից (tenant), նա կտեղափոխվի հարթակի ադմիններ և կհեռացվի մասնակիցներից — առանց կրկնօրինակների։',
   },
 };
 

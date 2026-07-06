@@ -2,13 +2,17 @@
 
 // Superadmin org console: pick an organization (tenant site) from the list —
 // its data loads on the right — and assign its admin (transfer ownership +
-// promote to admin). Selection persists in localStorage (org-selector-store).
+// promote to admin). Selection persists in the account prefs (user_prefs).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePref } from '@/hooks/use-user-prefs';
 import Link from 'next/link';
 import { Globe, Rocket, CircleDashed, Loader2, Users, Library, Inbox, UserCog, Check, ExternalLink, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useLocale } from '@/hooks/use-locale';
+import { dashDict } from '@/lib/dashboard-dict';
+import { BCP47 } from '@/lib/seo';
 
 type SiteLite = { id: string; name: string; slug: string; ownerName: string; ownerEmail: string; published: boolean };
 type PlatformUser = { name: string; email: string; source: 'platform' | 'tenant' };
@@ -19,19 +23,22 @@ type Overview = {
   materials: number; submissions: number; domains: number;
 };
 
-const KEY = 'cwk-org-selector';
-
 export function OrgManager({ sites, users }: { sites: SiteLite[]; users: PlatformUser[] }) {
+  const t = dashDict(useLocale().locale).orgConsole;
+  const [saved, setSaved] = usePref<string>('org-selector', '');
   const [selected, setSelected] = useState<string | null>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState('');
+  const userPicked = useRef(false);
 
+  // Apply the saved selection when the prefs snapshot arrives (unless the user
+  // already clicked something this session); otherwise default to the first org.
   useEffect(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem(KEY) : null;
+    if (userPicked.current) return;
     if (saved && sites.some((s) => s.id === saved)) setSelected(saved);
-    else if (sites[0]) setSelected(sites[0].id);
-  }, [sites]);
+    else if (sites[0]) setSelected((cur) => cur ?? sites[0].id);
+  }, [saved, sites]);
 
   const load = useCallback((siteId: string) => {
     setLoading(true);
@@ -39,7 +46,13 @@ export function OrgManager({ sites, users }: { sites: SiteLite[]; users: Platfor
       .then((r) => r.json()).then((d) => setOverview(d.overview ?? null)).catch(() => setOverview(null)).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { if (selected) { localStorage.setItem(KEY, selected); load(selected); } }, [selected, load]);
+  useEffect(() => { if (selected) load(selected); }, [selected, load]);
+
+  const pick = (id: string) => {
+    userPicked.current = true;
+    setSelected(id);
+    setSaved(id);
+  };
 
   const filtered = sites.filter((s) => `${s.name} ${s.slug} ${s.ownerEmail}`.toLowerCase().includes(q.toLowerCase()));
 
@@ -49,14 +62,14 @@ export function OrgManager({ sites, users }: { sites: SiteLite[]; users: Platfor
       <div className="rounded-2xl border border-border/60 bg-card p-3">
         <div className="relative mb-2">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск организации" className="h-10 pl-10" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.searchOrg} className="h-10 pl-10" />
         </div>
         <ul className="max-h-[70dvh] space-y-1 overflow-y-auto">
           {filtered.map((s) => {
             const on = selected === s.id;
             return (
               <li key={s.id}>
-                <button onClick={() => setSelected(s.id)}
+                <button onClick={() => pick(s.id)}
                   className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${on ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}>
                   <Globe className="h-4 w-4 shrink-0 opacity-70" />
                   <span className="min-w-0 flex-1">
@@ -68,7 +81,7 @@ export function OrgManager({ sites, users }: { sites: SiteLite[]; users: Platfor
               </li>
             );
           })}
-          {filtered.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted-foreground">Ничего не найдено.</li>}
+          {filtered.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted-foreground">{t.nothingFound}</li>}
         </ul>
       </div>
 
@@ -77,7 +90,7 @@ export function OrgManager({ sites, users }: { sites: SiteLite[]; users: Platfor
         {loading ? (
           <div className="flex h-40 items-center justify-center rounded-2xl border border-border/60"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : !overview ? (
-          <div className="flex h-40 items-center justify-center rounded-2xl border border-border/60 text-sm text-muted-foreground">Выберите организацию.</div>
+          <div className="flex h-40 items-center justify-center rounded-2xl border border-border/60 text-sm text-muted-foreground">{t.chooseOrg}</div>
         ) : (
           <OrgDetail overview={overview} users={users} onReload={() => selected && load(selected)} />
         )}
@@ -96,6 +109,8 @@ function Stat({ icon: Icon, label, value }: { icon: React.ComponentType<{ classN
 }
 
 function OrgDetail({ overview, users, onReload }: { overview: Overview; users: PlatformUser[]; onReload: () => void }) {
+  const locale = useLocale().locale;
+  const t = dashDict(locale).orgConsole;
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<PlatformUser | null>(null);
   const [openList, setOpenList] = useState(false);
@@ -114,8 +129,8 @@ function OrgDetail({ overview, users, onReload }: { overview: Overview; users: P
     const res = await fetch('/api/admin/orgs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign-admin', siteId: overview.id, email }) });
     const d = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setMsg({ ok: false, text: d.error || 'Ошибка' }); return; }
-    setMsg({ ok: true, text: `Админом назначен ${d.owner?.email}` }); setQuery(''); setPicked(null); onReload();
+    if (!res.ok) { setMsg({ ok: false, text: d.error || t.assignError }); return; }
+    setMsg({ ok: true, text: t.assignedAdmin.replace('{email}', d.owner?.email ?? '') }); setQuery(''); setPicked(null); onReload();
   };
 
   return (
@@ -123,37 +138,37 @@ function OrgDetail({ overview, users, onReload }: { overview: Overview; users: P
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card p-5">
         <div className="min-w-0">
           <h2 className="truncate text-xl font-bold tracking-tight">{overview.name}</h2>
-          <p className="text-sm text-muted-foreground">/s/{overview.slug} · создана {new Date(overview.createdAt).toLocaleDateString('ru-RU')}</p>
+          <p className="text-sm text-muted-foreground">/s/{overview.slug} · {t.createdOn} {new Date(overview.createdAt).toLocaleDateString(BCP47[locale])}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${overview.published ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-            {overview.published ? <Rocket className="h-3 w-3" /> : <CircleDashed className="h-3 w-3" />} {overview.published ? 'Опубликован' : 'Черновик'}
+            {overview.published ? <Rocket className="h-3 w-3" /> : <CircleDashed className="h-3 w-3" />} {overview.published ? t.published : t.draft}
           </span>
-          <Link href={`/s/${overview.slug}?draft=1`} target="_blank"><Button size="sm" variant="outline" className="gap-1.5">Открыть <ExternalLink className="h-3.5 w-3.5" /></Button></Link>
+          <Link href={`/s/${overview.slug}?draft=1`} target="_blank"><Button size="sm" variant="outline" className="gap-1.5">{t.open} <ExternalLink className="h-3.5 w-3.5" /></Button></Link>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat icon={Users} label="Участники" value={overview.members.total} />
-        <Stat icon={Users} label="Ожидают" value={overview.members.pending} />
-        <Stat icon={Library} label="Материалы" value={overview.materials} />
-        <Stat icon={Inbox} label="Заявки" value={overview.submissions} />
+        <Stat icon={Users} label={t.statMembers} value={overview.members.total} />
+        <Stat icon={Users} label={t.statPending} value={overview.members.pending} />
+        <Stat icon={Library} label={t.statMaterials} value={overview.materials} />
+        <Stat icon={Inbox} label={t.statSubmissions} value={overview.submissions} />
       </div>
 
       {/* Current admin */}
       <div className="rounded-2xl border border-border/60 bg-card p-5">
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><UserCog className="h-4 w-4" /> Администратор организации «{overview.name}»</h3>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><UserCog className="h-4 w-4" /> {t.adminOf.replace('{name}', overview.name)}</h3>
         {overview.owner ? (
           <div className="mb-4 flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-4 py-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">{(overview.owner.name || overview.owner.email).charAt(0).toUpperCase()}</div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{overview.owner.name || 'Без имени'}</p>
+              <p className="truncate text-sm font-medium">{overview.owner.name || t.noName}</p>
               <p className="truncate text-xs text-muted-foreground">{overview.owner.email} · {overview.owner.role}</p>
             </div>
           </div>
-        ) : <p className="mb-4 text-sm text-muted-foreground">Админ не назначен.</p>}
+        ) : <p className="mb-4 text-sm text-muted-foreground">{t.noAdmin}</p>}
 
-        <label className="mb-1.5 block text-sm font-medium">Назначить нового админа организации «{overview.name}»</label>
+        <label className="mb-1.5 block text-sm font-medium">{t.assignNewAdmin.replace('{name}', overview.name)}</label>
         <div className="flex flex-col gap-2 sm:flex-row">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -161,7 +176,7 @@ function OrgDetail({ overview, users, onReload }: { overview: Overview; users: P
               value={query}
               onChange={(e) => { setQuery(e.target.value); setPicked(null); setOpenList(true); }}
               onFocus={() => setOpenList(true)}
-              placeholder="Поиск по имени или email"
+              placeholder={t.searchByNameEmail}
               className="h-11 pl-10"
             />
             {openList && matches.length > 0 && !picked && (
@@ -172,11 +187,11 @@ function OrgDetail({ overview, users, onReload }: { overview: Overview; users: P
                       className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted">
                       <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{(u.name || u.email).charAt(0).toUpperCase()}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">{u.name || 'Без имени'}</span>
+                        <span className="block truncate font-medium">{u.name || t.noName}</span>
                         <span className="block truncate text-xs text-muted-foreground">{u.email}</span>
                       </span>
                       <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-semibold ${u.source === 'platform' ? 'bg-primary/15 text-primary' : 'bg-amber-500/15 text-amber-600'}`}>
-                        {u.source === 'platform' ? 'Платформа' : 'Участник'}
+                        {u.source === 'platform' ? t.platform : t.member}
                       </span>
                     </button>
                   </li>
@@ -185,12 +200,12 @@ function OrgDetail({ overview, users, onReload }: { overview: Overview; users: P
             )}
           </div>
           <Button onClick={assign} disabled={busy || (!picked && !query.trim())} size="lg" className="gap-2">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Назначить
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t.assign}
           </Button>
         </div>
-        {picked && <p className="mt-2 text-xs text-muted-foreground">Выбран: <span className="font-medium text-foreground">{picked.name || picked.email}</span> ({picked.email})</p>}
+        {picked && <p className="mt-2 text-xs text-muted-foreground">{t.picked} <span className="font-medium text-foreground">{picked.name || picked.email}</span> ({picked.email})</p>}
         {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-green-600' : 'text-red-500'}`}>{msg.text}</p>}
-        <p className="mt-2 text-xs text-muted-foreground">Владение организацией перейдёт выбранному пользователю (роль → admin). Если выбран участник (tenant), он будет перенесён в платформенные администраторы и удалён из участников — без дублей.</p>
+        <p className="mt-2 text-xs text-muted-foreground">{t.ownershipNote}</p>
       </div>
     </div>
   );
