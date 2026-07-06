@@ -668,6 +668,132 @@ const CONTENT: Record<string, Tr> = {
   '3.2с': { en: '3.2s', hy: '3.2վ' },
   'Метрики в реальном времени': { en: 'Real-time metrics', hy: 'Իրական ժամանակի մետրիկաներ' },
   '0x7a9f…3C2e · подключено': { en: '0x7a9f…3C2e · connected', hy: '0x7a9f…3C2e · միացված' },
+
+  // ── legal page templates (privacy / terms / cookies) ──
+  // labels + template descriptions + page SEO descriptions + header subs
+  'Политика конфиденциальности': { en: 'Privacy Policy', hy: 'Գաղտնիության քաղաքականություն' },
+  'Условия использования': { en: 'Terms of Use', hy: 'Օգտագործման պայմաններ' },
+  'Политика cookie': { en: 'Cookie Policy', hy: 'Cookie-ների քաղաքականություն' },
+  'Готовая страница политики конфиденциальности.': { en: 'A ready-made privacy policy page.', hy: 'Պատրաստի գաղտնիության քաղաքականության էջ։' },
+  'Готовая страница пользовательского соглашения.': { en: 'A ready-made terms of use page.', hy: 'Պատրաստի օգտագործման պայմանների էջ։' },
+  'Готовая страница политики использования cookie.': { en: 'A ready-made cookie policy page.', hy: 'Պատրաստի cookie-ների քաղաքականության էջ։' },
+  'Как мы собираем, используем и защищаем ваши персональные данные.': { en: 'How we collect, use and protect your personal data.', hy: 'Ինչպես ենք հավաքում, օգտագործում և պաշտպանում ձեր անձնական տվյալները։' },
+  'Правила и условия использования нашего сайта и услуг.': { en: 'The rules and terms for using our site and services.', hy: 'Մեր կայքի և ծառայությունների օգտագործման կանոններն ու պայմանները։' },
+  'Как и зачем мы используем файлы cookie на нашем сайте.': { en: 'How and why we use cookies on our site.', hy: 'Ինչպես և ինչու ենք օգտագործում cookie-ներ մեր կայքում։' },
+  'Мы уважаем вашу приватность и заботимся о защите ваших персональных данных.': { en: 'We respect your privacy and care about protecting your personal data.', hy: 'Մենք հարգում ենք ձեր գաղտնիությունը և հոգ ենք տանում ձեր անձնական տվյալների պաշտպանության մասին։' },
+  'Пожалуйста, внимательно ознакомьтесь с условиями перед использованием сайта.': { en: 'Please read these terms carefully before using the site.', hy: 'Խնդրում ենք ուշադիր ծանոթանալ պայմաններին կայքն օգտագործելուց առաջ։' },
+  'Этот документ объясняет, как мы используем файлы cookie и как вы можете ими управлять.': { en: 'This document explains how we use cookies and how you can manage them.', hy: 'Այս փաստաթուղթը բացատրում է, թե ինչպես ենք օգտագործում cookie-ները և ինչպես կարող եք դրանք կառավարել։' },
+
+  // editable-template disclaimer note
+  'Это готовый шаблон — замените текст на условия вашей компании и проконсультируйтесь с юристом. «Наш сайт» и «наша компания» — примеры, которые нужно заменить своим названием.': {
+    en: 'This is a ready-made template — replace the text with your own company\u2019s terms and consult a lawyer. \u201COur site\u201D and \u201Cour company\u201D are placeholders you should replace with your own name.',
+    hy: 'Սա պատրաստի ձևանմուշ է՝ փոխարինեք տեքստը ձեր ընկերության պայմաններով և խորհրդակցեք իրավաբանի հետ։ «Մեր կայքը» և «մեր ընկերությունը» օրինակներ են, որոնք պետք է փոխարինեք ձեր անունով։',
+  },
+
+  // privacy sections
+  'Какие данные мы собираем': { en: 'What data we collect', hy: 'Ինչ տվյալներ ենք հավաքում' },
+  'Мы собираем данные, которые вы предоставляете сами (имя, адрес электронной почты, телефон и содержание обращений), а также данные, которые собираются автоматически при использовании сайта: IP-адрес, тип браузера и устройства, страницы просмотра и файлы cookie.': {
+    en: 'We collect data you provide yourself (name, email address, phone and the content of your requests), as well as data collected automatically when you use the site: IP address, browser and device type, pages viewed and cookies.',
+    hy: 'Մենք հավաքում ենք տվյալներ, որ դուք ինքներդ եք տրամադրում (անուն, էլ. փոստի հասցե, հեռախոս և ձեր դիմումների բովանդակություն), ինչպես նաև տվյալներ, որոնք հավաքվում են ավտոմատ՝ կայքն օգտագործելիս՝ IP-հասցե, բրաուզերի և սարքի տեսակ, դիտված էջեր և cookie-ներ։',
+  },
+  'Как мы используем данные': { en: 'How we use data', hy: 'Ինչպես ենք օգտագործում տվյալները' },
+  'Мы используем ваши данные, чтобы предоставлять и улучшать наши услуги, отвечать на ваши запросы, обеспечивать безопасность сайта, отправлять важные уведомления и, с вашего согласия, информационные и маркетинговые сообщения.': {
+    en: 'We use your data to provide and improve our services, respond to your requests, keep the site secure, send important notifications and, with your consent, informational and marketing messages.',
+    hy: 'Մենք օգտագործում ենք ձեր տվյալները՝ մեր ծառայությունները մատուցելու և բարելավելու, ձեր հարցումներին պատասխանելու, կայքի անվտանգությունն ապահովելու, կարևոր ծանուցումներ և ձեր համաձայնությամբ՝ տեղեկատվական ու մարքեթինգային հաղորդագրություններ ուղարկելու համար։',
+  },
+  'Файлы cookie': { en: 'Cookies', hy: 'Cookie-ներ' },
+  'Мы используем файлы cookie и аналогичные технологии, чтобы запоминать ваши настройки, анализировать посещаемость и повышать удобство сайта. Вы можете отключить cookie в настройках браузера, однако часть функций может стать недоступной.': {
+    en: 'We use cookies and similar technologies to remember your preferences, analyze traffic and improve site usability. You can disable cookies in your browser settings, but some features may become unavailable.',
+    hy: 'Մենք օգտագործում ենք cookie-ներ և նմանատիպ տեխնոլոգիաներ՝ ձեր կարգավորումները հիշելու, այցելությունները վերլուծելու և կայքի հարմարավետությունը բարձրացնելու համար։ Դուք կարող եք անջատել cookie-ները բրաուզերի կարգավորումներում, սակայն որոշ գործառույթներ կարող են անհասանելի դառնալ։',
+  },
+  'Передача данных третьим лицам': { en: 'Sharing data with third parties', hy: 'Տվյալների փոխանցում երրորդ անձանց' },
+  'Мы не продаём ваши персональные данные. Мы можем передавать их поставщикам услуг (хостинг, аналитика, платежи), которые действуют по нашему поручению, а также государственным органам, когда этого требует закон.': {
+    en: 'We do not sell your personal data. We may share it with service providers (hosting, analytics, payments) acting on our behalf, and with government authorities when required by law.',
+    hy: 'Մենք չենք վաճառում ձեր անձնական տվյալները։ Մենք կարող ենք դրանք փոխանցել ծառայություն մատուցողներին (հոսթինգ, անալիտիկա, վճարումներ), որոնք գործում են մեր հանձնարարությամբ, ինչպես նաև պետական մարմիններին, երբ դա պահանջում է օրենքը։',
+  },
+  'Хранение данных': { en: 'Data retention', hy: 'Տվյալների պահպանում' },
+  'Мы храним персональные данные не дольше, чем это необходимо для целей, ради которых они были собраны, либо в течение срока, установленного законом. После этого данные удаляются или обезличиваются.': {
+    en: 'We retain personal data no longer than necessary for the purposes for which it was collected, or for the period required by law. After that, the data is deleted or anonymized.',
+    hy: 'Մենք պահպանում ենք անձնական տվյալները ոչ ավելի, քան անհրաժեշտ է այն նպատակների համար, որոնց համար դրանք հավաքվել են, կամ օրենքով սահմանված ժամկետում։ Դրանից հետո տվյալները ջնջվում կամ ապանձնավորվում են։',
+  },
+  'Ваши права': { en: 'Your rights', hy: 'Ձեր իրավունքները' },
+  'Вы вправе запросить доступ к своим данным, их исправление или удаление, ограничить или возразить против обработки, а также отозвать ранее данное согласие. Для реализации этих прав свяжитесь с нами.': {
+    en: 'You have the right to request access to your data, its correction or deletion, to restrict or object to processing, and to withdraw previously given consent. To exercise these rights, contact us.',
+    hy: 'Դուք իրավունք ունեք պահանջելու ձեր տվյալների հասանելիությունը, դրանց ուղղումը կամ ջնջումը, սահմանափակելու կամ առարկելու մշակմանը, ինչպես նաև հետ կանչելու նախկինում տրված համաձայնությունը։ Այս իրավունքներն իրականացնելու համար կապվեք մեզ հետ։',
+  },
+
+  // terms sections
+  'Принятие условий': { en: 'Acceptance of terms', hy: 'Պայմանների ընդունում' },
+  'Используя наш сайт и услуги, вы соглашаетесь с настоящими условиями использования. Если вы не согласны с ними, пожалуйста, прекратите использование сайта.': {
+    en: 'By using our site and services, you agree to these terms of use. If you do not agree with them, please stop using the site.',
+    hy: 'Օգտագործելով մեր կայքն ու ծառայությունները՝ դուք համաձայնում եք սույն օգտագործման պայմաններին։ Եթե համաձայն չեք դրանց հետ, խնդրում ենք դադարեցնել կայքի օգտագործումը։',
+  },
+  'Учётные записи': { en: 'Accounts', hy: 'Հաշիվներ' },
+  'Для доступа к некоторым функциям может потребоваться регистрация. Вы обязаны предоставлять достоверные данные, сохранять конфиденциальность пароля и несёте ответственность за все действия в вашей учётной записи.': {
+    en: 'Access to some features may require registration. You must provide accurate information, keep your password confidential and are responsible for all activity in your account.',
+    hy: 'Որոշ գործառույթների հասանելիությունը կարող է գրանցում պահանջել։ Դուք պարտավոր եք տրամադրել ճշգրիտ տվյալներ, պահպանել գաղտնաբառի գաղտնիությունը և պատասխանատու եք ձեր հաշվում կատարվող բոլոր գործողությունների համար։',
+  },
+  'Пользовательский контент': { en: 'User content', hy: 'Օգտատիրոջ բովանդակություն' },
+  'Вы сохраняете права на материалы, которые размещаете, но предоставляете нам право использовать их для работы сервиса. Вы обязуетесь не публиковать незаконный, оскорбительный или нарушающий чужие права контент.': {
+    en: 'You retain the rights to the materials you post, but grant us the right to use them to operate the service. You agree not to publish content that is unlawful, offensive or infringes the rights of others.',
+    hy: 'Դուք պահպանում եք ձեր տեղադրած նյութերի իրավունքները, սակայն մեզ տրամադրում եք դրանք ծառայության աշխատանքի համար օգտագործելու իրավունք։ Դուք պարտավորվում եք չհրապարակել անօրինական, վիրավորական կամ այլոց իրավունքները խախտող բովանդակություն։',
+  },
+  'Интеллектуальная собственность': { en: 'Intellectual property', hy: 'Մտավոր սեփականություն' },
+  'Все материалы сайта — тексты, графика, логотипы и программный код — являются нашей собственностью или собственностью наших партнёров и защищены законом. Их использование без разрешения запрещено.': {
+    en: 'All site materials — text, graphics, logos and source code — are the property of us or our partners and are protected by law. Their use without permission is prohibited.',
+    hy: 'Կայքի բոլոր նյութերը՝ տեքստերը, գրաֆիկան, լոգոները և ծրագրային կոդը, հանդիսանում են մեր կամ մեր գործընկերների սեփականությունը և պաշտպանված են օրենքով։ Դրանց օգտագործումն առանց թույլտվության արգելվում է։',
+  },
+  'Отказ от гарантий': { en: 'Disclaimer of warranties', hy: 'Երաշխիքներից հրաժարում' },
+  'Сайт и услуги предоставляются «как есть» без каких-либо гарантий. Мы не гарантируем бесперебойную работу, отсутствие ошибок или соответствие сайта вашим конкретным ожиданиям.': {
+    en: 'The site and services are provided \u201Cas is\u201D without any warranties. We do not guarantee uninterrupted operation, the absence of errors or that the site will meet your specific expectations.',
+    hy: 'Կայքն ու ծառայությունները տրամադրվում են «ինչպես կա»՝ առանց որևէ երաշխիքի։ Մենք չենք երաշխավորում անխափան աշխատանք, սխալների բացակայություն կամ կայքի համապատասխանությունը ձեր կոնկրետ սպասելիքներին։',
+  },
+  'Ограничение ответственности': { en: 'Limitation of liability', hy: 'Պատասխանատվության սահմանափակում' },
+  'В максимально допустимой законом степени мы не несём ответственности за косвенные убытки, упущенную выгоду или потерю данных, возникшие в результате использования или невозможности использования сайта.': {
+    en: 'To the maximum extent permitted by law, we are not liable for indirect damages, lost profits or data loss arising from the use of, or inability to use, the site.',
+    hy: 'Օրենքով թույլատրելի առավելագույն չափով մենք պատասխանատվություն չենք կրում անուղղակի վնասների, բաց թողնված շահույթի կամ տվյալների կորստի համար, որոնք առաջացել են կայքի օգտագործման կամ օգտագործման անհնարինության հետևանքով։',
+  },
+  'Прекращение доступа': { en: 'Termination of access', hy: 'Հասանելիության դադարեցում' },
+  'Мы вправе приостановить или прекратить ваш доступ к сайту в случае нарушения настоящих условий, без предварительного уведомления и без обязательств по возмещению.': {
+    en: 'We may suspend or terminate your access to the site in the event of a breach of these terms, without prior notice and without any obligation to compensate.',
+    hy: 'Մենք իրավունք ունենք կասեցնել կամ դադարեցնել ձեր հասանելիությունը կայքին սույն պայմանների խախտման դեպքում՝ առանց նախնական ծանուցման և առանց փոխհատուցման պարտավորության։',
+  },
+
+  // cookie sections
+  'Что такое файлы cookie': { en: 'What cookies are', hy: 'Ինչ են cookie-ները' },
+  'Файлы cookie — это небольшие текстовые файлы, которые сайт сохраняет на вашем устройстве. Они помогают запоминать ваши действия и настройки, чтобы вам не приходилось вводить их повторно при каждом посещении.': {
+    en: 'Cookies are small text files that a site saves on your device. They help remember your actions and preferences so you do not have to re-enter them on every visit.',
+    hy: 'Cookie-ները փոքր տեքստային ֆայլեր են, որ կայքը պահում է ձեր սարքում։ Դրանք օգնում են հիշել ձեր գործողություններն ու կարգավորումները, որպեսզի ձեզ հարկ չլինի դրանք կրկին մուտքագրել յուրաքանչյուր այցի ժամանակ։',
+  },
+  'Какие cookie мы используем': { en: 'Which cookies we use', hy: 'Ինչ cookie-ներ ենք օգտագործում' },
+  'Мы используем необходимые cookie для работы сайта, функциональные cookie для запоминания ваших настроек, аналитические cookie для оценки посещаемости и маркетинговые cookie для показа релевантной рекламы.': {
+    en: 'We use necessary cookies to run the site, functional cookies to remember your settings, analytics cookies to measure traffic and marketing cookies to show relevant advertising.',
+    hy: 'Մենք օգտագործում ենք անհրաժեշտ cookie-ներ՝ կայքի աշխատանքի, ֆունկցիոնալ cookie-ներ՝ ձեր կարգավորումները հիշելու, անալիտիկ cookie-ներ՝ այցելությունները գնահատելու և մարքեթինգային cookie-ներ՝ համապատասխան գովազդ ցուցադրելու համար։',
+  },
+  'Управление cookie': { en: 'Managing cookies', hy: 'Cookie-ների կառավարում' },
+  'Вы можете управлять файлами cookie и удалять их через настройки браузера, а также с помощью баннера согласия на сайте. Обратите внимание, что отключение отдельных cookie может ограничить работу сайта.': {
+    en: 'You can manage and delete cookies through your browser settings, as well as via the consent banner on the site. Note that disabling some cookies may limit how the site works.',
+    hy: 'Դուք կարող եք կառավարել և ջնջել cookie-ները բրաուզերի կարգավորումների միջոցով, ինչպես նաև կայքի համաձայնության բանների օգնությամբ։ Նկատի ունեցեք, որ առանձին cookie-ների անջատումը կարող է սահմանափակել կայքի աշխատանքը։',
+  },
+  'Изменения политики': { en: 'Changes to this policy', hy: 'Քաղաքականության փոփոխություններ' },
+  'Мы можем время от времени обновлять эту политику cookie. Актуальная версия всегда доступна на этой странице, а дата последнего изменения указывается в её начале.': {
+    en: 'We may update this cookie policy from time to time. The current version is always available on this page, and the date of the last change is shown at the top.',
+    hy: 'Մենք կարող ենք ժամանակ առ ժամանակ թարմացնել այս cookie-ների քաղաքականությունը։ Ընթացիկ տարբերակը միշտ հասանելի է այս էջում, իսկ վերջին փոփոխության ամսաթիվը նշվում է դրա սկզբում։',
+  },
+
+  // shared "contacts" paragraph variants
+  'По всем вопросам, связанным с обработкой персональных данных, вы можете написать нам на электронную почту, указанную на сайте. Мы ответим в разумный срок.': {
+    en: 'For any questions related to the processing of personal data, you can email us at the address listed on the site. We will respond within a reasonable time.',
+    hy: 'Անձնական տվյալների մշակման հետ կապված բոլոր հարցերով կարող եք գրել մեզ կայքում նշված էլ. փոստին։ Մենք կպատասխանենք ողջամիտ ժամկետում։',
+  },
+  'Если у вас есть вопросы по условиям использования, свяжитесь с нами по электронной почте, указанной на сайте.': {
+    en: 'If you have questions about these terms of use, contact us by email at the address listed on the site.',
+    hy: 'Եթե օգտագործման պայմանների վերաբերյալ հարցեր ունեք, կապվեք մեզ հետ կայքում նշված էլ. փոստով։',
+  },
+  'Если у вас есть вопросы об использовании файлов cookie, напишите нам на электронную почту, указанную на сайте.': {
+    en: 'If you have questions about the use of cookies, email us at the address listed on the site.',
+    hy: 'Եթե cookie-ների օգտագործման վերաբերյալ հարցեր ունեք, գրեք մեզ կայքում նշված էլ. փոստին։',
+  },
 };
 
 /** Translate a single atomic string (no delimiters). RU / unmapped → original. */
