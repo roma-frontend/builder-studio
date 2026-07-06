@@ -70,6 +70,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
+  const [subNav, setSubNav] = useState<'staff' | 'super' | null>(null);
   const t = dashDict(useLocale().locale);
 
   // Persist the desktop collapse preference across sessions.
@@ -78,6 +79,10 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
       setCollapsed(localStorage.getItem('cwk:sidebar-collapsed') === '1');
     } catch { /* ignore */ }
   }, []);
+  // A collapsed rail has no room for the drill-in sub-panel.
+  useEffect(() => {
+    if (collapsed) setSubNav(null);
+  }, [collapsed]);
   const toggleCollapsed = () => {
     setCollapsed((c) => {
       const next = !c;
@@ -121,13 +126,35 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
   const renderSidebar = (col: boolean) => {
     const q = col ? '' : query.trim().toLowerCase();
     const matched = q ? visible.filter((i) => t.nav[i.key].toLowerCase().includes(q)) : visible;
-    const groups = GROUP_ORDER
-      .map((g) => ({ g, items: matched.filter((i) => groupOf(i) === g) }))
-      .filter((s) => s.items.length > 0);
     const groupLabel: Record<NavGroup, string> = {
       workspace: t.sidebar.groupWorkspace,
       staff: t.sidebar.groupStaff,
       super: t.sidebar.groupSuper,
+    };
+    const workspaceItems = visible.filter((i) => groupOf(i) === 'workspace');
+    const parents = ([
+      { g: 'staff' as const, icon: ShieldCheck },
+      { g: 'super' as const, icon: Crown },
+    ]).filter((p) => visible.some((i) => groupOf(i) === p.g));
+    const subItems = subNav ? visible.filter((i) => groupOf(i) === subNav) : [];
+
+    // One nav row (expanded): left gradient bar + icon scale on the active route.
+    const navLink = (item: NavItem) => {
+      const on = active(item.href);
+      const sup = !!item.super;
+      const cls = on
+        ? sup ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-primary/10 text-primary'
+        : sup ? 'text-foreground/90 hover:bg-amber-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground';
+      return (
+        <Link key={item.href} href={item.href} onClick={() => setOpen(false)}
+          className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${cls}`}>
+          {on && <span className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full ${sup ? 'bg-amber-500' : 'bg-primary'}`} />}
+          <item.icon className={`h-4 w-4 shrink-0 transition-transform ${sup ? 'text-amber-500' : ''} ${on ? 'scale-110' : ''}`} />
+          <span className="truncate">{t.nav[item.key]}</span>
+          {item.href === '/dashboard/organizations' && <OrgRequestsBadge initialCount={orgRequests} />}
+          {item.href === '/dashboard/sites' && <SiteMembersBadge initialCount={siteMembers} />}
+        </Link>
+      );
     };
 
     return (
@@ -156,15 +183,15 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
           </button>
         </div>
 
-        {/* Section search (expanded, non-gated) */}
-        {!col && !gated && (
+        {/* Section search (expanded, non-gated, main level) */}
+        {!col && !gated && !subNav && (
           <div className="border-b border-border/60 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { setQuery(e.target.value); if (e.target.value) setSubNav(null); }}
                 placeholder={t.sidebar.search}
                 className="w-full rounded-lg border border-border bg-background/60 py-2 pl-9 pr-8 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30"
               />
@@ -177,51 +204,99 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
           </div>
         )}
 
-        {/* Grouped navigation */}
-        <nav className={`flex-1 overflow-y-auto ${col ? 'px-2 py-3' : 'p-3'}`}>
-          {gated && !col && (
-            <div className="rounded-lg border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
-              {t.gatedNote}
-            </div>
-          )}
-          {!col && query && groups.length === 0 && (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">{t.sidebar.noResults}</p>
-          )}
-          {groups.map(({ g, items }) => (
-            <div key={g} className="mb-1">
-              {col ? (
-                <div className="mx-auto my-2 h-px w-8 bg-border/60" />
-              ) : (
-                <p className="px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{groupLabel[g]}</p>
+        {/* Navigation: collapsed rail · gated · search results · drill-in */}
+        {col ? (
+          <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-3">
+            {GROUP_ORDER.map((g, gi) => {
+              const items = visible.filter((i) => groupOf(i) === g);
+              if (!items.length) return null;
+              return (
+                <div key={g}>
+                  {gi > 0 && <div className="mx-auto my-2 h-px w-8 bg-border/60" />}
+                  {items.map((item) => {
+                    const on = active(item.href);
+                    const sup = !!item.super;
+                    const cls = on
+                      ? sup ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-primary/10 text-primary'
+                      : sup ? 'text-foreground/90 hover:bg-amber-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground';
+                    return (
+                      <Link key={item.href} href={item.href} onClick={() => setOpen(false)} title={t.nav[item.key]} aria-label={t.nav[item.key]}
+                        className={`group relative my-1 flex items-center justify-center rounded-lg px-2 py-2.5 transition-colors ${cls}`}>
+                        {on && <span className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full ${sup ? 'bg-amber-500' : 'bg-primary'}`} />}
+                        <item.icon className={`h-4 w-4 shrink-0 transition-transform ${sup ? 'text-amber-500' : ''} ${on ? 'scale-110' : ''}`} />
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </nav>
+        ) : gated ? (
+          <nav className="flex-1 overflow-y-auto p-3">
+            <div className="rounded-lg border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">{t.gatedNote}</div>
+          </nav>
+        ) : q ? (
+          <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+            {matched.length === 0
+              ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">{t.sidebar.noResults}</p>
+              : matched.map((item) => navLink(item))}
+          </nav>
+        ) : (
+          <nav className="relative flex-1 overflow-hidden">
+            {/* Main level */}
+            <div
+              className="absolute inset-0 space-y-1 overflow-y-auto p-3 transition-all duration-300 ease-out"
+              style={{ transform: subNav ? 'translateX(-100%)' : 'translateX(0)', opacity: subNav ? 0 : 1, pointerEvents: subNav ? 'none' : 'auto' }}
+            >
+              {workspaceItems.length > 0 && (
+                <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{groupLabel.workspace}</p>
               )}
-              <div className="space-y-1">
-                {items.map((item) => {
-                  const on = active(item.href);
-                  const isSuper = !!item.super;
-                  const activeCls = isSuper ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-primary/10 text-primary';
-                  const idleCls = isSuper ? 'text-foreground/90 hover:bg-amber-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground';
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setOpen(false)}
-                      title={col ? t.nav[item.key] : undefined}
-                      aria-label={col ? t.nav[item.key] : undefined}
-                      className={`group relative flex items-center rounded-lg text-sm font-medium transition-colors ${col ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'} ${on ? activeCls : idleCls}`}
-                    >
-                      {on && <span className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full ${isSuper ? 'bg-amber-500' : 'bg-primary'}`} />}
-                      <item.icon className={`h-4 w-4 shrink-0 transition-transform ${isSuper ? 'text-amber-500' : ''} ${on ? 'scale-110' : ''}`} />
-                      {!col && <span className="truncate">{t.nav[item.key]}</span>}
-                      {!col && item.href === '/dashboard/organizations' && <OrgRequestsBadge initialCount={orgRequests} />}
-                      {!col && item.href === '/dashboard/sites' && <SiteMembersBadge initialCount={siteMembers} />}
-                      {!col && item.staff && !isSuper && <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-amber-500">staff</span>}
-                    </Link>
-                  );
-                })}
-              </div>
+              {workspaceItems.map((item) => navLink(item))}
+              {parents.length > 0 && <div className="my-2 h-px bg-border/60" />}
+              {parents.map((p) => {
+                const pOn = visible.some((i) => groupOf(i) === p.g && active(i.href));
+                const sup = p.g === 'super';
+                const cls = pOn
+                  ? sup ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-primary/10 text-primary'
+                  : sup ? 'text-foreground/90 hover:bg-amber-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground';
+                return (
+                  <button key={p.g} type="button" onClick={() => setSubNav(p.g)}
+                    className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${cls}`}>
+                    {pOn && <span className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full ${sup ? 'bg-amber-500' : 'bg-primary'}`} />}
+                    <p.icon className={`h-4 w-4 shrink-0 ${sup ? 'text-amber-500' : ''}`} />
+                    <span className="flex-1 truncate text-left">{groupLabel[p.g]}</span>
+                    {sup && <OrgRequestsBadge initialCount={orgRequests} />}
+                    <ChevronRight className="h-4 w-4 opacity-50 transition-transform group-hover:translate-x-0.5" />
+                  </button>
+                );
+              })}
             </div>
-          ))}
-        </nav>
+
+            {/* Sub level (drill-in) — slides in with a staggered reveal */}
+            <div
+              className="absolute inset-0 space-y-1 overflow-y-auto p-3 transition-all duration-300 ease-out"
+              style={{ transform: subNav ? 'translateX(0)' : 'translateX(100%)', opacity: subNav ? 1 : 0, pointerEvents: subNav ? 'auto' : 'none' }}
+            >
+              <button type="button" onClick={() => setSubNav(null)}
+                className="group/back mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                <ChevronLeft className="h-4 w-4 transition-transform group-hover/back:-translate-x-0.5" />
+                <span>{subNav ? groupLabel[subNav] : ''}</span>
+              </button>
+              {subItems.map((item, idx) => (
+                <div
+                  key={item.href}
+                  style={{
+                    opacity: subNav ? 1 : 0,
+                    transform: subNav ? 'translateX(0)' : 'translateX(16px)',
+                    transition: `opacity 280ms ease ${80 + idx * 40}ms, transform 320ms cubic-bezier(0.34,1.56,0.64,1) ${80 + idx * 40}ms`,
+                  }}
+                >
+                  {navLink(item)}
+                </div>
+              ))}
+            </div>
+          </nav>
+        )}
 
         {/* Footer: user + role + logout */}
         <div className="border-t border-border/60 p-3">
