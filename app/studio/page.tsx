@@ -16,28 +16,14 @@ import siteConfig from '@/data/site.json';
 import mediaData from '@/data/media.json';
 import { Sparkles, Upload, Wand2, Clapperboard, Copy, Check, Loader2, ArrowRight, ListVideo, Terminal, Palette, ArrowUp, ArrowDown, X, Plus, Eye, RotateCcw, LayoutList, Monitor, Tablet, Smartphone, LayoutTemplate } from 'lucide-react';
 import { getLanding, type LandingContent } from '@/lib/landing';
+import { useLocale } from '@/hooks/use-locale';
+import { studioDict } from '@/lib/studio-dict';
 
-const BLOCK_LABELS: Record<string, string> = {
-  hero: 'Герой',
-  split: 'Сплит (видео+текст)',
-  cards: 'Карточки',
-  mosaic: 'Мозаика',
-  sticky: 'Sticky-история',
-  background: 'Фон-секция',
-  beams: 'Beams-баннер',
-  marquee: 'Бегущая строка',
-};
-const ALL_BLOCKS = Object.keys(BLOCK_LABELS);
+const ALL_BLOCKS = ['hero', 'split', 'cards', 'mosaic', 'sticky', 'background', 'beams', 'marquee'];
 
-const STUDIO_TABS = [
-  { id: 'landing', label: 'Лендинг', icon: LayoutTemplate },
-  { id: 'generate', label: 'Генерация', icon: Clapperboard },
-  { id: 'theme', label: 'Тема', icon: Palette },
-  { id: 'content', label: 'Контент', icon: Wand2 },
-  { id: 'layout', label: 'Композиция', icon: LayoutList },
-  { id: 'config', label: 'Конфигурация', icon: Upload },
-] as const;
-type StudioTab = (typeof STUDIO_TABS)[number]['id'];
+const STUDIO_TAB_IDS = ['landing', 'generate', 'theme', 'content', 'layout', 'config'] as const;
+type StudioTab = (typeof STUDIO_TAB_IDS)[number];
+const TAB_ICON = { landing: LayoutTemplate, generate: Clapperboard, theme: Palette, content: Wand2, layout: LayoutList, config: Upload } as const;
 
 const DEVICE = { full: '100%', tablet: '820px', mobile: '390px' } as const;
 type Device = keyof typeof DEVICE;
@@ -68,7 +54,7 @@ async function streamGenerate(
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || data.detail || 'Generation failed');
   }
-  if (!res.body) throw new Error('Пустой ответ сервера (нет потока)');
+  if (!res.body) throw new Error('Empty server response (no stream)');
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -96,7 +82,7 @@ async function streamGenerate(
     }
   }
 
-  if (!entry) throw new Error('Поток завершился без результата');
+  if (!entry) throw new Error('Stream ended without a result');
   return entry;
 }
 
@@ -109,6 +95,7 @@ const fade = {
 };
 
 export default function StudioPage() {
+  const t = studioDict(useLocale().locale);
   // Step 1 — brief
   const [brief, setBrief] = useState('');
   const [dragOver, setDragOver] = useState(false);
@@ -135,9 +122,9 @@ export default function StudioPage() {
     try {
       const res = await fetch('/api/set-landing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: landing }) });
       const data = await res.json();
-      if (res.ok) { setLandingMsg('Лендинг сохранён'); setPreviewKey((k) => k + 1); }
-      else setLandingMsg(data.error || 'Ошибка');
-    } catch { setLandingMsg('Ошибка сохранения'); }
+      if (res.ok) { setLandingMsg(t.landingSaved); setPreviewKey((k) => k + 1); }
+      else setLandingMsg(data.error || t.error);
+    } catch { setLandingMsg(t.saveError); }
     finally { setLandingBusy(false); }
   };
   const [openingBuilder, setOpeningBuilder] = useState(false);
@@ -149,11 +136,11 @@ export default function StudioPage() {
       if (res.ok && data.id) {
         window.location.href = `/studio/builder?site=${encodeURIComponent(data.id)}`;
       } else {
-        setLandingMsg(data.error || 'Не удалось открыть конструктор');
+        setLandingMsg(data.error || t.cannotOpenBuilder);
         setOpeningBuilder(false);
       }
     } catch {
-      setLandingMsg('Не удалось открыть конструктор');
+      setLandingMsg(t.cannotOpenBuilder);
       setOpeningBuilder(false);
     }
   };
@@ -192,10 +179,10 @@ export default function StudioPage() {
       const data = await res.json();
       if (data.themeId) {
         setSiteTheme(data.themeId);
-        setThemeMsg(`Подобрано: ${data.label} (${data.via === 'llm' ? 'LLM' : 'по ключевым словам'})`);
+        setThemeMsg(t.themePicked.replace('{label}', data.label).replace('{via}', data.via === 'llm' ? t.viaLlm : t.viaKeywords));
       }
     } catch {
-      setThemeMsg('Не удалось подобрать');
+      setThemeMsg(t.cannotPick);
     } finally {
       setThemeBusy(false);
     }
@@ -211,9 +198,9 @@ export default function StudioPage() {
         body: JSON.stringify({ theme: siteTheme }),
       });
       const data = await res.json();
-      setThemeMsg(res.ok ? `Тема сайта сохранена: ${data.theme}` : data.error || 'Ошибка');
+      setThemeMsg(res.ok ? t.themeSaved.replace('{theme}', data.theme) : data.error || t.error);
     } catch {
-      setThemeMsg('Ошибка сохранения');
+      setThemeMsg(t.saveError);
     } finally {
       setThemeBusy(false);
     }
@@ -269,13 +256,13 @@ export default function StudioPage() {
       const data = await res.json();
       if (res.ok) {
         if (reset) setBuilderLayout(getTheme(siteTheme).layout);
-        setBuilderMsg(reset ? 'Сброшено к теме' : 'Композиция сохранена');
+        setBuilderMsg(reset ? t.resetToTheme : t.layoutSaved);
         setPreviewKey((k) => k + 1);
       } else {
-        setBuilderMsg(data.error || 'Ошибка');
+        setBuilderMsg(data.error || t.error);
       }
     } catch {
-      setBuilderMsg('Ошибка сохранения');
+      setBuilderMsg(t.saveError);
     } finally {
       setBuilderBusy(false);
     }
@@ -327,13 +314,13 @@ export default function StudioPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setContentMsg(`Сохранено секций: ${data.count}`);
+        setContentMsg(t.contentSaved.replace('{n}', String(data.count)));
         setPreviewKey((k) => k + 1);
       } else {
-        setContentMsg(data.error || 'Ошибка');
+        setContentMsg(data.error || t.error);
       }
     } catch {
-      setContentMsg('Ошибка сохранения');
+      setContentMsg(t.saveError);
     } finally {
       setContentBusy(false);
     }
@@ -353,13 +340,13 @@ export default function StudioPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setCfgMsg(`Импортировано: ${data.imported.join(', ')} — перезагрузка…`);
+        setCfgMsg(t.imported.replace('{list}', data.imported.join(', ')));
         setTimeout(() => window.location.reload(), 900);
       } else {
-        setCfgMsg(data.error || 'Ошибка');
+        setCfgMsg(data.error || t.error);
       }
     } catch {
-      setCfgMsg('Некорректный JSON-файл');
+      setCfgMsg(t.invalidJson);
     }
   };
 
@@ -417,7 +404,7 @@ export default function StudioPage() {
           } catch (e) {
             lastErr = e;
             if (attempt < RETRIES) {
-              appendLog({ line: `[retry] «${items[i].title}»: попытка ${attempt + 1} не удалась, повтор…`, stream: 'stderr' });
+              appendLog({ line: t.retryFailed.replace('{title}', items[i].title).replace('{n}', String(attempt + 1)), stream: 'stderr' });
               await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
             }
           }
@@ -492,17 +479,17 @@ export default function StudioPage() {
         <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-3 px-4">
           <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
             <Clapperboard className="h-5 w-5 text-primary" />
-            <span>Студия</span>
+            <span>{t.brand}</span>
           </Link>
           <div className="mx-2 h-6 w-px bg-border" />
-          <span className="hidden text-sm text-muted-foreground sm:inline">Генерация видео · тема · композиция страницы</span>
+          <span className="hidden text-sm text-muted-foreground sm:inline">{t.headerSub}</span>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
             <Link href="/studio/builder">
-              <Button size="sm" className="gap-1.5"><LayoutList className="h-4 w-4" /> Конструктор сайта</Button>
+              <Button size="sm" className="gap-1.5"><LayoutList className="h-4 w-4" /> {t.builderBtn}</Button>
             </Link>
             <Link href="/">
-              <Button size="sm" variant="outline" className="gap-1.5">На главную <ArrowRight className="h-4 w-4" /></Button>
+              <Button size="sm" variant="outline" className="gap-1.5">{t.toHome} <ArrowRight className="h-4 w-4" /></Button>
             </Link>
           </div>
         </div>
@@ -514,23 +501,23 @@ export default function StudioPage() {
           <div className="mx-auto max-w-3xl space-y-5 px-5 py-6">
         <motion.header {...fade} className="flex items-center gap-2.5">
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            <Sparkles className="h-3.5 w-3.5 text-primary" /> Cinematic Studio
+            <Sparkles className="h-3.5 w-3.5 text-primary" /> {t.studioBadge}
           </span>
-          <span className="text-sm text-muted-foreground">{STUDIO_TABS.find((t) => t.id === tab)?.label}</span>
+          <span className="text-sm text-muted-foreground">{t.tabs[tab]}</span>
         </motion.header>
         {/* Tab bar */}
         <div className="sticky top-0 z-20 -mx-5 mb-2 border-b border-border/60 bg-background/85 px-5 pb-px backdrop-blur-md">
           <div className="flex gap-1">
-            {STUDIO_TABS.map((t) => {
-              const Icon = t.icon;
-              const active = tab === t.id;
+            {STUDIO_TAB_IDS.map((id) => {
+              const Icon = TAB_ICON[id];
+              const active = tab === id;
               return (
                 <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
+                  key={id}
+                  onClick={() => setTab(id)}
                   className={`relative flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium transition-colors ${active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                 >
-                  <Icon className="h-4 w-4" /> {t.label}
+                  <Icon className="h-4 w-4" /> {t.tabs[id]}
                   {active && <motion.span layoutId="studio-tab" className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />}
                 </button>
               );
@@ -545,93 +532,93 @@ export default function StudioPage() {
             <div aria-hidden className="pointer-events-none absolute inset-0 opacity-20" style={{ background: 'radial-gradient(70% 120% at 100% 0%, var(--primary), transparent 60%)' }} />
             <div className="relative flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1.5 text-sm font-semibold"><LayoutTemplate className="h-4 w-4 text-primary" /> Конструктор лендинга</p>
-                <p className="mt-1 text-xs text-muted-foreground">Отдельный конструктор только этого лендинга: секции, карточки, бейджи, header, footer, меню, варианты блоков, hover-эффекты, анимации, видео. «Сохранить» — и главная «/» сразу обновляется.</p>
+                <p className="flex items-center gap-1.5 text-sm font-semibold"><LayoutTemplate className="h-4 w-4 text-primary" /> {t.landingBuilderTitle}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t.landingBuilderDesc}</p>
               </div>
               <Button onClick={openLandingInBuilder} disabled={openingBuilder} className="gap-1.5">
-                {openingBuilder ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />} Открыть конструктор лендинга
+                {openingBuilder ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />} {t.openLandingBuilder}
               </Button>
             </div>
           </Card>
-          <p className="text-[11px] text-muted-foreground">Ниже — быстрое редактирование текстов (герой/секции/CTA). Для полной свободы используйте конструктор выше.</p>
+          <p className="text-[11px] text-muted-foreground">{t.quickEditHint}</p>
           {/* Hero */}
           <Card className="space-y-2.5 p-4">
-            <p className="text-sm font-semibold">Герой</p>
+            <p className="text-sm font-semibold">{t.hero}</p>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Бейдж</label>
+              <label className="mb-1 block text-xs text-muted-foreground">{t.badge}</label>
               <Input value={landing.hero.badge} onChange={(e) => setHero('badge', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Заголовок</label>
+              <label className="mb-1 block text-xs text-muted-foreground">{t.heading}</label>
               <Textarea value={landing.hero.title} onChange={(e) => setHero('title', e.target.value)} rows={2} />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Подзаголовок</label>
+              <label className="mb-1 block text-xs text-muted-foreground">{t.subheading}</label>
               <Textarea value={landing.hero.subtitle} onChange={(e) => setHero('subtitle', e.target.value)} rows={3} />
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input value={landing.hero.ctaPrimaryLabel} onChange={(e) => setHero('ctaPrimaryLabel', e.target.value)} placeholder="Кнопка 1 — текст" />
-              <Input value={landing.hero.ctaPrimaryHref} onChange={(e) => setHero('ctaPrimaryHref', e.target.value)} placeholder="Кнопка 1 — ссылка" />
-              <Input value={landing.hero.ctaSecondaryLabel} onChange={(e) => setHero('ctaSecondaryLabel', e.target.value)} placeholder="Кнопка 2 — текст" />
-              <Input value={landing.hero.ctaSecondaryHref} onChange={(e) => setHero('ctaSecondaryHref', e.target.value)} placeholder="Кнопка 2 — ссылка" />
+              <Input value={landing.hero.ctaPrimaryLabel} onChange={(e) => setHero('ctaPrimaryLabel', e.target.value)} placeholder={t.btn1Label} />
+              <Input value={landing.hero.ctaPrimaryHref} onChange={(e) => setHero('ctaPrimaryHref', e.target.value)} placeholder={t.btn1Href} />
+              <Input value={landing.hero.ctaSecondaryLabel} onChange={(e) => setHero('ctaSecondaryLabel', e.target.value)} placeholder={t.btn2Label} />
+              <Input value={landing.hero.ctaSecondaryHref} onChange={(e) => setHero('ctaSecondaryHref', e.target.value)} placeholder={t.btn2Href} />
             </div>
-            <Input value={landing.hero.note} onChange={(e) => setHero('note', e.target.value)} placeholder="Подпись под кнопками" />
+            <Input value={landing.hero.note} onChange={(e) => setHero('note', e.target.value)} placeholder={t.noteUnderButtons} />
           </Card>
 
           {/* Steps */}
           <Card className="space-y-2.5 p-4">
-            <p className="text-sm font-semibold">Как это работает</p>
+            <p className="text-sm font-semibold">{t.howItWorks}</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input value={landing.steps.title} onChange={(e) => setStepsMeta('title', e.target.value)} placeholder="Заголовок секции" />
-              <Input value={landing.steps.subtitle} onChange={(e) => setStepsMeta('subtitle', e.target.value)} placeholder="Подзаголовок" />
+              <Input value={landing.steps.title} onChange={(e) => setStepsMeta('title', e.target.value)} placeholder={t.sectionTitle} />
+              <Input value={landing.steps.subtitle} onChange={(e) => setStepsMeta('subtitle', e.target.value)} placeholder={t.sectionSubtitle} />
             </div>
             {landing.steps.items.map((it, i) => (
               <div key={i} className="rounded-xl border border-border/60 bg-background/40 p-2.5">
-                <span className="text-[10px] font-semibold uppercase text-muted-foreground">Шаг {it.n}</span>
-                <Input className="mt-1" value={it.title} onChange={(e) => setStepItem(i, 'title', e.target.value)} placeholder="Заголовок" />
-                <Textarea className="mt-1.5" rows={2} value={it.text} onChange={(e) => setStepItem(i, 'text', e.target.value)} placeholder="Текст" />
+                <span className="text-[10px] font-semibold uppercase text-muted-foreground">{t.step} {it.n}</span>
+                <Input className="mt-1" value={it.title} onChange={(e) => setStepItem(i, 'title', e.target.value)} placeholder={t.titleph} />
+                <Textarea className="mt-1.5" rows={2} value={it.text} onChange={(e) => setStepItem(i, 'text', e.target.value)} placeholder={t.textPh} />
               </div>
             ))}
           </Card>
 
           {/* Features */}
           <Card className="space-y-2.5 p-4">
-            <p className="text-sm font-semibold">Возможности</p>
+            <p className="text-sm font-semibold">{t.features}</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input value={landing.features.title} onChange={(e) => setFeaturesMeta('title', e.target.value)} placeholder="Заголовок секции" />
-              <Input value={landing.features.subtitle} onChange={(e) => setFeaturesMeta('subtitle', e.target.value)} placeholder="Подзаголовок" />
+              <Input value={landing.features.title} onChange={(e) => setFeaturesMeta('title', e.target.value)} placeholder={t.sectionTitle} />
+              <Input value={landing.features.subtitle} onChange={(e) => setFeaturesMeta('subtitle', e.target.value)} placeholder={t.sectionSubtitle} />
             </div>
             {landing.features.items.map((it, i) => (
               <div key={i} className="rounded-xl border border-border/60 bg-background/40 p-2.5">
-                <Input value={it.title} onChange={(e) => setFeatureItem(i, 'title', e.target.value)} placeholder="Заголовок" />
-                <Textarea className="mt-1.5" rows={2} value={it.text} onChange={(e) => setFeatureItem(i, 'text', e.target.value)} placeholder="Текст" />
+                <Input value={it.title} onChange={(e) => setFeatureItem(i, 'title', e.target.value)} placeholder={t.titleph} />
+                <Textarea className="mt-1.5" rows={2} value={it.text} onChange={(e) => setFeatureItem(i, 'text', e.target.value)} placeholder={t.textPh} />
               </div>
             ))}
           </Card>
 
           {/* Themes teaser + Final CTA */}
           <Card className="space-y-2.5 p-4">
-            <p className="text-sm font-semibold">Блок тем</p>
+            <p className="text-sm font-semibold">{t.themesBlock}</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input value={landing.themesTeaser.title} onChange={(e) => setThemesMeta('title', e.target.value)} placeholder="Заголовок" />
-              <Input value={landing.themesTeaser.subtitle} onChange={(e) => setThemesMeta('subtitle', e.target.value)} placeholder="Подзаголовок" />
+              <Input value={landing.themesTeaser.title} onChange={(e) => setThemesMeta('title', e.target.value)} placeholder={t.titleph} />
+              <Input value={landing.themesTeaser.subtitle} onChange={(e) => setThemesMeta('subtitle', e.target.value)} placeholder={t.sectionSubtitle} />
             </div>
           </Card>
           <Card className="space-y-2.5 p-4">
-            <p className="text-sm font-semibold">Финальный призыв (CTA)</p>
-            <Input value={landing.finalCta.title} onChange={(e) => setFinal('title', e.target.value)} placeholder="Заголовок" />
-            <Textarea rows={2} value={landing.finalCta.subtitle} onChange={(e) => setFinal('subtitle', e.target.value)} placeholder="Подзаголовок" />
+            <p className="text-sm font-semibold">{t.finalCta}</p>
+            <Input value={landing.finalCta.title} onChange={(e) => setFinal('title', e.target.value)} placeholder={t.titleph} />
+            <Textarea rows={2} value={landing.finalCta.subtitle} onChange={(e) => setFinal('subtitle', e.target.value)} placeholder={t.sectionSubtitle} />
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input value={landing.finalCta.ctaPrimaryLabel} onChange={(e) => setFinal('ctaPrimaryLabel', e.target.value)} placeholder="Кнопка 1 — текст" />
-              <Input value={landing.finalCta.ctaPrimaryHref} onChange={(e) => setFinal('ctaPrimaryHref', e.target.value)} placeholder="Кнопка 1 — ссылка" />
-              <Input value={landing.finalCta.ctaSecondaryLabel} onChange={(e) => setFinal('ctaSecondaryLabel', e.target.value)} placeholder="Кнопка 2 — текст" />
-              <Input value={landing.finalCta.ctaSecondaryHref} onChange={(e) => setFinal('ctaSecondaryHref', e.target.value)} placeholder="Кнопка 2 — ссылка" />
+              <Input value={landing.finalCta.ctaPrimaryLabel} onChange={(e) => setFinal('ctaPrimaryLabel', e.target.value)} placeholder={t.btn1Label} />
+              <Input value={landing.finalCta.ctaPrimaryHref} onChange={(e) => setFinal('ctaPrimaryHref', e.target.value)} placeholder={t.btn1Href} />
+              <Input value={landing.finalCta.ctaSecondaryLabel} onChange={(e) => setFinal('ctaSecondaryLabel', e.target.value)} placeholder={t.btn2Label} />
+              <Input value={landing.finalCta.ctaSecondaryHref} onChange={(e) => setFinal('ctaSecondaryHref', e.target.value)} placeholder={t.btn2Href} />
             </div>
           </Card>
 
           <div className="sticky bottom-0 flex items-center gap-2 bg-background/90 py-2 backdrop-blur">
             <Button size="sm" onClick={saveLanding} disabled={landingBusy} className="gap-1.5">
-              {landingBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Сохранить лендинг
+              {landingBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t.saveLanding}
             </Button>
             {landingMsg && <span className="text-xs text-muted-foreground">{landingMsg}</span>}
           </div>
@@ -643,7 +630,7 @@ export default function StudioPage() {
         <motion.section {...fade} transition={{ ...fade.transition, delay: 0.05 }} className="mb-6">
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-xs text-primary">1</span>
-            Бриф или .md
+            {t.briefLabel}
           </label>
           <Card
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -655,7 +642,7 @@ export default function StudioPage() {
               value={brief}
               onChange={(e) => setBrief(e.target.value)}
               rows={5}
-              placeholder="Напр.: Кофейный бренд. Пар над свежим эспрессо, тёплый утренний свет. Секции: пуровер, латте-арт, обжарка зёрен."
+              placeholder={t.briefPlaceholder}
               className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/70"
             />
             <div className="flex flex-col items-start justify-between gap-3 sm:gap-2 border-t border-border/60 p-3">
@@ -665,24 +652,24 @@ export default function StudioPage() {
                 onClick={() => fileRef.current?.click()}
                 className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
               >
-                <Upload className="h-3.5 w-3.5" /> Загрузить .md
+                <Upload className="h-3.5 w-3.5" /> {t.uploadMd}
               </Button>
               <input ref={fileRef} type="file" accept=".md,.markdown,.txt" hidden onChange={(e) => e.target.files?.[0] && readFile(e.target.files[0])} />
               <div className="flex flex-wrap items-center gap-2">
                 <Select value={styleId} onValueChange={(v) => setStyleId(v as StyleId)}>
                   <SelectTrigger className="w-52 gap-1.5"><Palette className="h-4 w-4 opacity-60" /><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="auto">Авто (по брифу)</SelectItem>
+                    <SelectItem value="auto">{t.styleAuto}</SelectItem>
                     {STYLE_PRESETS.map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <Button size="sm" variant="outline" onClick={planWholePage} disabled={!brief.trim()} className="gap-1.5">
-                  <ListVideo className="h-4 w-4" /> Собрать всю страницу
+                  <ListVideo className="h-4 w-4" /> {t.buildWholePage}
                 </Button>
                 <Button size="sm" onClick={generatePrompt} disabled={!brief.trim()} className="gap-1.5">
-                  <Wand2 className="h-4 w-4" /> Один промпт
+                  <Wand2 className="h-4 w-4" /> {t.onePrompt}
                 </Button>
               </div>
             </div>
@@ -694,23 +681,23 @@ export default function StudioPage() {
         {tab === 'theme' && (
         <motion.section {...fade} transition={{ ...fade.transition, delay: 0.08 }} className="mb-6">
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <Palette className="h-4 w-4 text-primary" /> Тема сайта
+            <Palette className="h-4 w-4 text-primary" /> {t.siteTheme}
           </label>
           <Card className="flex flex-wrap items-center gap-2 p-3">
             <Select value={siteTheme} onValueChange={setSiteTheme}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Авто (по контенту)</SelectItem>
-                {THEMES.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                <SelectItem value="auto">{t.themeAuto}</SelectItem>
+                {THEMES.map((th) => (
+                  <SelectItem key={th.id} value={th.id}>{th.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Button size="sm" variant="outline" onClick={suggestTheme} disabled={themeBusy || !brief.trim()} className="gap-1.5">
-              <Wand2 className="h-4 w-4" /> Подобрать по брифу
+              <Wand2 className="h-4 w-4" /> {t.suggestByBrief}
             </Button>
             <Button size="sm" onClick={applyTheme} disabled={themeBusy} className="gap-1.5">
-              {themeBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Применить к сайту
+              {themeBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t.applyToSite}
             </Button>
             {themeMsg && <span className="text-xs text-muted-foreground">{themeMsg}</span>}
           </Card>
@@ -723,7 +710,7 @@ export default function StudioPage() {
         {content.length > 0 && (
           <motion.section {...fade} transition={{ ...fade.transition, delay: 0.085 }} className="mb-6">
             <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-              <Wand2 className="h-4 w-4 text-primary" /> Контент секций
+              <Wand2 className="h-4 w-4 text-primary" /> {t.sectionContent}
             </label>
             <Card className="space-y-3 p-3">
               {content.map((row, i) => (
@@ -739,15 +726,15 @@ export default function StudioPage() {
                     <span className="cursor-grab text-muted-foreground/60 active:cursor-grabbing" aria-hidden>⋮⋮</span>
                     <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">{row.section}</span>
                     <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{row.id}</span>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => removeContent(row.id)} aria-label="Удалить секцию"><X className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => removeContent(row.id)} aria-label={t.deleteSection}><X className="h-4 w-4" /></Button>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <Input value={row.title} onChange={(e) => setField(row.id, 'title', e.target.value)} placeholder="Заголовок" />
-                    <Input value={row.subtitle} onChange={(e) => setField(row.id, 'subtitle', e.target.value)} placeholder="Подзаголовок" />
+                    <Input value={row.title} onChange={(e) => setField(row.id, 'title', e.target.value)} placeholder={t.titleph} />
+                    <Input value={row.subtitle} onChange={(e) => setField(row.id, 'subtitle', e.target.value)} placeholder={t.subheading} />
                     {row.section === 'hero' && (
                       <>
-                        <Input value={row.ctaLabel} onChange={(e) => setField(row.id, 'ctaLabel', e.target.value)} placeholder="Текст кнопки (CTA)" />
-                        <Input value={row.ctaHref} onChange={(e) => setField(row.id, 'ctaHref', e.target.value)} placeholder="Ссылка кнопки (/...)" />
+                        <Input value={row.ctaLabel} onChange={(e) => setField(row.id, 'ctaLabel', e.target.value)} placeholder={t.ctaLabelPh} />
+                        <Input value={row.ctaHref} onChange={(e) => setField(row.id, 'ctaHref', e.target.value)} placeholder={t.ctaHrefPh} />
                       </>
                     )}
                   </div>
@@ -755,7 +742,7 @@ export default function StudioPage() {
               ))}
               <div className="flex items-center gap-2">
                 <Button size="sm" onClick={saveContent} disabled={contentBusy} className="gap-1.5">
-                  {contentBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Сохранить контент
+                  {contentBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t.saveContent}
                 </Button>
                 {contentMsg && <span className="text-xs text-muted-foreground">{contentMsg}</span>}
               </div>
@@ -763,7 +750,7 @@ export default function StudioPage() {
           </motion.section>
         )}
         {content.length === 0 && (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Пока нет секций с контентом. Сгенерируй видео на вкладке «Генерация».</p>
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">{t.noContent}</p>
         )}
         </>
         )}
@@ -772,7 +759,7 @@ export default function StudioPage() {
         {tab === 'layout' && (
         <motion.section {...fade} transition={{ ...fade.transition, delay: 0.09 }} className="mb-6">
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <LayoutList className="h-4 w-4 text-primary" /> Конструктор страницы
+            <LayoutList className="h-4 w-4 text-primary" /> {t.pageBuilder}
           </label>
           <Card className="p-3">
             <div className="space-y-2">
@@ -787,14 +774,14 @@ export default function StudioPage() {
                 >
                   <span className="cursor-grab text-muted-foreground/60 active:cursor-grabbing" aria-hidden>⋮⋮</span>
                   <span className="flex h-6 w-6 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-muted-foreground">{i + 1}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{BLOCK_LABELS[block] ?? block}</span>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => moveBlock(i, -1)} disabled={i === 0} aria-label="Вверх"><ArrowUp className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => moveBlock(i, 1)} disabled={i === builderLayout.length - 1} aria-label="Вниз"><ArrowDown className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => removeBlock(i)} aria-label="Удалить"><X className="h-4 w-4" /></Button>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{t.blockLabels[block] ?? block}</span>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => moveBlock(i, -1)} disabled={i === 0} aria-label={t.up}><ArrowUp className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => moveBlock(i, 1)} disabled={i === builderLayout.length - 1} aria-label={t.down}><ArrowDown className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => removeBlock(i)} aria-label={t.remove}><X className="h-4 w-4" /></Button>
                 </div>
               ))}
               {builderLayout.length === 0 && (
-                <p className="rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground">Нет блоков — добавьте ниже.</p>
+                <p className="rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground">{t.noBlocks}</p>
               )}
             </div>
 
@@ -803,16 +790,16 @@ export default function StudioPage() {
                 <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ALL_BLOCKS.map((b) => (
-                    <SelectItem key={b} value={b}>{BLOCK_LABELS[b]}</SelectItem>
+                    <SelectItem key={b} value={b}>{t.blockLabels[b]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Button size="sm" variant="outline" onClick={appendBlock} className="gap-1.5"><Plus className="h-4 w-4" /> Добавить</Button>
-              <Button size="sm" variant="outline" onClick={loadFromTheme} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Из темы</Button>
+              <Button size="sm" variant="outline" onClick={appendBlock} className="gap-1.5"><Plus className="h-4 w-4" /> {t.add}</Button>
+              <Button size="sm" variant="outline" onClick={loadFromTheme} className="gap-1.5"><RotateCcw className="h-4 w-4" /> {t.fromTheme}</Button>
               <div className="ml-auto flex items-center gap-2">
-                <Button size="sm" variant="ghost" onClick={() => saveLayout(true)} disabled={builderBusy}>Сброс</Button>
+                <Button size="sm" variant="ghost" onClick={() => saveLayout(true)} disabled={builderBusy}>{t.reset}</Button>
                 <Button size="sm" onClick={() => saveLayout(false)} disabled={builderBusy} className="gap-1.5">
-                  {builderBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Сохранить
+                  {builderBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t.save}
                 </Button>
               </div>
               {builderMsg && <span className="w-full text-xs text-muted-foreground">{builderMsg}</span>}
@@ -825,14 +812,14 @@ export default function StudioPage() {
         {tab === 'config' && (
         <motion.section {...fade} transition={{ ...fade.transition, delay: 0.11 }} className="mb-6">
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <Upload className="h-4 w-4 text-primary" /> Конфигурация сайта
+            <Upload className="h-4 w-4 text-primary" /> {t.siteConfig}
           </label>
           <Card className="flex flex-wrap items-center gap-2 p-3">
             <a href="/api/export">
-              <Button size="sm" variant="outline" className="gap-1.5"><ArrowDown className="h-4 w-4" /> Экспорт JSON</Button>
+              <Button size="sm" variant="outline" className="gap-1.5"><ArrowDown className="h-4 w-4" /> {t.exportJson}</Button>
             </a>
             <Button size="sm" variant="outline" onClick={() => cfgFileRef.current?.click()} className="gap-1.5">
-              <Upload className="h-4 w-4" /> Импорт JSON
+              <Upload className="h-4 w-4" /> {t.importJson}
             </Button>
             <input ref={cfgFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => e.target.files?.[0] && importConfig(e.target.files[0])} />
             {cfgMsg && <span className="text-xs text-muted-foreground">{cfgMsg}</span>}
@@ -848,7 +835,7 @@ export default function StudioPage() {
             <motion.section {...fade} className="mb-6">
               <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-xs text-primary">★</span>
-                План страницы — {batch.length} секц.
+                {t.planTitle.replace('{n}', String(batch.length))}
               </label>
               <Card className="space-y-2 p-3">
                 {batch.map((it, i) => (
@@ -867,22 +854,22 @@ export default function StudioPage() {
                     <span className="shrink-0">
                       {it.state === 'running' && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
                       {it.state === 'done' && <Check className="h-4 w-4 text-green-500" />}
-                      {it.state === 'error' && <span className="text-xs text-red-500" title={it.error}>ошибка</span>}
-                      {it.state === 'pending' && <span className="text-xs text-muted-foreground/60">в очереди</span>}
+                      {it.state === 'error' && <span className="text-xs text-red-500" title={it.error}>{t.stateError}</span>}
+                      {it.state === 'pending' && <span className="text-xs text-muted-foreground/60">{t.stateQueued}</span>}
                     </span>
                   </motion.div>
                 ))}
                 <div className="pt-1">
                   <Button onClick={runBatch} disabled={batchRunning} className="w-full gap-2">
                     {batchRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
-                    {batchRunning ? 'Генерируем секции…' : 'Сгенерировать все секции'}
+                    {batchRunning ? t.generatingSections : t.generateAll}
                   </Button>
-                  <Link href="/" className="mt-2 block text-center text-xs text-muted-foreground hover:text-foreground">После готовности — открыть главную →</Link>
+                  <Link href="/" className="mt-2 block text-center text-xs text-muted-foreground hover:text-foreground">{t.afterReady}</Link>
                 </div>
                 {batchRunning && logs.length > 0 && (
                   <div className="mt-1">
                     <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <Terminal className="h-3.5 w-3.5" /> Логи пайплайна
+                      <Terminal className="h-3.5 w-3.5" /> {t.pipelineLogs}
                     </div>
                     <div
                       ref={logRef}
@@ -907,7 +894,7 @@ export default function StudioPage() {
             <motion.section key="prompt" {...fade} className="mb-6">
               <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-xs text-primary">2</span>
-                Кинематографический промпт
+                {t.promptTitle}
               </label>
               <Card className="relative overflow-hidden p-1">
                 {/* animated gradient sheen */}
@@ -929,7 +916,7 @@ export default function StudioPage() {
                     <Input
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Заголовок"
+                      placeholder={t.titlePh}
                       className="flex-1 min-w-[8rem]"
                     />
                     <Select value={section} onValueChange={(v) => setSection(v as Section)}>
@@ -949,7 +936,7 @@ export default function StudioPage() {
                       </SelectContent>
                     </Select>
                     <Button size="sm" variant="outline" onClick={copyPrompt} className="gap-1.5">
-                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />} Копировать
+                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />} {t.copy}
                     </Button>
                   </div>
                 </div>
@@ -969,10 +956,10 @@ export default function StudioPage() {
                 className="gap-2"
               >
                 {status === 'running' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Clapperboard className="h-5 w-5" />}
-                {status === 'running' ? 'Создаём видео…' : 'Создать видео'}
+                {status === 'running' ? t.creatingVideo : t.createVideo}
               </Button>
               <p className="mt-3 text-xs text-muted-foreground">
-                Нужен <code>MUAPI_KEY</code> в <code>.env.local</code>. Без ключа используйте CLI с <code>--from</code>.
+                {t.needKey1} <code>MUAPI_KEY</code> {t.needKey2} <code>.env.local</code>.
               </p>
             </motion.section>
           )}
@@ -982,15 +969,15 @@ export default function StudioPage() {
         <AnimatePresence>
           {status === 'running' && (
             <motion.div {...fade} className="mt-8 overflow-hidden rounded-2xl border border-border bg-card/60 p-6 backdrop-blur">
-              <div className="mb-3 flex items-center gap-2 text-sm font-medium"><Loader2 className="h-4 w-4 animate-spin text-primary" /> Генерация и оптимизация…</div>
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium"><Loader2 className="h-4 w-4 animate-spin text-primary" /> {t.genOptimizing}</div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <motion.div className="h-full rounded-full bg-primary" animate={{ x: ['-100%', '100%'] }} transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }} style={{ width: '40%' }} />
               </div>
-              <p className="mt-3 text-xs text-muted-foreground">Видео-модели рендерят от 1 до нескольких минут — окно можно не закрывать.</p>
+              <p className="mt-3 text-xs text-muted-foreground">{t.renderNote}</p>
               {logs.length > 0 && (
                 <div className="mt-4">
                   <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Terminal className="h-3.5 w-3.5" /> Логи пайплайна
+                    <Terminal className="h-3.5 w-3.5" /> {t.pipelineLogs}
                   </div>
                   <div
                     ref={logRef}
@@ -1009,18 +996,18 @@ export default function StudioPage() {
 
           {status === 'done' && result && (
             <motion.div {...fade} className="mt-8 rounded-2xl border border-border bg-card/60 p-4 backdrop-blur">
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-green-500"><Check className="h-4 w-4" /> Готово — клип добавлен на сайт</div>
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-green-500"><Check className="h-4 w-4" /> {t.doneClip}</div>
               <LazyVideo src={result.src} srcMp4={result.srcMp4} poster={result.poster} ratio={result.aspectRatio} className="w-full rounded-xl" />
               <div className="mt-4 flex items-center justify-between">
                 <p className="truncate text-sm font-medium">{result.title}</p>
-                <Link href="/"><Button size="sm" variant="outline" className="gap-1.5">На главную <ArrowRight className="h-4 w-4" /></Button></Link>
+                <Link href="/"><Button size="sm" variant="outline" className="gap-1.5">{t.toHome} <ArrowRight className="h-4 w-4" /></Button></Link>
               </div>
             </motion.div>
           )}
 
           {status === 'error' && (
             <motion.div {...fade} className="mt-8 rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm">
-              <p className="font-semibold text-red-500">Не удалось сгенерировать</p>
+              <p className="font-semibold text-red-500">{t.genFailed}</p>
               <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{error}</pre>
             </motion.div>
           )}
@@ -1036,11 +1023,11 @@ export default function StudioPage() {
           <div
             onMouseDown={() => { draggingPane.current = true; document.body.style.userSelect = 'none'; }}
             className="absolute left-0 top-0 z-20 h-full w-1.5 -translate-x-1/2 cursor-col-resize hover:bg-primary/40"
-            title="Потяни, чтобы изменить ширину панели"
+            title={t.resizeHint}
           />
           <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground">
             <Eye className="h-4 w-4 text-primary" />
-            <span className="truncate">Предпросмотр — /</span>
+            <span className="truncate">{t.preview}</span>
             <div className="ml-2 flex items-center gap-0.5 rounded-lg border border-border p-0.5">
               {(['full', 'tablet', 'mobile'] as const).map((dv) => {
                 const Icon = dv === 'full' ? Monitor : dv === 'tablet' ? Tablet : Smartphone;
@@ -1052,15 +1039,15 @@ export default function StudioPage() {
               })}
             </div>
             <div className="ml-auto flex items-center gap-1">
-              <Link href="/" target="_blank" className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">Открыть</Link>
+              <Link href="/" target="_blank" className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">{t.open}</Link>
               <button onClick={() => setPreviewKey((k) => k + 1)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">
-                <RotateCcw className="h-3.5 w-3.5" /> Обновить
+                <RotateCcw className="h-3.5 w-3.5" /> {t.refresh}
               </button>
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-4">
             <div className="mx-auto h-full transition-[width] duration-300" style={{ width: DEVICE[device] }}>
-              <iframe key={previewKey} src="/" title="Предпросмотр сайта" className="h-full w-full rounded-xl border border-border bg-background shadow-2xl" />
+              <iframe key={previewKey} src="/" title={t.previewTitle} className="h-full w-full rounded-xl border border-border bg-background shadow-2xl" />
             </div>
           </div>
         </div>
