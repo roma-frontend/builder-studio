@@ -16,8 +16,21 @@ export type DashDict = {
     database: string;
     control: string;
     studio: string;
+    audit: string;
+    access: string;
+    activity: string;
+    trash: string;
   };
   roles: { superadmin: string; admin: string; customer: string };
+  sidebar: {
+    groupWorkspace: string;
+    groupStaff: string;
+    groupSuper: string;
+    collapse: string;
+    expand: string;
+    search: string;
+    noResults: string;
+  };
   brandSub: string;
   gatedTitle: string;
   gatedNote: string;
@@ -201,8 +214,21 @@ const ru: DashDict = {
     database: 'База данных',
     control: 'Центр контроля',
     studio: 'Студия',
+    audit: 'Журнал аудита',
+    access: 'Доступ ролей',
+    activity: 'Активность персонала',
+    trash: 'Корзина',
   },
   roles: { superadmin: 'Суперадмин', admin: 'Админ', customer: 'Клиент' },
+  sidebar: {
+    groupWorkspace: 'Рабочее пространство',
+    groupStaff: 'Персонал платформы',
+    groupSuper: 'Суперадмин',
+    collapse: 'Свернуть меню',
+    expand: 'Развернуть меню',
+    search: 'Поиск разделов…',
+    noResults: 'Ничего не найдено',
+  },
   brandSub: 'Дашборд',
   gatedTitle: 'Доступ ограничен',
   gatedNote: 'Доступ к разделам откроется после одобрения заявки суперадмином.',
@@ -386,8 +412,21 @@ const en: DashDict = {
     database: 'Database',
     control: 'Control center',
     studio: 'Studio',
+    audit: 'Audit log',
+    access: 'Role access',
+    activity: 'Staff activity',
+    trash: 'Trash',
   },
   roles: { superadmin: 'Superadmin', admin: 'Admin', customer: 'Customer' },
+  sidebar: {
+    groupWorkspace: 'Workspace',
+    groupStaff: 'Platform staff',
+    groupSuper: 'Superadmin',
+    collapse: 'Collapse menu',
+    expand: 'Expand menu',
+    search: 'Search sections…',
+    noResults: 'Nothing found',
+  },
   brandSub: 'Dashboard',
   gatedTitle: 'Access restricted',
   gatedNote: 'Sections unlock once a superadmin approves your request.',
@@ -571,8 +610,21 @@ const hy: DashDict = {
     database: 'Տվյալների բազա',
     control: 'Կառավարման կենտրոն',
     studio: 'Ստուդիա',
+    audit: 'Աուդիտի մատյան',
+    access: 'Դերերի հասանելիություն',
+    activity: 'Անձնակազմի ակտիվություն',
+    trash: 'Աղբարկղ',
   },
   roles: { superadmin: 'Գերադմին', admin: 'Ադմին', customer: 'Հաճախորդ' },
+  sidebar: {
+    groupWorkspace: 'Աշխատանքային տարածք',
+    groupStaff: 'Հարթակի անձնակազմ',
+    groupSuper: 'Գերադմին',
+    collapse: 'Ծալել ընտրացանկը',
+    expand: 'Բացել ընտրացանկը',
+    search: 'Բաժինների որոնում…',
+    noResults: 'Ոչինչ չի գտնվել',
+  },
   brandSub: 'Վահանակ',
   gatedTitle: 'Մուտքը սահմանափակ է',
   gatedNote: 'Բաժինները կբացվեն, երբ գերադմինը հաստատի ձեր հայտը։',
