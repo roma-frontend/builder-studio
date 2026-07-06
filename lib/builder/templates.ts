@@ -794,7 +794,7 @@ const stepsSection = (): BuilderNode =>
       ['03', 'Запускаем', 'Приступаем к работе и показываем результат.'],
     ] as [string, string, string][]).map(([n, h, t]) =>
       mk('card', { cardVariant: 'outline', padding: 'md', gap: 'sm', animate: 'slide-up' }, [
-        mk('heading', { text: n, level: '1', align: 'left', textColor: 'primary' }),
+        mk('text', { text: n, align: 'left', textColor: 'primary', fontSize: '4xl', fontWeight: 'bold' }),
         mk('heading', { text: h, level: '3', align: 'left' }),
         mk('text', { text: t, align: 'left', muted: 'true' }),
       ]),
@@ -906,13 +906,13 @@ const pageHeader = (title: string, sub: string): BuilderNode =>
 // === 1. AI — asymmetric hero (dashboard mock) + zig-zag alternating rows ===
 const aiRow = (num: string, title: string, body: string, bullets: string, flip: boolean): BuilderNode => {
   const text = mk('stack', { gap: 'sm', align: 'start' }, [
-    mk('heading', { text: num, level: '1', align: 'left', textColor: 'primary', fontSize: '3xl', fontWeight: 'bold' }),
+    mk('text', { text: num, align: 'left', textColor: 'primary', fontSize: '3xl', fontWeight: 'bold' }),
     mk('heading', { text: title, level: '2', align: 'left' }),
     mk('text', { text: body, align: 'left', muted: 'true', lineHeight: 'relaxed' }),
     mk('list', { items: bullets, listVariant: 'arrow' }),
   ]);
   const visual = mk('card', { cardVariant: 'soft', padding: 'lg', gap: 'sm', radius: 'xl', hover: 'lift' }, [
-    mk('heading', { text: num, level: '1', align: 'center', textColor: 'primary', fontSize: '4xl', fontWeight: 'bold' }),
+    mk('text', { text: num, align: 'center', textColor: 'primary', fontSize: '4xl', fontWeight: 'bold' }),
     mk('text', { text: title, align: 'center', muted: 'true' }),
   ]);
   return mk('section', { padding: 'lg', bg: flip ? 'muted' : 'none', width: 'wide' }, [
@@ -1123,7 +1123,7 @@ const glassPanel = (title: string, body: string): BuilderNode =>
   ]);
 const stepChip = (num: string, title: string, body: string): BuilderNode =>
   mk('card', { cardVariant: 'elevated', padding: 'md', gap: 'sm', radius: 'xl', hover: 'lift' }, [
-    mk('heading', { text: num, level: '1', align: 'left', textColor: 'primary' }),
+    mk('text', { text: num, align: 'left', textColor: 'primary', fontSize: '4xl', fontWeight: 'bold' }),
     mk('heading', { text: title, level: '3', align: 'left' }),
     mk('text', { text: body, align: 'left', muted: 'true', size: 'sm' }),
   ]);

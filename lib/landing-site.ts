@@ -47,7 +47,7 @@ function seedLandingDoc(): BuilderDoc {
         mk('spacer', { height: 'md' }),
         mk('grid', { gap: 'md', columns: '3', stagger: 'true' }, L.steps.items.map((s) =>
           mk('card', { cardVariant: 'outline', padding: 'md', gap: 'sm', animate: 'slide-up', hover: 'lift' }, [
-            mk('heading', { text: s.n, level: '1', align: 'left', textColor: 'primary' }),
+            mk('text', { text: s.n, align: 'left', textColor: 'primary', fontSize: '4xl', fontWeight: 'bold' }),
             mk('heading', { text: s.title, level: '3', align: 'left' }),
             mk('text', { text: s.text, align: 'left', muted: 'true' }),
           ]),
