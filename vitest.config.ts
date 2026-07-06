@@ -21,7 +21,8 @@ export default defineConfig({
       reporter: ['text-summary'],
       include: ['lib/**/*.ts'],
       // media.ts is a type-only module (no runtime code to execute).
-      exclude: ['**/*.test.ts', '**/*.d.ts', 'lib/db/schema.ts', 'lib/media.ts'],
+      // *-dict.ts are static i18n translation tables (data, not logic).
+      exclude: ['**/*.test.ts', '**/*.d.ts', 'lib/db/schema.ts', 'lib/media.ts', 'lib/**/*-dict.ts'],
       // Fail CI if coverage regresses below these floors (set under current
       // levels with margin so it catches real drops without being flaky).
       thresholds: {
