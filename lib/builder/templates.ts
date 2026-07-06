@@ -515,6 +515,16 @@ export function tplText(s: string, locale: Locale = DEFAULT_LOCALE): string {
   return trc(s, locale);
 }
 
+// The ready-made legal pages seeded into every new tenant site (Privacy / Terms
+// / Cookie), localized. They render in the footer automatically (site-chrome
+// auto-links legal paths) and stay fully editable in the builder.
+export function legalPages(locale: Locale = DEFAULT_LOCALE): BuilderPage[] {
+  return ['legal-privacy', 'legal-terms', 'legal-cookies']
+    .map((id) => TEMPLATES.find((t) => t.id === id))
+    .filter((d): d is TemplateDef => Boolean(d))
+    .map((d) => translatePage(d.build(), locale));
+}
+
 // Marker substrings of the auto-generated starter home page in each locale —
 // lets the builder detect an untouched home and replace it in place when a
 // landing is applied, regardless of the site's creation locale.

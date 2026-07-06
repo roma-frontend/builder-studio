@@ -141,9 +141,28 @@ export function Header({ doc }: { doc: BuilderDoc }) {
   );
 }
 
+// Legal pages (by reserved path) are auto-linked in the footer whenever the
+// site has them — so a tenant's Privacy/Terms/Cookie pages always appear in the
+// footer without the admin wiring links manually. Deduped against manual links.
+const LEGAL_PATHS = ['privacy', 'terms', 'cookies', 'cookie-policy', 'acceptable-use'];
+function footerLinks(doc: BuilderDoc): { href: string; label: string }[] {
+  const links = [...doc.footer.links];
+  const have = new Set(links.map((l) => l.href));
+  for (const p of doc.pages) {
+    if (!p.path || !LEGAL_PATHS.includes(p.path)) continue;
+    // Match how nav/footer hrefs are rebased: undefined base = legacy /site.
+    const href = doc.base === undefined ? `/site/${p.path}` : `${doc.base}/${p.path}`;
+    if (!have.has(href)) {
+      links.push({ href, label: p.title });
+      have.add(href);
+    }
+  }
+  return links;
+}
+
 export function Footer({ doc, t = RT_DEFAULT }: { doc: BuilderDoc; t?: SiteRtDict }) {
   const variant = doc.footerVariant || 'simple';
-  const links = doc.footer.links;
+  const links = footerLinks(doc);
   if (variant === 'centered') {
     return (
       <footer className="border-t border-border/60 bg-muted/30">

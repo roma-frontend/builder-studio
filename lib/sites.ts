@@ -6,7 +6,7 @@ import 'server-only';
 import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { getDb, newId, sites, domains, submissions, type Site, type Domain } from '@/lib/db';
 import { DEFAULT_DOC, type BuilderDoc, type BuilderNode } from '@/lib/builder/types';
-import { starterPage } from '@/lib/builder/templates';
+import { starterPage, legalPages } from '@/lib/builder/templates';
 import { trc } from '@/lib/builder/templates-i18n';
 import { DEFAULT_LOCALE, type Locale } from '@/lib/seo';
 
@@ -55,7 +55,10 @@ export function createSite(userId: string, name: string, locale: Locale = DEFAUL
     brand: trimmed,
     nav: [],
     footer: { text: `© ${new Date().getFullYear()} ${trimmed}. ${trc('Все права защищены', locale)}.`, links: [] },
-    pages: [starterPage(trimmed, locale)],
+    // Seed the home page plus ready-made Privacy/Terms/Cookie pages — they are
+    // auto-linked in the site footer (see site-chrome footerLinks) and remain
+    // fully editable in the builder.
+    pages: [starterPage(trimmed, locale), ...legalPages(locale)],
   };
   const site: Site = {
     id: newId('s'),
