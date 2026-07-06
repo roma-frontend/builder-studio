@@ -38,6 +38,11 @@ export type SiteRtDict = {
   links: string;
   subscribe: string;
   logo: string;
+  // tenant auth page specifics (platform uses 8-char min; tenant uses 6)
+  loginFailed: string;
+  registerFailed: string;
+  pwMin6: string;
+  pwMin6Ph: string;
 };
 
 const ru: SiteRtDict = {
@@ -72,6 +77,10 @@ const ru: SiteRtDict = {
   links: 'Ссылки',
   subscribe: 'Подписаться',
   logo: 'Логотип',
+  loginFailed: 'Не удалось войти',
+  registerFailed: 'Не удалось зарегистрировать',
+  pwMin6: 'Пароль должен быть не короче 6 символов.',
+  pwMin6Ph: 'Минимум 6 символов',
 };
 
 const en: SiteRtDict = {
@@ -106,6 +115,10 @@ const en: SiteRtDict = {
   links: 'Links',
   subscribe: 'Subscribe',
   logo: 'Logo',
+  loginFailed: 'Could not sign in',
+  registerFailed: 'Could not register',
+  pwMin6: 'Password must be at least 6 characters.',
+  pwMin6Ph: 'At least 6 characters',
 };
 
 const hy: SiteRtDict = {
@@ -140,6 +153,10 @@ const hy: SiteRtDict = {
   links: 'Հղումներ',
   subscribe: 'Բաժանորդագրվել',
   logo: 'Լոգո',
+  loginFailed: 'Չհաջողվեց մուտք գործել',
+  registerFailed: 'Չհաջողվեց գրանցվել',
+  pwMin6: 'Գաղտնաբառը պետք է լինի առնվազն 6 նիշ։',
+  pwMin6Ph: 'Առնվազն 6 նիշ',
 };
 
 export const SITE_RT: Record<Locale, SiteRtDict> = { ru, en, hy };
