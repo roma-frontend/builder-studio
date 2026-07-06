@@ -2,11 +2,29 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Film, Sparkles, ArrowRight } from 'lucide-react';
 import { getLocale } from '@/lib/i18n';
+import { getCurrentUser } from '@/lib/auth';
 import { ui } from '@/lib/ui-dict';
 
 /** Rich multi-column footer with brand, CTA and grouped navigation. */
 export async function SiteFooter() {
   const t = ui(await getLocale());
+  const me = await getCurrentUser();
+  // Signed-in users shouldn't see "sign up / sign in" entry points — swap the
+  // Account column and the brand CTA for dashboard-oriented actions.
+  const accountLinks = me
+    ? [
+        { href: '/dashboard', label: t.actions.dashboard },
+        { href: '/dashboard/sites', label: t.footer.mySites },
+        { href: '/dashboard/account', label: t.actions.account },
+      ]
+    : [
+        { href: '/register', label: t.footer.register },
+        { href: '/login', label: t.actions.login },
+        { href: '/dashboard', label: t.footer.mySites },
+      ];
+  const cta = me
+    ? { href: '/dashboard', label: t.actions.openDashboard }
+    : { href: '/register', label: t.footer.startFree };
   const COLS: { title: string; links: { href: string; label: string }[] }[] = [
     {
       title: t.footer.product,
@@ -19,11 +37,7 @@ export async function SiteFooter() {
     },
     {
       title: t.footer.account,
-      links: [
-        { href: '/register', label: t.footer.register },
-        { href: '/login', label: t.actions.login },
-        { href: '/dashboard', label: t.footer.mySites },
-      ],
+      links: accountLinks,
     },
     {
       title: t.footer.resources,
@@ -52,8 +66,8 @@ export async function SiteFooter() {
             <p className="mt-4 max-w-xs text-sm text-muted-foreground">
               {t.footer.blurb}
             </p>
-            <Link href="/register" className="mt-5 inline-block">
-              <Button size="sm" className="gap-1.5 shadow-lg"><Sparkles className="h-4 w-4" /> {t.footer.startFree} <ArrowRight className="h-4 w-4" /></Button>
+            <Link href={cta.href} className="mt-5 inline-block">
+              <Button size="sm" className="gap-1.5 shadow-lg"><Sparkles className="h-4 w-4" /> {cta.label} <ArrowRight className="h-4 w-4" /></Button>
             </Link>
           </div>
 
