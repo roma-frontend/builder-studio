@@ -4,32 +4,19 @@ import { ThemeStyle } from '@/components/theme-style';
 import { ThemeFX } from '@/components/theme-fx';
 import { siteTheme } from '@/lib/site-theme';
 import { LayoutTemplate, ArrowRight, Sparkles } from 'lucide-react';
+import { getLocale } from '@/lib/i18n';
+import { pagesDict } from '@/lib/pages-dict';
 
-export const metadata = {
-  title: 'Пресеты страниц — Кинематографический кит',
-  description: 'Готовые шаблоны страниц, собранные из кинематографических блоков.',
-};
+export async function generateMetadata() {
+  const t = pagesDict(await getLocale()).presets;
+  return { title: t.metaTitle, description: t.metaDesc };
+}
 
-const PRESETS = [
-  {
-    href: '/presets/product',
-    title: 'Продукт',
-    desc: 'Лендинг продукта: hero, split-hero, до/после, sticky-история, мозаика и каталог.',
-    blocks: ['VideoHero', 'SplitHero', 'BeforeAfter', 'StickyShowcase', 'VideoMosaic'],
-  },
-  {
-    href: '/presets/portfolio',
-    title: 'Портфолио',
-    desc: 'Витрина работ на мозаике с крупными акцентными плитками и блоком о процессе.',
-    blocks: ['SplitHero', 'VideoMosaic', 'VideoCardGrid'],
-  },
-  {
-    href: '/presets/story',
-    title: 'История бренда',
-    desc: 'Полноэкранный сторителлинг: sticky-главы поверх клипа и видеополоса-манифест.',
-    blocks: ['VideoHero', 'StickyShowcase', 'VideoSection'],
-  },
-];
+const PRESET_DEFS = [
+  { key: 'product', href: '/presets/product', blocks: ['VideoHero', 'SplitHero', 'BeforeAfter', 'StickyShowcase', 'VideoMosaic'] },
+  { key: 'portfolio', href: '/presets/portfolio', blocks: ['SplitHero', 'VideoMosaic', 'VideoCardGrid'] },
+  { key: 'story', href: '/presets/story', blocks: ['VideoHero', 'StickyShowcase', 'VideoSection'] },
+] as const;
 
 /**
  * The real preset page rendered small: a desktop-width iframe scaled to 1/4.
@@ -41,7 +28,7 @@ function LivePreview({ href, title }: { href: string; title: string }) {
     <div className="relative aspect-[16/10] overflow-hidden border-b border-border bg-muted">
       <iframe
         src={href}
-        title={`Превью: ${title}`}
+        title={title}
         aria-hidden
         tabIndex={-1}
         loading="lazy"
@@ -54,7 +41,9 @@ function LivePreview({ href, title }: { href: string; title: string }) {
   );
 }
 
-export default function PresetsIndex() {
+export default async function PresetsIndex() {
+  const t = pagesDict(await getLocale()).presets;
+  const presets = PRESET_DEFS.map((p) => ({ ...p, title: t.items[p.key].title, desc: t.items[p.key].desc }));
   return (
     <main className="min-h-dvh">
       <ThemeStyle theme={siteTheme()} />
@@ -63,18 +52,17 @@ export default function PresetsIndex() {
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-12 sm:px-10">
         <div className="mb-2 flex items-center gap-2">
           <LayoutTemplate className="h-6 w-6 text-primary" />
-          <h1 className="font-display text-3xl font-black tracking-tight">Пресеты страниц</h1>
+          <h1 className="font-display text-3xl font-black tracking-tight">{t.title}</h1>
         </div>
         <p className="mb-8 max-w-2xl text-muted-foreground">
-          Готовые композиции из наших кинематографических блоков — ниже каждый пресет показан вживую, на текущих
-          клипах из <code>data/media.json</code>. Открой любой, чтобы посмотреть в полный экран.
+          {t.intro}
         </p>
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {PRESETS.map((p) => (
+          {presets.map((p) => (
             <Link key={p.title} href={p.href} className="group">
               <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/60 backdrop-blur transition-shadow hover:shadow-lg">
-                <LivePreview href={p.href} title={p.title} />
+                <LivePreview href={p.href} title={t.previewOf.replace('{title}', p.title)} />
                 <div className="flex flex-1 flex-col p-6">
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-lg font-bold tracking-tight">{p.title}</h2>
@@ -96,8 +84,7 @@ export default function PresetsIndex() {
 
         <div className="mt-10 flex items-center gap-2 rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
           <Sparkles className="h-4 w-4 text-primary" />
-          Хочешь свой пресет? Скомпонуй блоки из <code>components/media/</code> в новом файле{' '}
-          <code>app/presets/…/page.tsx</code> — все блоки принимают <code>MediaEntry</code>.
+          {t.customTitle}
         </div>
       </div>
     </main>

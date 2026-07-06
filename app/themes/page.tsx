@@ -5,15 +5,17 @@ import { ThemeStyle } from '@/components/theme-style';
 import { ThemeFX } from '@/components/theme-fx';
 import { activeSiteTheme } from '@/lib/site-theme';
 import { Palette, Check } from 'lucide-react';
+import { getLocale } from '@/lib/i18n';
+import { pagesDict, type PagesDict } from '@/lib/pages-dict';
 
-export const metadata = {
-  title: 'Темы / шаблоны — Кинематографический кит',
-  description: 'Галерея дизайн-тем, которые движок подбирает под тему сайта.',
-};
+export async function generateMetadata() {
+  const t = pagesDict(await getLocale()).themes;
+  return { title: t.metaTitle, description: t.metaDesc };
+}
 
 const ok = (v: string) => `oklch(${v})`;
 
-function ThemePreview({ theme, active }: { theme: Theme; active?: boolean }) {
+function ThemePreview({ theme, active, t }: { theme: Theme; active?: boolean; t: PagesDict['themes'] }) {
   const d = theme.dark;
   const swatches: [string, string][] = [
     ['primary', d.primary],
@@ -32,7 +34,7 @@ function ThemePreview({ theme, active }: { theme: Theme; active?: boolean }) {
           className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
           style={{ background: ok(d.primary), color: ok(d['primary-foreground']) }}
         >
-          <Check className="h-3 w-3" /> Активна на сайте
+          <Check className="h-3 w-3" /> {t.activeOnSite}
         </span>
       )}
       {/* Preview surface */}
@@ -44,18 +46,18 @@ function ThemePreview({ theme, active }: { theme: Theme; active?: boolean }) {
           {theme.label}
         </h3>
         <p className="mt-1 text-sm" style={{ color: ok(d['muted-foreground']) }}>
-          Заголовки: {theme.fontDisplay} · радиус {theme.radius} · движение {theme.motion}
+          {t.headings.replace('{font}', theme.fontDisplay).replace('{radius}', theme.radius).replace('{motion}', theme.motion)}
         </p>
 
         {/* Sample card + button */}
         <div className="mt-4 rounded-xl p-4" style={{ background: ok(d.card), border: `1px solid ${ok(d.border)}` }}>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium">Пример карточки</span>
+            <span className="text-sm font-medium">{t.sampleCard}</span>
             <button
               className="rounded-lg px-3 py-1.5 text-sm font-medium"
               style={{ background: ok(d.primary), color: ok(d['primary-foreground']), borderRadius: theme.radius }}
             >
-              Кнопка
+              {t.button}
             </button>
           </div>
         </div>
@@ -74,11 +76,11 @@ function ThemePreview({ theme, active }: { theme: Theme; active?: boolean }) {
       {/* Routing keywords */}
       <div className="px-6 pb-5" style={{ background: ok(d.background) }}>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest" style={{ color: ok(d['muted-foreground']) }}>
-          Срабатывает на
+          {t.triggersOn}
         </p>
         {theme.keywords.length === 0 ? (
           <span className="text-xs" style={{ color: ok(d['muted-foreground']) }}>
-            по умолчанию (если ничего не совпало)
+            {t.defaultWhenNoMatch}
           </span>
         ) : (
           <div className="flex flex-wrap gap-1.5">
@@ -103,8 +105,9 @@ function ThemePreview({ theme, active }: { theme: Theme; active?: boolean }) {
   );
 }
 
-export default function ThemesPage() {
+export default async function ThemesPage() {
   const active = activeSiteTheme();
+  const t = pagesDict(await getLocale()).themes;
   return (
     <main className="min-h-dvh">
       <ThemeStyle theme={active} />
@@ -113,17 +116,15 @@ export default function ThemesPage() {
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-12 sm:px-10">
         <div className="mb-2 flex items-center gap-2">
           <Palette className="h-6 w-6 text-primary" />
-          <h1 className="font-display text-3xl font-black tracking-tight">Темы / шаблоны</h1>
+          <h1 className="font-display text-3xl font-black tracking-tight">{t.title}</h1>
         </div>
         <p className="mb-8 max-w-2xl text-muted-foreground">
-          Движок автоматически подбирает тему под содержание сайта (палитра, шрифт заголовков, радиусы,
-          характер анимаций). Ниже — превью в тёмной схеме и ключевые слова, по которым тема выбирается.
-          Сейчас на сайте активна тема «{active.label}» — она отмечена ниже.
+          {t.intro.replace('{label}', active.label)}
         </p>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {THEMES.map((theme) => (
-            <ThemePreview key={theme.id} theme={theme} active={theme.id === active.id} />
+            <ThemePreview key={theme.id} theme={theme} active={theme.id === active.id} t={t} />
           ))}
         </div>
       </div>

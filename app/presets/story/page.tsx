@@ -9,13 +9,17 @@ import { Reveal } from '@/components/reveal';
 import { ThemeStyle } from '@/components/theme-style';
 import { ThemeFX } from '@/components/theme-fx';
 import { pickTheme } from '@/lib/themes';
+import { getLocale } from '@/lib/i18n';
+import { pagesDict } from '@/lib/pages-dict';
 
-export const metadata = {
-  title: 'Пресет: история бренда — Кинематографический кит',
-  description: 'Полноэкранный сторителлинг на sticky-переходах и видеополосах.',
-};
+export async function generateMetadata() {
+  const t = pagesDict(await getLocale()).presetPages.story;
+  return { title: t.metaTitle, description: t.metaDesc };
+}
 
-export default function StoryPreset() {
+export default async function StoryPreset() {
+  const dict = pagesDict(await getLocale()).presetPages;
+  const p = dict.story;
   const media = mediaData as MediaEntry[];
   const hero = media.find((m) => m.section === 'hero') ?? media[0];
   const bands = media.filter((m) => m.section === 'background');
@@ -27,7 +31,7 @@ export default function StoryPreset() {
       <main className="min-h-dvh">
         <SiteHeader />
         <div className="mx-auto max-w-2xl px-6 py-24 text-center text-muted-foreground">
-          Нет клипов в <code>data/media.json</code>. Сгенерируй хотя бы один в Студии, чтобы увидеть пресет.
+          {dict.noClips}
         </div>
       </main>
     );
@@ -51,9 +55,9 @@ export default function StoryPreset() {
       <StickyShowcase
         entry={hero}
         panels={[
-          { eyebrow: 'Глава 1', title: 'Как всё началось', text: 'Одна идея и одна камера. Остальное — упорство.' },
-          { eyebrow: 'Глава 2', title: 'Первый продукт', text: 'То, что казалось невозможным, стало ежедневной работой.' },
-          { eyebrow: 'Глава 3', title: 'Сегодня', text: 'Команда, стиль и собственный киноязык бренда.' },
+          { eyebrow: p.ch1Eyebrow, title: p.ch1Title, text: p.ch1Text },
+          { eyebrow: p.ch2Eyebrow, title: p.ch2Title, text: p.ch2Text },
+          { eyebrow: p.ch3Eyebrow, title: p.ch3Title, text: p.ch3Text },
         ]}
       />
 
@@ -62,8 +66,8 @@ export default function StoryPreset() {
         <VideoSection
           entry={{
             ...bandEntry,
-            subtitle: bandEntry.subtitle ?? 'Манифест',
-            title: bandEntry.title || 'Мы верим в силу движущегося кадра',
+            subtitle: bandEntry.subtitle ?? p.manifestSubtitle,
+            title: bandEntry.title || p.manifestTitle,
           }}
         />
       </Reveal>
@@ -71,8 +75,8 @@ export default function StoryPreset() {
       {/* 4 — Milestones grid */}
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10">
         <Reveal>
-          <h2 className="mb-2 text-2xl font-bold tracking-tight">Вехи</h2>
-          <p className="mb-6 text-sm text-muted-foreground">Моменты, которые сформировали бренд.</p>
+          <h2 className="mb-2 text-2xl font-bold tracking-tight">{p.milestonesTitle}</h2>
+          <p className="mb-6 text-sm text-muted-foreground">{p.milestonesDesc}</p>
           <VideoCardGrid entries={pad(pool, 3)} />
         </Reveal>
       </div>
