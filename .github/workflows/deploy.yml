@@ -1,0 +1,47 @@
+name: Deploy
+
+# Deploy to Fly.io, but only after the CI workflow (typecheck · lint · tests ·
+# build + e2e) has fully succeeded on main. This guarantees broken commits are
+# never shipped. Requires a repo secret FLY_API_TOKEN (see steps below).
+#
+#   1. Install flyctl locally and log in:  fly auth login
+#   2. Create a scoped deploy token:        fly tokens create deploy -a cinematic-web-kit
+#   3. GitHub → repo → Settings → Secrets and variables → Actions → New secret
+#      Name: FLY_API_TOKEN   Value: <the token from step 2>
+#
+# The very first deploy (app + volume creation) must still be done once by hand:
+#   fly apps create cinematic-web-kit
+#   fly volumes create cwk_data --size 1 --region fra
+#   fly secrets set SESSION_SECRET="<random>"   # + MUAPI_KEY / R2_* as needed
+#   fly deploy
+# After that, every push to main that passes CI auto-deploys via this workflow.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+# Never run two deploys at once (SQLite is single-writer / one machine).
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io
+    runs-on: ubuntu-latest
+    # Only when CI succeeded, and only for real pushes (not PR runs).
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Deploy the exact commit that passed CI, not whatever is newest.
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

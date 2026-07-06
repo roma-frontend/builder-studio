@@ -6,6 +6,7 @@ import { ScrollHeader } from './scroll-header';
 import { SiteAuthButtons } from './site-auth-blocks';
 import { SiteThemeToggle } from './site-theme-toggle';
 import { siteRt, type SiteRtDict } from '@/lib/site-runtime-dict';
+import { LanguageSwitcher } from '../language-switcher';
 
 const RT_DEFAULT = siteRt('ru');
 
@@ -120,7 +121,7 @@ export function Header({ doc }: { doc: BuilderDoc }) {
     desktop = (
       <div className="mx-auto hidden h-16 w-full max-w-6xl items-center justify-between px-6 md:flex">
         {brand}
-        <div className="flex items-center gap-3">{nav}{auth}{themeToggle}</div>
+        <div className="flex items-center gap-3">{nav}{auth}<LanguageSwitcher />{themeToggle}</div>
       </div>
     );
   }

@@ -23,7 +23,7 @@ import { LanguageSwitcher } from '../language-switcher';
 export type Role = 'customer' | 'admin' | 'superadmin';
 export interface ShellUser { name: string; email: string; role: Role }
 
-type NavKey = 'overview' | 'sites' | 'organization' | 'submissions' | 'account' | 'users' | 'allSites' | 'organizations' | 'database' | 'control';
+type NavKey = 'overview' | 'sites' | 'organization' | 'submissions' | 'account' | 'users' | 'allSites' | 'organizations' | 'database' | 'control' | 'studio';
 interface NavItem { href: string; key: NavKey; icon: React.ComponentType<{ className?: string }>; staff?: boolean; super?: boolean }
 
 const NAV: NavItem[] = [
@@ -37,6 +37,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard/organizations', key: 'organizations', icon: Building2, super: true },
   { href: '/dashboard/database', key: 'database', icon: Database, super: true },
   { href: '/dashboard/control', key: 'control', icon: Crown, super: true },
+  { href: '/studio', key: 'studio', icon: Film, super: true },
 ];
 
 const ROLE_CLS: Record<Role, string> = {

@@ -32,6 +32,7 @@ import { chromeBtnClass, CHROME_BTN_VARIANTS, CHROME_BTN_VARIANT_LABELS, CHROME_
 import { useLocale } from '@/hooks/use-locale';
 import { builderTr } from '@/lib/builder-dict';
 import { cn } from '@/lib/utils';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 type Field = { k: string; label: string; kind?: 'text' | 'textarea'; opts?: string[] };
 
@@ -1809,6 +1810,7 @@ function BuilderEditor() {
             <span className="truncate">{previewSrc}</span>
             <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{tr('в реальном времени')}</span>
             <div className="ml-auto flex items-center gap-1">
+              <LanguageSwitcher />
               <button onClick={() => setPreviewDark((v) => !v)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title={tr('Светлая / тёмная тема предпросмотра')}>
                 {previewDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 {previewDark ? tr('Светлая') : tr('Тёмная')}

@@ -15,6 +15,7 @@ export type DashDict = {
     organizations: string;
     database: string;
     control: string;
+    studio: string;
   };
   roles: { superadmin: string; admin: string; customer: string };
   brandSub: string;
@@ -199,6 +200,7 @@ const ru: DashDict = {
     organizations: 'Организации',
     database: 'База данных',
     control: 'Центр контроля',
+    studio: 'Студия',
   },
   roles: { superadmin: 'Суперадмин', admin: 'Админ', customer: 'Клиент' },
   brandSub: 'Дашборд',
@@ -383,6 +385,7 @@ const en: DashDict = {
     organizations: 'Organizations',
     database: 'Database',
     control: 'Control center',
+    studio: 'Studio',
   },
   roles: { superadmin: 'Superadmin', admin: 'Admin', customer: 'Customer' },
   brandSub: 'Dashboard',
@@ -567,6 +570,7 @@ const hy: DashDict = {
     organizations: 'Կազմակերպություններ',
     database: 'Տվյալների բազա',
     control: 'Կառավարման կենտրոն',
+    studio: 'Ստուդիա',
   },
   roles: { superadmin: 'Գերադմին', admin: 'Ադմին', customer: 'Հաճախորդ' },
   brandSub: 'Վահանակ',
