@@ -18,6 +18,8 @@ export interface BillingDict {
     current: string;
     popular: string;
     contact: string;
+    trialBadge: string; // "{n}-day free trial"
+    trialThen: string; // "then {price}{per}"
   };
   planName: Record<PlanId, string>;
   planTagline: Record<PlanId, string>;
@@ -34,6 +36,8 @@ export interface BillingDict {
     manualNote: string;
     confirmManual: string;
     back: string;
+    trialNote: string; // "First {n} days free, then charged"
+    startTrial: string;
   };
   result: {
     successTitle: string;
@@ -82,6 +86,20 @@ export interface BillingDict {
     grantHint: string;
     user: string;
     provider: string;
+    plansTitle: string;
+    plansHint: string;
+    fName: string;
+    fTagline: string;
+    fPriceMonth: string;
+    fPriceYear: string;
+    fTrialDays: string;
+    fSites: string;
+    fUnlimited: string;
+    fPopular: string;
+    fFeatures: string;
+    save: string;
+    saved: string;
+    reset: string;
   };
   status: Record<string, string>;
   interval: { month: string; year: string };
@@ -101,6 +119,8 @@ const ru: BillingDict = {
     current: 'Текущий план',
     popular: 'Популярный',
     contact: 'Связаться',
+    trialBadge: '{n} дня бесплатно',
+    trialThen: 'затем {price}{per}',
   },
   planName: { starter: 'Starter', pro: 'Pro', studio: 'Studio' },
   planTagline: {
@@ -111,17 +131,13 @@ const ru: BillingDict = {
   feature: {
     'sites.publish': 'Публикация сайта',
     'sites.customDomain': 'Свой домен',
-    'sites.members': 'Участники и кабинеты',
-    'sites.removeBranding': 'Без брендинга платформы',
     'builder.advancedCss': 'Продвинутые CSS-свойства',
     'builder.animation': 'Движок анимаций',
     'builder.hoverStates': 'Hover-состояния',
     'builder.customCss': 'Произвольный CSS',
     'builder.effects': '19 эффектов в один клик',
     'builder.copyPasteStyle': 'Копирование стилей',
-    'ai.generate': 'AI-генерация видео и страниц',
-    'support.priority': 'Приоритетная поддержка',
-    'export.pdf': 'PDF-инвойсы и экспорт',
+    'ai.generate': 'AI-генерация страниц',
   },
   limits: {
     sites: '{n} сайтов',
@@ -140,6 +156,8 @@ const ru: BillingDict = {
     manualNote: 'Платёжный провайдер не настроен — подписка будет оформлена вручную (тестовый режим).',
     confirmManual: 'Подтвердить подписку',
     back: 'Назад к тарифам',
+    trialNote: 'Первые {n} дня — бесплатно. Оплата спишется только после окончания пробного периода.',
+    startTrial: 'Начать бесплатный период',
   },
   result: {
     successTitle: 'Оплата прошла успешно',
@@ -188,6 +206,20 @@ const ru: BillingDict = {
     grantHint: 'Активирует подписку без оплаты (тест/промо).',
     user: 'Пользователь',
     provider: 'Провайдер',
+    plansTitle: 'Карточки планов',
+    plansHint: 'Изменяйте цену, название, пробный период и включённые функции. Доступны только реально работающие функции — то, что видит клиент, всегда соответствует коду.',
+    fName: 'Название',
+    fTagline: 'Подзаголовок',
+    fPriceMonth: 'Цена/мес ($)',
+    fPriceYear: 'Цена/год ($)',
+    fTrialDays: 'Пробных дней',
+    fSites: 'Лимит сайтов',
+    fUnlimited: 'Без лимита',
+    fPopular: 'Популярный',
+    fFeatures: 'Функции',
+    save: 'Сохранить',
+    saved: 'Сохранено',
+    reset: 'Сбросить к умолчанию',
   },
   status: {
     active: 'активна',
@@ -217,6 +249,8 @@ const en: BillingDict = {
     current: 'Current plan',
     popular: 'Popular',
     contact: 'Contact',
+    trialBadge: '{n}-day free trial',
+    trialThen: 'then {price}{per}',
   },
   planName: { starter: 'Starter', pro: 'Pro', studio: 'Studio' },
   planTagline: {
@@ -227,17 +261,13 @@ const en: BillingDict = {
   feature: {
     'sites.publish': 'Publish your site',
     'sites.customDomain': 'Custom domain',
-    'sites.members': 'Members & cabinets',
-    'sites.removeBranding': 'Remove platform branding',
     'builder.advancedCss': 'Advanced CSS properties',
     'builder.animation': 'Animation engine',
     'builder.hoverStates': 'Hover states',
     'builder.customCss': 'Custom CSS',
     'builder.effects': '19 one-click effects',
     'builder.copyPasteStyle': 'Copy/paste styles',
-    'ai.generate': 'AI video & page generation',
-    'support.priority': 'Priority support',
-    'export.pdf': 'PDF invoices & export',
+    'ai.generate': 'AI page generation',
   },
   limits: {
     sites: '{n} sites',
@@ -256,6 +286,8 @@ const en: BillingDict = {
     manualNote: 'No payment provider configured — the subscription will be set up manually (test mode).',
     confirmManual: 'Confirm subscription',
     back: 'Back to pricing',
+    trialNote: 'First {n} days are free. You are only charged once the trial ends.',
+    startTrial: 'Start free trial',
   },
   result: {
     successTitle: 'Payment successful',
@@ -304,6 +336,20 @@ const en: BillingDict = {
     grantHint: 'Activates a subscription without payment (test/promo).',
     user: 'User',
     provider: 'Provider',
+    plansTitle: 'Plan cards',
+    plansHint: 'Edit price, name, trial and included features. Only features that actually work are available — what a customer sees always matches the code.',
+    fName: 'Name',
+    fTagline: 'Tagline',
+    fPriceMonth: 'Price/mo ($)',
+    fPriceYear: 'Price/yr ($)',
+    fTrialDays: 'Trial days',
+    fSites: 'Site limit',
+    fUnlimited: 'Unlimited',
+    fPopular: 'Popular',
+    fFeatures: 'Features',
+    save: 'Save',
+    saved: 'Saved',
+    reset: 'Reset to default',
   },
   status: {
     active: 'active',
@@ -333,6 +379,8 @@ const hy: BillingDict = {
     current: 'Ընթացիկ պլան',
     popular: 'Հանրաճանաչ',
     contact: 'Կապ',
+    trialBadge: '{n} օր անվճար',
+    trialThen: 'ապա {price}{per}',
   },
   planName: { starter: 'Starter', pro: 'Pro', studio: 'Studio' },
   planTagline: {
@@ -343,17 +391,13 @@ const hy: BillingDict = {
   feature: {
     'sites.publish': 'Կայքի հրապարակում',
     'sites.customDomain': 'Սեփական դոմեն',
-    'sites.members': 'Անդամներ և կաբինետներ',
-    'sites.removeBranding': 'Առանց հարթակի բրենդինգի',
     'builder.advancedCss': 'Առաջադեմ CSS հատկություններ',
     'builder.animation': 'Անիմացիայի շարժիչ',
     'builder.hoverStates': 'Hover վիճակներ',
     'builder.customCss': 'Կամայական CSS',
     'builder.effects': '19 էֆեկտ մեկ սեղմումով',
     'builder.copyPasteStyle': 'Ոճերի պատճենում',
-    'ai.generate': 'AI վիդեո և էջերի գեներացիա',
-    'support.priority': 'Առաջնահերթ աջակցություն',
-    'export.pdf': 'PDF հաշիվներ և արտահանում',
+    'ai.generate': 'AI էջերի գեներացիա',
   },
   limits: {
     sites: '{n} կայք',
@@ -372,6 +416,8 @@ const hy: BillingDict = {
     manualNote: 'Վճարային պրովայդերը կարգավորված չէ — բաժանորդագրությունը կձևակերպվի ձեռքով (թեստ)։',
     confirmManual: 'Հաստատել բաժանորդագրությունը',
     back: 'Վերադառնալ սակագներ',
+    trialNote: 'Առաջին {n} օրն անվճար է։ Վճարումը կկատարվի միայն փորձնական շրջանի ավարտից հետո։',
+    startTrial: 'Սկսել անվճար շրջանը',
   },
   result: {
     successTitle: 'Վճարումը հաջողվեց',
@@ -420,6 +466,20 @@ const hy: BillingDict = {
     grantHint: 'Ակտիվացնում է բաժանորդագրությունն առանց վճարման (թեստ/պրոմո)։',
     user: 'Օգտատեր',
     provider: 'Պրովայդեր',
+    plansTitle: 'Պլանների քարտեր',
+    plansHint: 'Փոփոխեք գինը, անունը, փորձնական շրջանը և ներառված գործառույթները։ Հասանելի են միայն իրապես աշխատող գործառույթները — հաճախորդի տեսածը միշտ համապատասխանում է կոդին։',
+    fName: 'Անուն',
+    fTagline: 'Ենթավերնագիր',
+    fPriceMonth: 'Գին/ամիս ($)',
+    fPriceYear: 'Գին/տարի ($)',
+    fTrialDays: 'Փորձնական օրեր',
+    fSites: 'Կայքերի սահման',
+    fUnlimited: 'Անսահմանափակ',
+    fPopular: 'Հանրաճանաչ',
+    fFeatures: 'Գործառույթներ',
+    save: 'Պահպանել',
+    saved: 'Պահպանված է',
+    reset: 'Վերականգնել կանխադրվածը',
   },
   status: {
     active: 'ակտիվ',

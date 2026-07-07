@@ -6,10 +6,10 @@ import { THEMES } from '@/lib/themes';
 import { activeSiteTheme } from '@/lib/site-theme';
 import { ThemeFX } from '@/components/theme-fx';
 import { SiteHeader } from '@/components/site-header';
-import { Reveal } from '@/components/reveal';
 import { SiteFooter } from '@/components/site-footer';
 import { VideoCardGrid } from '@/components/media/video-card';
 import { getLanding } from '@/lib/landing';
+import { landingExtra } from '@/lib/landing-extra-dict';
 import { getLocale } from '@/lib/i18n';
 import { getCurrentUser } from '@/lib/auth';
 import { ui } from '@/lib/ui-dict';
@@ -17,30 +17,53 @@ import { getLandingSite } from '@/lib/landing-site';
 import { parseDoc, rebaseDoc } from '@/lib/sites';
 import { SiteRenderer, findPageByPath } from '@/components/builder/site-renderer';
 import { Button } from '@/components/ui/button';
+import { PricingCards } from '@/components/billing/pricing-cards';
+import { billingDict } from '@/lib/billing-dict';
+import { getActiveSubscription } from '@/lib/billing/subscriptions';
+import { getEffectivePlans } from '@/lib/billing/plan-config';
+import type { PlanId } from '@/lib/billing/plans';
+import { LandingHero } from '@/components/landing/landing-hero';
+import { CursorGlow } from '@/components/landing/cursor-glow';
+import { LandingEffectsShell } from '@/components/landing/landing-effects-shell';
+import { StickyShowcase } from '@/components/landing/sticky-showcase';
 import {
-  Sparkles, Wand2, Palette, LayoutTemplate, Globe, Video, ArrowRight, Check,
+  ScrollProgress,
+  MarqueeBand,
+  BentoFeatures,
+  StatsBand,
+  Testimonials,
+  Faq,
+  MotionReveal,
+} from '@/components/landing/landing-sections';
+import { Tilt } from '@/components/fx/tilt';
+import { Magnetic } from '@/components/fx/magnetic';
+import { Beams } from '@/components/fx/beams';
+import {
+  Sparkles, Wand2, Palette, LayoutTemplate, Globe, Video, ArrowRight, Check, Users,
 } from 'lucide-react';
 
 const ok = (v: string) => `oklch(${v})`;
 
-const STEP_ICONS = [Wand2, LayoutTemplate, Globe];
-const FEATURE_ICONS = [Video, Palette, LayoutTemplate, Globe];
-
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  // If the landing has been opened in the visual builder, it becomes a normal
-  // builder site (reserved slug) and renders through the same renderer as
-  // /s/<slug> — fully editable (chrome, variants, effects). Until then, the
-  // marketing page below is shown.
+  // The landing (/) renders the builder document once it has been published
+  // from the visual builder (reserved slug). The builder now has a `landingHero`
+  // block that renders the REAL coded hero (WebGL, browser mock, animated
+  // headline, magnetic CTA), so the published landing keeps its effects.
+  // LandingEffectsShell adds the ambient cursor glow + scroll progress that
+  // live outside the document. Until published, the coded marketing page below
+  // is shown.
   const landingSite = getLandingSite();
   const builderDoc = landingSite ? parseDoc(landingSite.publishedDoc) : null;
   if (builderDoc) {
     const doc = { ...rebaseDoc(builderDoc, ''), siteId: landingSite!.id };
     const page = findPageByPath(doc, []);
-    // platformChrome: the landing always keeps the real site header/footer —
-    // the builder only edits the sections between them.
-    if (page) return <SiteRenderer doc={doc} page={page} platformChrome />;
+    if (page) return (
+      <LandingEffectsShell>
+        <SiteRenderer doc={doc} page={page} platformChrome />
+      </LandingEffectsShell>
+    );
   }
 
   const media = mediaData as MediaEntry[];
@@ -60,86 +83,58 @@ export default async function Home() {
     ? { label: dict.actions.openDashboard, href: '/dashboard' }
     : { label: L.finalCta.ctaPrimaryLabel, href: L.finalCta.ctaPrimaryHref };
 
+  // Pricing section (marketing) — reuses the real pricing cards + checkout flow.
+  const B = billingDict(locale);
+  const planCards = getEffectivePlans();
+  const currentPlan = (me ? getActiveSubscription(me.id)?.planId : undefined) as PlanId | undefined;
+
+  // Extra copy + derived data for the effects-rich sections.
+  const extra = landingExtra(locale);
+  const heroSecondary = { label: L.hero.ctaSecondaryLabel, href: L.hero.ctaSecondaryHref };
+  const microItems = extra.cta.microcopy.split('·').map((s) => s.trim()).filter(Boolean);
+  const swatches = THEMES.slice(0, 4).map((t) => ({
+    id: t.id,
+    label: t.label,
+    colors: [ok(t.light.primary), ok(t.dark.primary), ok(t.light.muted)],
+  }));
+  const bentoIcons = [
+    <Wand2 key="0" className="h-6 w-6" />,
+    <Video key="1" className="h-6 w-6" />,
+    <Sparkles key="2" className="h-6 w-6" />,
+    <Palette key="3" className="h-6 w-6" />,
+    <Globe key="4" className="h-6 w-6" />,
+    <Users key="5" className="h-6 w-6" />,
+  ];
+
   return (
     <main className="min-h-dvh">
       <ThemeStyle theme={theme} />
       <ThemeFX />
+      <CursorGlow />
+      <ScrollProgress />
       <SiteHeader />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-[var(--container-max)] px-6 py-20 text-center sm:px-10 sm:py-24">
-          <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5 text-primary" /> {L.hero.badge}
-          </span>
-          <h1 className="mx-auto max-w-4xl text-balance font-display text-4xl font-black leading-[1.05] tracking-tight sm:text-6xl">
-            {L.hero.title}
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
-            {L.hero.subtitle}
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href={heroPrimary.href}>
-              <Button size="lg" className="gap-2 shadow-lg">
-                <Sparkles className="h-5 w-5" /> {heroPrimary.label}
-              </Button>
-            </Link>
-            <Link href={L.hero.ctaSecondaryHref}>
-              <Button size="lg" variant="outline" className="gap-2">
-                {L.hero.ctaSecondaryLabel} <ArrowRight className="h-5 w-5" />
-              </Button>
-            </Link>
-          </div>
-          <p className="mt-4 text-xs text-muted-foreground">{L.hero.note}</p>
-        </div>
-      </section>
+      <LandingHero
+        badge={L.hero.badge}
+        title={L.hero.title}
+        subtitle={L.hero.subtitle}
+        primary={heroPrimary}
+        secondary={heroSecondary}
+        microItems={microItems}
+        previewLabels={extra.heroPreviewLabels}
+        swatches={swatches}
+      />
 
-      {/* How it works */}
-      <section id="how" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
-        <Reveal className="mb-12 text-center">
-          <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{L.steps.title}</h2>
-          <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{L.steps.subtitle}</p>
-        </Reveal>
-        <div className="grid gap-6 md:grid-cols-3">
-          {L.steps.items.map((s, i) => {
-            const Icon = STEP_ICONS[i] ?? Wand2;
-            return (
-            <Reveal key={s.n} delay={i * 90} className="relative rounded-2xl border border-border/60 bg-card/50 p-6 backdrop-blur">
-              <div className="mb-4 flex items-center justify-between">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <span className="font-display text-3xl font-black text-muted-foreground/25">{s.n}</span>
-              </div>
-              <h3 className="text-lg font-bold tracking-tight">{s.title}</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">{s.text}</p>
-            </Reveal>
-            );
-          })}
-        </div>
-      </section>
+      <MarqueeBand words={extra.marquee} label={extra.trustedBy} />
 
-      {/* Features */}
-      <section id="features" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
-        <Reveal className="mb-12 text-center">
-          <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{L.features.title}</h2>
-          <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{L.features.subtitle}</p>
-        </Reveal>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {L.features.items.map((f, i) => {
-            const Icon = FEATURE_ICONS[i] ?? Video;
-            return (
-            <Reveal key={f.title} delay={i * 80} className="rounded-2xl border border-border/60 bg-card/50 p-6 backdrop-blur transition-colors hover:border-primary/50">
-              <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                <Icon className="h-5 w-5" />
-              </span>
-              <h3 className="text-base font-bold tracking-tight">{f.title}</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">{f.text}</p>
-            </Reveal>
-            );
-          })}
-        </div>
-      </section>
+      {/* How it works — pinned scroll story */}
+      <StickyShowcase title={L.steps.title} subtitle={L.steps.subtitle} steps={L.steps.items} />
+
+      {/* Features — bento grid */}
+      <BentoFeatures title={L.features.title} subtitle={L.features.subtitle} items={extra.bento.items} icons={bentoIcons} />
+
+      {/* Live stats */}
+      <StatsBand title={extra.stats.title} subtitle={extra.stats.subtitle} items={extra.stats.items} />
 
       {/* Themes gallery teaser */}
       <section id="themes" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
@@ -153,7 +148,7 @@ export default async function Home() {
           </Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {THEMES.slice(0, 6).map((t) => {
+          {THEMES.slice(0, 6).map((t, i) => {
             const cls = `tct-${t.id}`;
             const pv = (p: Record<string, string>) => ([
               ['bg', p.background], ['fg', p.foreground], ['primary', p.primary], ['pfg', p['primary-foreground']],
@@ -162,30 +157,33 @@ export default async function Home() {
             const css = `.${cls}{${pv(t.light)}}.dark .${cls}{${pv(t.dark)}}`;
             const activeCard = t.id === theme.id;
             return (
-              <Link
-                key={t.id}
-                href={`/themes/${t.id}`}
-                className={`${cls} group overflow-hidden rounded-2xl border shadow-sm transition-transform hover:-translate-y-0.5`}
-                style={{ background: 'var(--tp-bg)', color: 'var(--tp-fg)', borderColor: activeCard ? 'var(--tp-primary)' : 'var(--tp-border)' }}
-              >
-                <style dangerouslySetInnerHTML={{ __html: css }} />
-                <div className="p-5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-base font-bold tracking-tight">{t.label}</span>
-                    {activeCard && (
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--tp-primary)', color: 'var(--tp-pfg)' }}>
-                        <Check className="h-3 w-3" /> {dict.active}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs" style={{ color: 'var(--tp-mfg)' }}>{t.fontDisplay} · {dict.motion} {t.motion}</p>
-                  <div className="mt-4 flex gap-2">
-                    {['var(--tp-primary)', 'var(--tp-card)', 'var(--tp-muted)', 'var(--tp-fg)', 'var(--tp-border)'].map((c, i) => (
-                      <span key={i} className="h-6 w-6 rounded-md" style={{ background: c, border: '1px solid var(--tp-border)' }} />
-                    ))}
-                  </div>
-                </div>
-              </Link>
+              <MotionReveal key={t.id} delay={(i % 3) * 0.08}>
+                <Tilt className="h-full">
+                  <Link
+                    href={`/themes/${t.id}`}
+                    className={`${cls} group block h-full overflow-hidden rounded-2xl border shadow-sm`}
+                    style={{ background: 'var(--tp-bg)', color: 'var(--tp-fg)', borderColor: activeCard ? 'var(--tp-primary)' : 'var(--tp-border)' }}
+                  >
+                    <style dangerouslySetInnerHTML={{ __html: css }} />
+                    <div className="p-5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-bold tracking-tight">{t.label}</span>
+                        {activeCard && (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--tp-primary)', color: 'var(--tp-pfg)' }}>
+                            <Check className="h-3 w-3" /> {dict.active}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs" style={{ color: 'var(--tp-mfg)' }}>{t.fontDisplay} · {dict.motion} {t.motion}</p>
+                      <div className="mt-4 flex gap-2">
+                        {['var(--tp-primary)', 'var(--tp-card)', 'var(--tp-muted)', 'var(--tp-fg)', 'var(--tp-border)'].map((c, j) => (
+                          <span key={j} className="h-6 w-6 rounded-md" style={{ background: c, border: '1px solid var(--tp-border)' }} />
+                        ))}
+                      </div>
+                    </div>
+                  </Link>
+                </Tilt>
+              </MotionReveal>
             );
           })}
         </div>
@@ -194,7 +192,7 @@ export default async function Home() {
       {/* Made on the platform — real example from demo content */}
       {examples.length > 0 && (
         <section id="examples" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
-          <Reveal className="mb-12 text-center">
+          <MotionReveal className="mb-12 text-center">
             <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               <Video className="h-3.5 w-3.5 text-primary" /> {dict.examples.badge}
             </span>
@@ -202,32 +200,56 @@ export default async function Home() {
             <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
               {dict.examples.subtitle}
             </p>
-          </Reveal>
+          </MotionReveal>
           <VideoCardGrid entries={examples} />
         </section>
       )}
 
+      {/* Testimonials */}
+      <Testimonials title={extra.testimonials.title} subtitle={extra.testimonials.subtitle} items={extra.testimonials.items} />
+
+      {/* Pricing */}
+      <section id="pricing" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
+        <MotionReveal className="mb-12 text-center">
+          <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-primary" /> {B.pricing.title}
+          </span>
+          <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{B.pricing.title}</h2>
+          <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{B.pricing.subtitle}</p>
+        </MotionReveal>
+        <PricingCards currentPlan={currentPlan ?? null} plans={planCards} />
+      </section>
+
+      {/* FAQ */}
+      <Faq title={extra.faq.title} subtitle={extra.faq.subtitle} items={extra.faq.items} />
+
       {/* Final CTA */}
       <section className="mx-auto max-w-[var(--container-max)] px-6 py-20 sm:px-10">
-        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-10 text-center backdrop-blur sm:p-16">
-          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-30" style={{ background: 'radial-gradient(60% 60% at 50% 0%, var(--primary), transparent 70%)' }} />
-          <div className="relative">
-            <h2 className="mx-auto max-w-2xl font-display text-3xl font-black tracking-tight sm:text-4xl">
-              {L.finalCta.title}
-            </h2>
-            <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-              {L.finalCta.subtitle}
-            </p>
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <Link href={finalPrimary.href}>
-                <Button size="lg" className="gap-2 shadow-lg"><Sparkles className="h-5 w-5" /> {finalPrimary.label}</Button>
-              </Link>
-              <Link href={L.finalCta.ctaSecondaryHref}>
-                <Button size="lg" variant="outline" className="gap-2"><LayoutTemplate className="h-5 w-5" /> {L.finalCta.ctaSecondaryLabel}</Button>
-              </Link>
+        <MotionReveal>
+          <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-card/60 p-10 text-center backdrop-blur sm:p-16">
+            <Beams className="opacity-60" />
+            <div aria-hidden className="pointer-events-none absolute inset-0 opacity-40" style={{ background: 'radial-gradient(60% 60% at 50% 0%, var(--primary), transparent 70%)' }} />
+            <div className="relative">
+              <h2 className="mx-auto max-w-2xl font-display text-3xl font-black tracking-tight sm:text-5xl">
+                {L.finalCta.title}
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+                {L.finalCta.subtitle}
+              </p>
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+                <Magnetic>
+                  <Link href={finalPrimary.href}>
+                    <Button size="lg" className="b-shimmer gap-2 shadow-xl shadow-primary/25"><Sparkles className="h-5 w-5" /> {finalPrimary.label}</Button>
+                  </Link>
+                </Magnetic>
+                <Link href={L.finalCta.ctaSecondaryHref}>
+                  <Button size="lg" variant="outline" className="gap-2 backdrop-blur"><LayoutTemplate className="h-5 w-5" /> {L.finalCta.ctaSecondaryLabel}</Button>
+                </Link>
+              </div>
+              <p className="mt-5 text-xs text-muted-foreground">{extra.cta.microcopy}</p>
             </div>
           </div>
-        </div>
+        </MotionReveal>
       </section>
 
       {/* Footer */}

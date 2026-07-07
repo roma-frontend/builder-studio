@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getSiteForUser, parseDoc, saveDraft, publishSite } from '@/lib/sites';
+import { syncsLiveOnSave } from '@/lib/landing-site';
 import type { BuilderDoc } from '@/lib/builder/types';
 import { DEFAULT_DOC } from '@/lib/builder/types';
 import { getLocale } from '@/lib/i18n';
@@ -63,7 +64,13 @@ export async function POST(request: Request) {
     // If the site is already live, keep the published snapshot in sync on every
     // save (and autosave) so edits appear on /s/<slug> immediately — no extra
     // "publish" step needed once the site has been published the first time.
-    const live = Boolean(site.publishedDoc);
+    //
+    // EXCEPTION: the landing (/). It must NOT auto-republish on save, otherwise
+    // an autosave silently replaces the hand-crafted coded showcase on / (with
+    // its WebGL hero, cursor, sticky story, marquees, etc.) with the builder's
+    // effect-less node version. The landing only goes live via an explicit
+    // "Опубликовать", and "Сбросить лендинг" restores the coded page.
+    const live = syncsLiveOnSave(site);
     if (live) publishSite({ ...site, draftDoc: JSON.stringify(doc) });
     return NextResponse.json({ ok: true, pages: doc.pages.length, published: live });
   } catch (e) {

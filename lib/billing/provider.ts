@@ -7,7 +7,8 @@
 
 import 'server-only';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { PLANS, type BillingInterval, type PlanId } from '@/lib/billing/plans';
+import { type BillingInterval, type PlanId } from '@/lib/billing/plans';
+import { getEffectivePlan } from '@/lib/billing/plan-config';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 
@@ -80,8 +81,8 @@ export async function createCheckout(opts: {
   planId: PlanId;
   interval: BillingInterval;
 }): Promise<CheckoutResult> {
-  const plan = PLANS[opts.planId];
-  const amount = plan.price[opts.interval];
+  const plan = getEffectivePlan(opts.planId);
+  const amount = opts.interval === 'year' ? plan.priceYear : plan.priceMonth;
   const base = appHost();
 
   if (!stripeConfigured()) {
@@ -110,7 +111,11 @@ export async function createCheckout(opts: {
         },
       },
     ],
-    'subscription_data': { 'metadata[userId]': opts.userId, 'metadata[planId]': opts.planId },
+    'subscription_data': {
+      'metadata[userId]': opts.userId,
+      'metadata[planId]': opts.planId,
+      ...(plan.trialDays > 0 ? { trial_period_days: plan.trialDays } : {}),
+    },
   });
 
   return { url: session.url, mode: 'stripe', planId: opts.planId, interval: opts.interval };

@@ -34,7 +34,8 @@ export type NodeType =
   | 'authAccount'
   | 'courseList'
   | 'documentList'
-  | 'materialList';
+  | 'materialList'
+  | 'landingHero';
 
 export interface BuilderNode {
   id: string;
@@ -150,6 +151,7 @@ export const NODE_LABELS: Record<NodeType, string> = {
   courseList: 'Курсы (клиенты сайта)',
   documentList: 'Документы (клиенты сайта)',
   materialList: 'Материалы (клиенты сайта)',
+  landingHero: 'Лендинг-герой (с эффектами)',
 };
 
 let counter = 0;
@@ -182,7 +184,7 @@ export function defaultProps(type: NodeType): Record<string, string> {
     case 'button':
       return { text: 'Кнопка', href: '/site', variant: 'default', size: 'default', align: 'left', type: 'link' };
     case 'image':
-      return { src: '', alt: '', rounded: 'lg', ratio: '16/9' };
+      return { src: '', srcDark: '', alt: '', rounded: 'lg', ratio: '16/9' };
     case 'video':
       return { src: '', ratio: '16/9', rounded: 'lg' };
     case 'input':
@@ -221,6 +223,19 @@ export function defaultProps(type: NodeType): Record<string, string> {
       return { title: 'Документы', columns: '3' };
     case 'materialList':
       return { title: 'Материалы', columns: '3' };
+    case 'landingHero':
+      return {
+        badge: 'ИИ-платформа для сайтов',
+        title: 'Соберите и опубликуйте сайт с помощью ИИ',
+        subtitle: 'Опишите идею — платформа сгенерирует видео и тему, соберёт страницы в визуальном конструкторе и опубликует сайт на вашем поддомене. Без кода и дизайнеров.',
+        ctaPrimaryLabel: 'Начать бесплатно',
+        ctaPrimaryHref: '/register',
+        ctaSecondaryLabel: 'Открыть Студию',
+        ctaSecondaryHref: '/studio',
+        microcopy: 'Без кода · Отмена в любой момент · 3 дня бесплатно',
+        previewUrl: 'ваш-сайт.ru',
+        previewPublish: 'Опубликовано',
+      };
     default:
       return {};
   }

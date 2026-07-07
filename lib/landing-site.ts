@@ -3,6 +3,9 @@ import { asc, eq } from 'drizzle-orm';
 import { getDb, newId, users, sites, type Site } from '@/lib/db';
 import { makeNode, newId as newNodeId, type BuilderNode, type BuilderDoc, type BuilderPage, type NodeType } from '@/lib/builder/types';
 import { getLanding } from '@/lib/landing';
+import { landingExtra } from '@/lib/landing-extra-dict';
+import { PLAN_ORDER, formatPrice } from '@/lib/billing/plans';
+import { billingDict } from '@/lib/billing-dict';
 import siteConfig from '@/data/site.json';
 
 // The landing page (/) is a normal builder site with a reserved slug, so it can
@@ -10,6 +13,14 @@ import siteConfig from '@/data/site.json';
 // animation / effects, header/footer/user-menu chrome). Owned by the first
 // (superadmin) user. Rendered at / via SiteRenderer; edited at /studio/builder.
 export const LANDING_SLUG = '__landing__';
+
+/** Whether saving a site should also update its live/published snapshot.
+ *  Published sites auto-sync on every save — EXCEPT the landing (/), which must
+ *  only go live via an explicit publish, so autosaves/saves never replace the
+ *  hand-crafted coded showcase (WebGL hero, cursor, sticky story, marquees). */
+export function syncsLiveOnSave(site: { publishedDoc: string | null; slug: string }): boolean {
+  return Boolean(site.publishedDoc) && site.slug !== LANDING_SLUG;
+}
 
 const mk = (type: NodeType, props: Record<string, string> = {}, children?: BuilderNode[]): BuilderNode => {
   const node = makeNode(type);
@@ -21,73 +32,124 @@ const mk = (type: NodeType, props: Record<string, string> = {}, children?: Build
 function seedLandingDoc(): BuilderDoc {
   const year = new Date().getFullYear();
   const L = getLanding(); // same copy as the marketing landing, so it matches
+  const E = landingExtra('ru');
+  const bd = billingDict('ru');
   const home: BuilderPage = {
     id: newNodeId('page'),
     path: '',
     title: 'Главная',
     description: L.hero.subtitle,
     blocks: [
-      // Hero — mirrors the marketing hero
-      mk('section', { padding: 'lg', bg: 'none', width: 'normal' }, [
-        mk('stack', { gap: 'md', align: 'center' }, [
-          mk('text', { text: L.hero.badge, align: 'center', muted: 'true', size: 'sm' }),
-          mk('heading', { text: L.hero.title, level: '1', align: 'center', animate: 'slide-up' }),
-          mk('text', { text: L.hero.subtitle, align: 'center', size: 'lg', animate: 'fade' }),
-          mk('row', { gap: 'sm', align: 'center', justify: 'center', wrap: 'wrap' }, [
-            mk('button', { text: L.hero.ctaPrimaryLabel, href: L.hero.ctaPrimaryHref, variant: 'default', size: 'lg', align: 'center', type: 'link', hover: 'lift' }),
-            mk('button', { text: L.hero.ctaSecondaryLabel, href: L.hero.ctaSecondaryHref, variant: 'outline', size: 'lg', align: 'center', type: 'link', hover: 'lift' }),
-          ]),
-          mk('text', { text: L.hero.note, align: 'center', muted: 'true', size: 'sm' }),
-        ]),
-      ]),
-      // How it works — numbered cards
-      mk('section', { padding: 'lg', bg: 'none', width: 'wide' }, [
-        mk('heading', { text: L.steps.title, level: '2', align: 'center', animate: 'fade' }),
+      // Hero — the REAL coded hero rendered as a builder block (WebGL bg, glass
+      // browser mock, animated word-stagger headline, magnetic CTA). Editable
+      // via the block's fields; keeps all its effects when saved/published.
+      mk('landingHero', {
+        badge: L.hero.badge,
+        title: L.hero.title,
+        subtitle: L.hero.subtitle,
+        ctaPrimaryLabel: L.hero.ctaPrimaryLabel,
+        ctaPrimaryHref: L.hero.ctaPrimaryHref,
+        ctaSecondaryLabel: L.hero.ctaSecondaryLabel,
+        ctaSecondaryHref: L.hero.ctaSecondaryHref,
+        microcopy: E.cta.microcopy,
+        previewUrl: E.heroPreviewLabels.url,
+        previewPublish: E.heroPreviewLabels.publish,
+      }),
+      // How it works — numbered glass cards on a grid pattern
+      mk('section', { padding: 'lg', bg: 'none', width: 'wide', fx: 'grid' }, [
+        mk('heading', { text: L.steps.title, level: '2', align: 'center', animate: 'fade', gradient: 'true' }),
         mk('text', { text: L.steps.subtitle, align: 'center', muted: 'true' }),
         mk('spacer', { height: 'md' }),
         mk('grid', { gap: 'md', columns: '3', stagger: 'true' }, L.steps.items.map((s) =>
-          mk('card', { cardVariant: 'outline', padding: 'md', gap: 'sm', animate: 'slide-up', hover: 'lift' }, [
+          mk('card', { cardVariant: 'glass', padding: 'md', gap: 'sm', animate: 'slide-up', hover: 'lift' }, [
             mk('text', { text: s.n, align: 'left', textColor: 'primary', fontSize: '4xl', fontWeight: 'bold' }),
             mk('heading', { text: s.title, level: '3', align: 'left' }),
             mk('text', { text: s.text, align: 'left', muted: 'true' }),
           ]),
         )),
       ]),
-      // Features — 4 cards
+      // Features — bento-style glass cards
       mk('section', { padding: 'lg', bg: 'muted', width: 'wide' }, [
-        mk('heading', { text: L.features.title, level: '2', align: 'center', animate: 'fade' }),
-        mk('text', { text: L.features.subtitle, align: 'center', muted: 'true' }),
+        mk('heading', { text: L.features.title, level: '2', align: 'center', animate: 'fade', gradient: 'true' }),
+        mk('text', { text: E.bento.subtitle, align: 'center', muted: 'true' }),
         mk('spacer', { height: 'md' }),
-        mk('grid', { gap: 'md', columns: '4', stagger: 'true' }, L.features.items.map((f) =>
-          mk('card', { padding: 'md', cardVariant: 'elevated', gap: 'sm', animate: 'slide-up', hover: 'lift' }, [
+        mk('grid', { gap: 'md', columns: '3', stagger: 'true' }, E.bento.items.map((f) =>
+          mk('card', { padding: 'md', cardVariant: 'glass', gap: 'sm', animate: 'slide-up', hover: 'lift' }, [
             mk('heading', { text: f.title, level: '3', align: 'left' }),
             mk('text', { text: f.text, align: 'left', muted: 'true' }),
           ]),
         )),
       ]),
+      // Live stats — count-up counters on a dotted field
+      mk('section', { padding: 'lg', bg: 'none', width: 'wide', fx: 'dots' }, [
+        mk('heading', { text: E.stats.title, level: '2', align: 'center', animate: 'fade', gradient: 'true' }),
+        mk('text', { text: E.stats.subtitle, align: 'center', muted: 'true' }),
+        mk('spacer', { height: 'md' }),
+        mk('grid', { gap: 'md', columns: '4', stagger: 'true' }, E.stats.items.map((s) =>
+          mk('counter', { value: s.value, label: s.label, align: 'center', animate: 'zoom' }),
+        )),
+      ]),
       // Themes teaser + live gallery
-      mk('section', { padding: 'lg', bg: 'none', width: 'wide' }, [
-        mk('heading', { text: L.themesTeaser.title, level: '2', align: 'center' }),
+      mk('section', { padding: 'lg', bg: 'muted', width: 'wide' }, [
+        mk('heading', { text: L.themesTeaser.title, level: '2', align: 'center', gradient: 'true' }),
         mk('text', { text: L.themesTeaser.subtitle, align: 'center', muted: 'true' }),
         mk('spacer', { height: 'md' }),
         mk('themeGallery', { count: '6', columns: '3' }),
       ]),
+      // Testimonials
+      mk('section', { padding: 'lg', bg: 'none', width: 'wide' }, [
+        mk('heading', { text: E.testimonials.title, level: '2', align: 'center', animate: 'fade', gradient: 'true' }),
+        mk('text', { text: E.testimonials.subtitle, align: 'center', muted: 'true' }),
+        mk('spacer', { height: 'md' }),
+        mk('grid', { gap: 'md', columns: '3', stagger: 'true' }, E.testimonials.items.slice(0, 6).map((t) =>
+          mk('testimonial', { quote: t.quote, author: t.name, role: t.role, quoteVariant: 'card', animate: 'slide-up' }),
+        )),
+      ]),
       // Made on the platform — video examples
       mk('section', { padding: 'lg', bg: 'muted', width: 'wide' }, [
-        mk('heading', { text: 'Пример живого сайта', level: '2', align: 'center' }),
+        mk('heading', { text: 'Пример живого сайта', level: '2', align: 'center', gradient: 'true' }),
         mk('text', { text: 'Эти секции с ИИ-видео собраны прямо в Студии — так выглядит результат.', align: 'center', muted: 'true' }),
         mk('spacer', { height: 'md' }),
         mk('videoGrid', { count: '6' }),
       ]),
-      // Final CTA
-      mk('section', { padding: 'lg', bg: 'card', width: 'normal' }, [
+      // Pricing — editable plan cards (mirrors /pricing)
+      mk('section', { padding: 'lg', bg: 'none', width: 'wide', fx: 'aurora' }, [
+        mk('heading', { text: bd.pricing.title, level: '2', align: 'center', animate: 'fade', gradient: 'true' }),
+        mk('text', { text: bd.pricing.subtitle, align: 'center', muted: 'true' }),
+        mk('spacer', { height: 'md' }),
+        mk('grid', { gap: 'md', columns: '3', stagger: 'true' }, PLAN_ORDER.map((p) =>
+          mk('pricing', {
+            plan: bd.planName[p.id],
+            price: formatPrice(p.price.month, p.currency),
+            period: bd.pricing.perMonth,
+            features: [
+              p.limits.sites === null ? bd.limits.sitesUnlimited : bd.limits.sites.replace('{n}', String(p.limits.sites)),
+              ...p.features.map((f) => bd.feature[f]),
+            ].join('\n'),
+            cta: bd.pricing.choose,
+            href: `/checkout/${p.id}`,
+            featured: p.popular ? 'true' : 'false',
+            priceVariant: 'card',
+          }),
+        )),
+      ]),
+      // FAQ
+      mk('section', { padding: 'lg', bg: 'muted', width: 'normal' }, [
+        mk('heading', { text: E.faq.title, level: '2', align: 'center', gradient: 'true' }),
+        mk('text', { text: E.faq.subtitle, align: 'center', muted: 'true' }),
+        mk('spacer', { height: 'md' }),
+        mk('faq', { items: E.faq.items.map((f) => `${f.q}::${f.a}`).join('\n'), align: 'left', faqVariant: 'bordered' }),
+      ]),
+      // Final CTA — WebGL banner + gradient headline + shimmer CTA
+      mk('section', { padding: 'lg', bg: 'card', width: 'normal', fx: 'webgl' }, [
         mk('stack', { gap: 'sm', align: 'center' }, [
-          mk('heading', { text: L.finalCta.title, level: '2', align: 'center' }),
+          mk('heading', { text: L.finalCta.title, level: '2', align: 'center', gradient: 'true' }),
           mk('text', { text: L.finalCta.subtitle, align: 'center', muted: 'true' }),
           mk('row', { gap: 'sm', align: 'center', justify: 'center', wrap: 'wrap' }, [
-            mk('button', { text: L.finalCta.ctaPrimaryLabel, href: L.finalCta.ctaPrimaryHref, variant: 'default', size: 'lg', align: 'center', type: 'link', hover: 'lift' }),
+            mk('button', { text: L.finalCta.ctaPrimaryLabel, href: L.finalCta.ctaPrimaryHref, variant: 'default', size: 'lg', align: 'center', type: 'link', hover: 'lift', shimmer: 'true' }),
             mk('button', { text: L.finalCta.ctaSecondaryLabel, href: L.finalCta.ctaSecondaryHref, variant: 'outline', size: 'lg', align: 'center', type: 'link', hover: 'lift' }),
           ]),
+          mk('text', { text: E.cta.microcopy, align: 'center', muted: 'true', size: 'sm' }),
         ]),
       ]),
     ],
@@ -151,4 +213,21 @@ export function getOrCreateLandingSite(): Site | null {
   };
   db.insert(sites).values(site).run();
   return site;
+}
+
+/** Reset the landing to its initial seeded state: a fresh premium draft, and
+ *  UNPUBLISHED (published_doc/at cleared) so / returns to the coded showcase
+ *  with all its effects. Keeps the same row id, so an already-open builder tab
+ *  stays valid. Returns null only if there is no landing and no user to own one. */
+export function resetLandingSite(): Site | null {
+  const existing = getLandingSite();
+  if (!existing) return getOrCreateLandingSite();
+  const db = getDb();
+  const now = new Date();
+  const json = JSON.stringify(seedLandingDoc());
+  db.update(sites)
+    .set({ draftDoc: json, publishedDoc: null, publishedAt: null, updatedAt: now })
+    .where(eq(sites.id, existing.id))
+    .run();
+  return { ...existing, draftDoc: json, publishedDoc: null, publishedAt: null, updatedAt: now };
 }

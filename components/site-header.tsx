@@ -28,6 +28,7 @@ const LANDING_NAV = [
   { href: '/#how', key: 'how' },
   { href: '/#features', key: 'features' },
   { href: '/#themes', key: 'themes' },
+  { href: '/pricing', key: 'pricing' },
   { href: '/#examples', key: 'examples' },
 ] as const;
 

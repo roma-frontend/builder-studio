@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { usePref } from '@/hooks/use-user-prefs';
 import Link from 'next/link';
-import { Globe, Rocket, CircleDashed, Loader2, Users, Library, Inbox, UserCog, Check, ExternalLink, Search } from 'lucide-react';
+import { Globe, Rocket, CircleDashed, Loader2, Users, Library, Inbox, UserCog, Check, ExternalLink, Search, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLocale } from '@/hooks/use-locale';
@@ -144,6 +144,9 @@ function OrgDetail({ overview, users, onReload }: { overview: Overview; users: P
           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${overview.published ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
             {overview.published ? <Rocket className="h-3 w-3" /> : <CircleDashed className="h-3 w-3" />} {overview.published ? t.published : t.draft}
           </span>
+          <Link href={`/dashboard/sites/${overview.id}`}>
+            <Button size="sm" className="gap-1.5"><Settings2 className="h-3.5 w-3.5" /> {({ ru: 'Управлять', en: 'Manage', hy: 'Կառավարել' } as const)[locale] ?? 'Manage'}</Button>
+          </Link>
           <Link href={`/s/${overview.slug}?draft=1`} target="_blank"><Button size="sm" variant="outline" className="gap-1.5">{t.open} <ExternalLink className="h-3.5 w-3.5" /></Button></Link>
         </div>
       </div>

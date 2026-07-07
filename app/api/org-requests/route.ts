@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { createOrgRequest, getMyOrgRequests } from '@/lib/org-requests';
-import { listAllSites } from '@/lib/admin';
+import { createOrgRequest, getMyOrgRequests, listJoinableOrgs, orgEligibility } from '@/lib/org-requests';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors, type ApiErrorsDict } from '@/lib/api-errors-dict';
 
@@ -16,6 +15,9 @@ const ERR: Record<string, [number, keyof ApiErrorsDict]> = {
   SLUG_INVALID: [400, 'invalidSlug'],
   SLUG_TAKEN: [409, 'orgSlugTaken2'],
   ORG_NOT_FOUND: [404, 'orgNotFound'],
+  INVALID_TARGET: [400, 'orgNotFound'],
+  ALREADY_HAS_ORG: [403, 'forbidden'],
+  SUPERADMIN_NO_ORG: [403, 'forbidden'],
 };
 
 export async function GET() {
@@ -24,7 +26,8 @@ export async function GET() {
   if (!me) return NextResponse.json({ error: t.unauthorizedDot }, { status: 401 });
   return NextResponse.json({
     requests: getMyOrgRequests(me.id),
-    organizations: listAllSites().map((s) => ({ id: s.id, name: s.name, slug: s.slug })),
+    organizations: listJoinableOrgs(me),
+    eligibility: orgEligibility(me),
   });
 }
 

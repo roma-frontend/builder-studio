@@ -371,7 +371,8 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 );
 CREATE INDEX IF NOT EXISTS subscriptions_user_idx ON subscriptions (user_id);
 CREATE INDEX IF NOT EXISTS subscriptions_status_idx ON subscriptions (status);
-CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_provider_sub_idx ON subscriptions (provider_sub_id);
+DROP INDEX IF EXISTS subscriptions_provider_sub_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_provider_sub_uq ON subscriptions (provider_sub_id) WHERE provider_sub_id != '';
 
 CREATE TABLE IF NOT EXISTS payments (
   id TEXT PRIMARY KEY,
@@ -402,6 +403,21 @@ CREATE TABLE IF NOT EXISTS billing_events (
   processed_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS billing_events_type_idx ON billing_events (type);
+
+CREATE TABLE IF NOT EXISTS plan_overrides (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL DEFAULT '',
+  tagline TEXT NOT NULL DEFAULT '',
+  price_month INTEGER,
+  price_year INTEGER,
+  trial_days INTEGER,
+  sites_limit INTEGER,
+  accent TEXT NOT NULL DEFAULT '',
+  popular INTEGER,
+  features TEXT,
+  updated_by TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL
+);
 `;
 
 type DB = BetterSQLite3Database<typeof schema>;

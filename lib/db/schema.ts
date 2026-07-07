@@ -671,7 +671,7 @@ export const subscriptions = sqliteTable(
   (t) => [
     index('subscriptions_user_idx').on(t.userId),
     index('subscriptions_status_idx').on(t.status),
-    uniqueIndex('subscriptions_provider_sub_idx').on(t.providerSubId),
+    index('subscriptions_provider_sub_idx').on(t.providerSubId),
   ],
 );
 export type Subscription = typeof subscriptions.$inferSelect;
@@ -725,3 +725,26 @@ export const billingEvents = sqliteTable(
   (t) => [index('billing_events_type_idx').on(t.type)],
 );
 export type BillingEvent = typeof billingEvents.$inferSelect;
+
+// Superadmin-editable plan presentation/config overrides. One row per PlanId;
+// absence = code defaults (lib/billing/plans.ts). `features` is a JSON array
+// filtered to the canonical enforced FeatureKey set on read, so an override can
+// never advertise a capability that isn't actually gated in code.
+export const planOverrides = sqliteTable('plan_overrides', {
+  /** PlanId: 'starter' | 'pro' | 'studio'. */
+  id: text('id').primaryKey(),
+  name: text('name').notNull().default(''),
+  tagline: text('tagline').notNull().default(''),
+  priceMonth: integer('price_month'),
+  priceYear: integer('price_year'),
+  trialDays: integer('trial_days'),
+  /** Site limit; -1 = unlimited, null = use code default. */
+  sitesLimit: integer('sites_limit'),
+  accent: text('accent').notNull().default(''),
+  popular: integer('popular', { mode: 'boolean' }),
+  /** JSON array of FeatureKey. */
+  features: text('features'),
+  updatedBy: text('updated_by').notNull().default(''),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+});
+export type PlanOverride = typeof planOverrides.$inferSelect;

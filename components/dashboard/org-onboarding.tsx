@@ -5,7 +5,8 @@
 // by a superadmin. Shows live status of the pending/approved/rejected request.
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, LogIn, Loader2, Clock, Check, X, ArrowRight } from 'lucide-react';
+import { Plus, LogIn, Loader2, Clock, Check, X, ArrowRight, Building2, Crown } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLocale } from '@/hooks/use-locale';
@@ -16,10 +17,40 @@ type Org = { id: string; name: string; slug: string };
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 
+type Elig = { eligible: boolean; reason: 'ok' | 'super' | 'owns'; ownedSiteName: string | null };
+
+// Messages for users who may NOT use the create/join flow (own an org already,
+// or are a superadmin). Inline ru/en/hy to keep this self-contained.
+const ELIG_TEXT = {
+  ru: {
+    ownsTitle: 'Вы уже управляете организацией',
+    ownsDesc: 'Онбординг создания/присоединения доступен только новым пользователям без организации. Управляйте своей организацией в разделе «Мои сайты».',
+    superTitle: 'Вы суперадмин платформы',
+    superDesc: 'Суперадмин управляет всей платформой, а не отдельной организацией. Создавать или вступать в организацию через этот раздел не нужно.',
+    toSites: 'Перейти в «Мои сайты»',
+  },
+  en: {
+    ownsTitle: 'You already run an organization',
+    ownsDesc: 'The create/join onboarding is only for new users without an organization. Manage yours in “My sites”.',
+    superTitle: 'You are a platform superadmin',
+    superDesc: 'A superadmin runs the whole platform, not a single organization. There is nothing to create or join here.',
+    toSites: 'Go to “My sites”',
+  },
+  hy: {
+    ownsTitle: 'Դուք արդեն կառավարում եք կազմակերպություն',
+    ownsDesc: 'Ստեղծման/միանալու ներածությունը միայն նոր օգտատերերի համար է։ Կառավարեք ձերը «Իմ կայքերը» բաժնում։',
+    superTitle: 'Դուք հարթակի սուպերադմին եք',
+    superDesc: 'Սուպերադմինը կառավարում է ամբողջ հարթակը, ոչ թե առանձին կազմակերպություն։',
+    toSites: 'Անցնել «Իմ կայքերը»',
+  },
+} as const;
+
 export function OrgOnboarding() {
-  const t = dashDict(useLocale().locale).org;
+  const locale = useLocale().locale;
+  const t = dashDict(locale).org;
   const [requests, setRequests] = useState<Req[] | null>(null);
   const [orgs, setOrgs] = useState<Org[]>([]);
+  const [elig, setElig] = useState<Elig | null>(null);
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -30,7 +61,7 @@ export function OrgOnboarding() {
   const [err, setErr] = useState('');
 
   const load = useCallback(() => {
-    fetch('/api/org-requests').then((r) => r.json()).then((d) => { setRequests(d.requests ?? []); setOrgs(d.organizations ?? []); }).catch(() => setRequests([]));
+    fetch('/api/org-requests').then((r) => r.json()).then((d) => { setRequests(d.requests ?? []); setOrgs(d.organizations ?? []); setElig(d.eligibility ?? null); }).catch(() => setRequests([]));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -77,6 +108,27 @@ export function OrgOnboarding() {
             ? t.pendingCreate.replace('{name}', pending.requestedName)
             : t.pendingJoin}
         </p>
+      </div>
+    );
+  }
+
+  // Users who already run an org, or superadmins, may not create/join — show an
+  // explanatory panel instead of the form (server enforces this too).
+  if (elig && !elig.eligible) {
+    const et = ELIG_TEXT[locale] ?? ELIG_TEXT.en;
+    const isSuper = elig.reason === 'super';
+    return (
+      <div className="mx-auto max-w-lg rounded-2xl border border-border/60 bg-card p-8 text-center">
+        <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          {isSuper ? <Crown className="h-7 w-7" /> : <Building2 className="h-7 w-7" />}
+        </span>
+        <h2 className="text-lg font-bold">{isSuper ? et.superTitle : et.ownsTitle}{!isSuper && elig.ownedSiteName ? ` «${elig.ownedSiteName}»` : ''}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{isSuper ? et.superDesc : et.ownsDesc}</p>
+        {!isSuper && (
+          <Link href="/dashboard/sites" className="mt-5 inline-block">
+            <Button size="lg" className="gap-2">{et.toSites} <ArrowRight className="h-4 w-4" /></Button>
+          </Link>
+        )}
       </div>
     );
   }

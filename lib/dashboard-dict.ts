@@ -20,6 +20,8 @@ export type DashDict = {
     access: string;
     activity: string;
     trash: string;
+    billing: string;
+    billingAdmin: string;
   };
   roles: { superadmin: string; admin: string; customer: string };
   userMenu: { label: string; signedIn: string };
@@ -49,6 +51,8 @@ export type DashDict = {
       trash: string;
       control: string;
       studio: string;
+      billing: string;
+      billingAdmin: string;
     };
   };
   brandSub: string;
@@ -254,6 +258,8 @@ const ru: DashDict = {
     access: 'Доступ ролей',
     activity: 'Активность персонала',
     trash: 'Корзина',
+    billing: 'Подписка',
+    billingAdmin: 'Платежи',
   },
   roles: { superadmin: 'Суперадмин', admin: 'Админ', customer: 'Клиент' },
   userMenu: { label: 'Меню аккаунта', signedIn: 'Вы вошли как' },
@@ -283,6 +289,8 @@ const ru: DashDict = {
       trash: 'Удалённые объекты и их восстановление.',
       control: 'Сводный центр контроля платформы.',
       studio: 'Студия генерации медиа и конструктор сайтов.',
+      billing: 'Ваш тариф, продление и счета.',
+      billingAdmin: 'Подписки, выручка и метрики платформы.',
     },
   },
   brandSub: 'Дашборд',
@@ -527,6 +535,8 @@ const en: DashDict = {
     access: 'Role access',
     activity: 'Staff activity',
     trash: 'Trash',
+    billing: 'Subscription',
+    billingAdmin: 'Billing',
   },
   roles: { superadmin: 'Superadmin', admin: 'Admin', customer: 'Customer' },
   userMenu: { label: 'Account menu', signedIn: 'Signed in as' },
@@ -556,6 +566,8 @@ const en: DashDict = {
       trash: 'Deleted items and their restoration.',
       control: 'The platform control center.',
       studio: 'Media generation studio and site builder.',
+      billing: 'Your plan, renewal and invoices.',
+      billingAdmin: 'Subscriptions, revenue and platform metrics.',
     },
   },
   brandSub: 'Dashboard',
@@ -800,6 +812,8 @@ const hy: DashDict = {
     access: 'Դերերի հասանելիություն',
     activity: 'Անձնակազմի ակտիվություն',
     trash: 'Աղբարկղ',
+    billing: 'Բաժանորդագրություն',
+    billingAdmin: 'Վճարումներ',
   },
   roles: { superadmin: 'Գերադմին', admin: 'Ադմին', customer: 'Հաճախորդ' },
   userMenu: { label: 'Հաշվի ընտրացանկ', signedIn: 'Մուտք եք գործել որպես' },
@@ -829,6 +843,8 @@ const hy: DashDict = {
       trash: 'Ջնջված տարրերը և դրանց վերականգնումը։',
       control: 'Հարթակի վերահսկման կենտրոն։',
       studio: 'Մեդիա գեներացիայի ստուդիա և կայքերի կառուցիչ։',
+      billing: 'Ձեր պլանը, երկարաձգումը և հաշիվները։',
+      billingAdmin: 'Բաժանորդագրություններ, եկամուտ և հարթակի մետրիկա։',
     },
   },
   brandSub: 'Վահանակ',

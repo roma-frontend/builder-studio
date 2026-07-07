@@ -4,6 +4,11 @@ import {
   requireSiteOwner,
   listMembers,
   setMemberStatus,
+  adminCreateMember,
+  adminUpdateMember,
+  adminResetMemberPassword,
+  adminDeleteMember,
+  adminImportMembers,
   listMaterialsForAdmin,
   createMaterial,
   updateMaterial,
@@ -87,6 +92,42 @@ export async function POST(request: Request) {
       if (!STATUSES.includes(status)) return NextResponse.json({ error: t.invalidStatus }, { status: 400 });
       setMemberStatus(siteId, str('memberId'), status, user.id, str('reason'));
       return NextResponse.json({ ok: true });
+    }
+    case 'member-create': {
+      try {
+        const { member, password } = adminCreateMember(siteId, { email: str('email'), name: str('name'), password: str('password') });
+        return NextResponse.json({ ok: true, member, password });
+      } catch (e) {
+        const code = (e as Error).message;
+        if (code === 'EMAIL_TAKEN') return NextResponse.json({ error: t.emailTaken }, { status: 409 });
+        return NextResponse.json({ error: t.badRequest }, { status: 400 });
+      }
+    }
+    case 'member-update': {
+      try {
+        adminUpdateMember(siteId, str('memberId'), { name: str('name'), email: str('email') });
+        return NextResponse.json({ ok: true });
+      } catch (e) {
+        const code = (e as Error).message;
+        if (code === 'EMAIL_TAKEN') return NextResponse.json({ error: t.emailTaken }, { status: 409 });
+        return NextResponse.json({ error: t.badRequest }, { status: 400 });
+      }
+    }
+    case 'member-reset-password': {
+      const password = adminResetMemberPassword(siteId, str('memberId'));
+      return NextResponse.json({ ok: true, password });
+    }
+    case 'member-delete': {
+      adminDeleteMember(siteId, str('memberId'));
+      return NextResponse.json({ ok: true });
+    }
+    case 'member-import': {
+      const raw = Array.isArray(body.rows) ? (body.rows as unknown[]) : [];
+      const rows = raw
+        .filter((r): r is Record<string, unknown> => typeof r === 'object' && r !== null)
+        .map((r) => ({ email: typeof r.email === 'string' ? r.email : '', name: typeof r.name === 'string' ? r.name : '' }));
+      const result = adminImportMembers(siteId, rows);
+      return NextResponse.json({ ok: true, result });
     }
     case 'material-create': {
       const m = createMaterial(siteId, user.id, { title: str('title'), body: str('body'), url: str('url'), published: bool('published') });

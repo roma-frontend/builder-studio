@@ -69,7 +69,7 @@ const ROLE_ICON: Record<Role, React.ComponentType<{ className?: string }>> = {
   customer: UserCircle,
 };
 
-export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembers = 0, disabled = [], children }: { user: ShellUser; banner?: React.ReactNode; gated?: boolean; orgRequests?: number; siteMembers?: number; disabled?: string[]; children: React.ReactNode }) {
+export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembers = 0, disabled = [], hideOrgNav = false, children }: { user: ShellUser; banner?: React.ReactNode; gated?: boolean; orgRequests?: number; siteMembers?: number; disabled?: string[]; hideOrgNav?: boolean; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -105,6 +105,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
         (i) =>
           (i.staff ? isStaff : true) &&
           (i.super ? user.role === 'superadmin' : true) &&
+          !(hideOrgNav && i.key === 'organization') &&
           !disabledSet.has(i.key),
       );
   const active = (href: string) => pathname === href || (href !== '/dashboard' && pathname.startsWith(href));

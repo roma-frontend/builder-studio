@@ -7,6 +7,8 @@ import { Accordion, Tabs } from './interactive';
 import { Reveal, Stagger, ParallaxBg } from './reveal';
 import { BgVideo } from './bg-video';
 import { CountUp } from './count-up';
+import { WebglGradient } from '@/components/landing/webgl-gradient';
+import { LandingHero } from '@/components/landing/landing-hero';
 import type { BuilderNode } from '@/lib/builder/types';
 import { isContainer } from '@/lib/builder/types';
 import { THEMES } from '@/lib/themes';
@@ -647,7 +649,14 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
             )
           ) : null}
           {hasMedia && <div className={cn('absolute inset-0', bgVis)} style={{ background: bgChildOverlay || (overlayBg[bgMode] ?? overlayBg.cover) }} />}
-          {p.fx === 'aurora' ? <div className="b-aurora" aria-hidden /> : p.fx === 'grid' ? <div className="b-pattern-grid" aria-hidden /> : p.fx === 'dots' ? <div className="b-pattern-dots" aria-hidden /> : null}
+          {p.fx === 'webgl' ? (
+            <>
+              {/* Animated WebGL gradient — the hero's signature effect. Falls
+                  back to the CSS aurora behind it if WebGL is unavailable. */}
+              <div className="b-aurora" aria-hidden />
+              <WebglGradient className="absolute inset-0 h-full w-full opacity-60" />
+            </>
+          ) : p.fx === 'aurora' ? <div className="b-aurora" aria-hidden /> : p.fx === 'grid' ? <div className="b-pattern-grid" aria-hidden /> : p.fx === 'dots' ? <div className="b-pattern-dots" aria-hidden /> : null}
           <div data-layout className={cn('relative z-10 mx-auto w-full px-6', pick(WIDTH, p.width, 'wide'), uniformMedia && 'text-white', uniformMedia && 'b-legible', uniformMedia && bgMode === 'glass' && 'b-glass-panel', SECTION_LAYOUT(p))}>
             {sectionKids.map((c) => (
               <RenderNode key={c.id} node={c} t={t} />
@@ -758,30 +767,31 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
     }
 
     case 'image': {
-      if (!p.src) {
+      if (!p.src && !p.srcDark) {
         return (
           <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
             {t.imagePlaceholder}
           </div>
         );
       }
-      const src = p.src;
+      const src = p.src || p.srcDark || '';
+      const srcDark = p.srcDark || '';
       const alt = p.alt || '';
       const roundedCls = p.rounded === 'full' ? 'rounded-full' : p.rounded === 'none' ? '' : 'rounded-xl';
       const ratioStyle = p.ratio ? { aspectRatio: p.ratio.replace('/', ' / ') } : undefined;
 
-      // Render one inline variant for a given mode. 'background' returns null —
-      // it's drawn as the section backdrop (see the 'section' case), so the
-      // image occupies no inline space on background breakpoints.
-      const variant = (mode: string): React.ReactNode => {
+      // Render one inline variant for a given mode + image source. 'background'
+      // returns null — it's drawn as the section backdrop (see the 'section'
+      // case), so the image occupies no inline space on background breakpoints.
+      const variant = (mode: string, imgSrc: string): React.ReactNode => {
         if (mode === 'background') return null;
         if (mode === 'glow') {
           return (
             <div className="relative w-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-105 object-cover opacity-60 blur-2xl" style={ratioStyle} />
+              <img src={imgSrc} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-105 object-cover opacity-60 blur-2xl" style={ratioStyle} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={alt} className={cn('relative w-full object-cover shadow-2xl', roundedCls)} style={ratioStyle} />
+              <img src={imgSrc} alt={alt} className={cn('relative w-full object-cover shadow-2xl', roundedCls)} style={ratioStyle} />
             </div>
           );
         }
@@ -789,7 +799,7 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
           return (
             <div className={cn('relative w-full overflow-hidden', roundedCls)} style={ratioStyle}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={alt} className="h-full w-full object-cover" />
+              <img src={imgSrc} alt={alt} className="h-full w-full object-cover" />
               <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.1) 60%)' }} />
             </div>
           );
@@ -798,7 +808,7 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
           return (
             <div className={cn('relative w-full overflow-hidden', roundedCls)} style={ratioStyle}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={alt} className="h-full w-full object-cover" style={{ filter: 'grayscale(1) contrast(1.05)' }} />
+              <img src={imgSrc} alt={alt} className="h-full w-full object-cover" style={{ filter: 'grayscale(1) contrast(1.05)' }} />
               <div className="absolute inset-0 mix-blend-color" style={{ background: 'var(--primary)' }} />
             </div>
           );
@@ -807,7 +817,7 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
           return (
             <div className="w-full rounded-2xl border border-border bg-card p-2 shadow-xl">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={alt} className={cn('w-full object-cover', roundedCls)} style={ratioStyle} />
+              <img src={imgSrc} alt={alt} className={cn('w-full object-cover', roundedCls)} style={ratioStyle} />
             </div>
           );
         }
@@ -815,25 +825,41 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
         const coverStyle = mode === 'cover' ? { aspectRatio: (p.ratio || '16/6').replace('/', ' / ') } : ratioStyle;
         return (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={alt} className={cn('w-full object-cover', roundedCls, mode === 'cover' && 'shadow-lg')} style={coverStyle} />
+          <img src={imgSrc} alt={alt} className={cn('w-full object-cover', roundedCls, mode === 'cover' && 'shadow-lg')} style={coverStyle} />
         );
       };
 
-      const modes = imgModes(p);
-      const uniform = modes.mobile === modes.tablet && modes.tablet === modes.desktop;
-      if (uniform) {
-        // Single mode across breakpoints. 'background' → nothing inline.
-        return (variant(modes.mobile) as ReactElement) ?? <span className="hidden" data-img-bg="1" />;
+      // Compose the (possibly per-breakpoint) inline output for one source.
+      const renderFor = (imgSrc: string): React.ReactNode => {
+        const modes = imgModes(p);
+        const uniform = modes.mobile === modes.tablet && modes.tablet === modes.desktop;
+        if (uniform) {
+          // Single mode across breakpoints. 'background' → nothing inline.
+          return (variant(modes.mobile, imgSrc) as ReactElement) ?? <span className="hidden" data-img-bg="1" />;
+        }
+        // Different modes per breakpoint: render each visible in its own range.
+        return (
+          <div className="contents">
+            {(['mobile', 'tablet', 'desktop'] as BP[]).map((bp) => {
+              const v = variant(modes[bp], imgSrc);
+              return v ? <div key={bp} className={BP_SHOW[bp]}>{v}</div> : null;
+            })}
+          </div>
+        );
+      };
+
+      // Per-theme sources: show the light image in light mode and the dark image
+      // in dark mode, CSS-toggled (no JS, no flicker). Falls back to a single
+      // image when only one source is set.
+      if (srcDark && srcDark !== src) {
+        return (
+          <>
+            <span className="contents dark:hidden">{renderFor(src)}</span>
+            <span className="hidden dark:contents">{renderFor(srcDark)}</span>
+          </>
+        );
       }
-      // Different modes per breakpoint: render each visible in its own range.
-      return (
-        <div className="contents">
-          {(['mobile', 'tablet', 'desktop'] as BP[]).map((bp) => {
-            const v = variant(modes[bp]);
-            return v ? <div key={bp} className={BP_SHOW[bp]}>{v}</div> : null;
-          })}
-        </div>
-      );
+      return renderFor(src);
     }
 
     case 'input':
@@ -1031,26 +1057,63 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
       // Manual media list: one "URL::Title::Caption::Poster" per line. Images
       // (by extension) and videos both work. When empty, the grid falls back
       // to the first `count` clips generated in the Studio (data/media.json).
-      const custom = lines(p.items)
-        .map((ln, i) => {
-          const [src = '', title = '', subtitle = '', poster = ''] = ln.split('::').map((s) => s.trim());
-          if (!src) return null;
-          const entry: MediaEntry = {
-            id: `${node.id}-item-${i}`,
-            title,
-            section: 'card',
-            src,
-            subtitle: subtitle || undefined,
-            poster: poster || undefined,
-            aspectRatio: '16:9',
-          };
-          return entry;
+      const parsedRows = lines(p.items)
+        .map((ln) => {
+          const [src = '', title = '', subtitle = '', poster = '', srcDark = '', posterDark = ''] = ln.split('::').map((s) => s.trim());
+          return { src, title, subtitle, poster, srcDark, posterDark };
         })
-        .filter((e): e is MediaEntry => e !== null);
+        .filter((r) => r.src || r.srcDark);
       const count = Math.max(1, Math.min(12, parseInt(p.count || '6', 10) || 6));
-      const entries = custom.length ? custom : (mediaData as MediaEntry[]).slice(0, count);
-      if (entries.length === 0) return null;
-      return <VideoCardGrid entries={entries} />;
+      if (parsedRows.length === 0) {
+        const fallback = (mediaData as MediaEntry[]).slice(0, count);
+        return fallback.length ? <VideoCardGrid entries={fallback} /> : null;
+      }
+      const toEntry = (r: { src: string; title: string; subtitle: string; poster: string; srcDark: string; posterDark: string }, i: number, dark: boolean): MediaEntry => ({
+        id: `${node.id}-item-${i}${dark ? '-d' : ''}`,
+        title: r.title,
+        section: 'card',
+        src: dark ? (r.srcDark || r.src) : (r.src || r.srcDark),
+        subtitle: r.subtitle || undefined,
+        poster: (dark ? (r.posterDark || r.poster) : (r.poster || r.posterDark)) || undefined,
+        aspectRatio: '16:9',
+      });
+      const lightEntries = parsedRows.map((r, i) => toEntry(r, i, false));
+      if (!parsedRows.some((r) => r.srcDark)) return <VideoCardGrid entries={lightEntries} />;
+      // Per-theme media: light grid in light mode, dark grid in dark mode
+      // (CSS-toggled). The hidden grid's LazyVideos stay unmounted until the
+      // theme actually flips, so nothing is double-loaded.
+      const darkEntries = parsedRows.map((r, i) => toEntry(r, i, true));
+      return (
+        <>
+          <div className="contents dark:hidden"><VideoCardGrid entries={lightEntries} /></div>
+          <div className="hidden dark:contents"><VideoCardGrid entries={darkEntries} /></div>
+        </>
+      );
+    }
+
+    case 'landingHero': {
+      // Renders the REAL coded hero (WebGL bg, glass browser mock, animated
+      // word-stagger headline, magnetic CTA) — so the landing edited/published
+      // from the builder keeps all its effects. Editable text comes from props;
+      // the theme swatches in the mock are derived from the installed themes.
+      const swatches = THEMES.slice(0, 4).map((th) => ({
+        id: th.id,
+        label: th.label,
+        colors: [`oklch(${th.light.primary})`, `oklch(${th.dark.primary})`, `oklch(${th.light.muted})`],
+      }));
+      const microItems = (p.microcopy || '').split('·').map((s) => s.trim()).filter(Boolean);
+      return (
+        <LandingHero
+          badge={p.badge || ''}
+          title={p.title || ''}
+          subtitle={p.subtitle || ''}
+          primary={{ label: p.ctaPrimaryLabel || '', href: p.ctaPrimaryHref || '/' }}
+          secondary={{ label: p.ctaSecondaryLabel || '', href: p.ctaSecondaryHref || '/' }}
+          microItems={microItems}
+          previewLabels={{ url: p.previewUrl || 'ваш-сайт.ru', publish: p.previewPublish || 'Опубликовано' }}
+          swatches={swatches}
+        />
+      );
     }
 
     case 'authLogin':

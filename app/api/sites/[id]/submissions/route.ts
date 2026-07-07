@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { getSiteForUser, listSubmissions } from '@/lib/sites';
+import { getManageableSite, listSubmissions } from '@/lib/sites';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
 
@@ -13,7 +13,7 @@ export async function GET(_req: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
   const { id } = await params;
-  const site = getSiteForUser(user.id, id);
+  const site = getManageableSite(user, id);
   if (!site) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
 
   const rows = listSubmissions(site.id).map((s) => ({

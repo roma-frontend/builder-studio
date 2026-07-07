@@ -5,7 +5,7 @@
 // (platform-authenticated + ownership-checked). Fully siteId-scoped.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Check, X, Ban, Clock, Plus, Trash2, Users, Library, ShieldCheck, GraduationCap, ChevronRight, Eye, EyeOff, Upload, FileType, LifeBuoy, Send, ArrowLeft, Megaphone } from 'lucide-react';
+import { Loader2, Check, X, Ban, Clock, Plus, Trash2, Users, Library, ShieldCheck, GraduationCap, ChevronRight, Eye, EyeOff, Upload, FileType, LifeBuoy, Send, ArrowLeft, Megaphone, UserPlus, Pencil, KeyRound, Download, Copy, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SITE_MEMBERS_SEEN_EVENT } from '@/components/dashboard/site-members-badge';
@@ -34,8 +34,13 @@ async function post(body: Record<string, unknown>) {
   return res.ok;
 }
 
-export function SiteMembers({ siteId, memberApproval }: { siteId: string; memberApproval: boolean }) {
-  const t = dashDict(useLocale().locale).members;
+type TabId = 'settings' | 'members' | 'materials' | 'courses' | 'documents' | 'tickets' | 'announcements';
+const TAB_SETTINGS_LABEL: Record<string, string> = { ru: 'Настройки', en: 'Settings', hy: 'Կարգավորումներ' };
+
+export function SiteMembers({ siteId, memberApproval, settings }: { siteId: string; memberApproval: boolean; settings?: React.ReactNode }) {
+  const locale = useLocale().locale;
+  const d = dashDict(locale);
+  const t = d.members;
   const [members, setMembers] = useState<Member[] | null>(null);
   const [materials, setMaterials] = useState<Material[] | null>(null);
   const [courses, setCourses] = useState<Course[] | null>(null);
@@ -43,7 +48,7 @@ export function SiteMembers({ siteId, memberApproval }: { siteId: string; member
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[] | null>(null);
   const [approval, setApproval] = useState(memberApproval);
-  const [busy, setBusy] = useState('');
+  const [tab, setTab] = useState<TabId>(settings ? 'settings' : 'members');
 
   const load = useCallback(() => {
     fetch(`/api/site-members?site=${encodeURIComponent(siteId)}`)
@@ -62,96 +67,312 @@ export function SiteMembers({ siteId, memberApproval }: { siteId: string; member
   }, [siteId]);
   useEffect(() => { load(); }, [load]);
 
+  const toggleApproval = async (v: boolean) => { setApproval(v); await post({ action: 'set-approval-policy', siteId, memberApproval: v }); };
+
+  const pendingCount = members?.filter((mm) => mm.status === 'pending').length ?? 0;
+  const openTickets = tickets?.filter((tk) => tk.status === 'open').length ?? 0;
+
+  type TabDef = { id: TabId; label: string; icon: React.ComponentType<{ className?: string }>; count?: number };
+  const tabs: TabDef[] = [
+    ...(settings ? [{ id: 'settings' as TabId, label: TAB_SETTINGS_LABEL[locale] ?? 'Settings', icon: Settings2 }] : []),
+    { id: 'members', label: t.membersTitle, icon: Users, count: pendingCount || undefined },
+    { id: 'materials', label: t.materialsTitle, icon: Library, count: materials?.length || undefined },
+    { id: 'courses', label: d.learning.title, icon: GraduationCap, count: courses?.length || undefined },
+    { id: 'documents', label: d.documents.title, icon: FileType, count: documents?.length || undefined },
+    { id: 'tickets', label: d.support.title, icon: LifeBuoy, count: openTickets || undefined },
+    { id: 'announcements', label: d.announcements.title, icon: Megaphone, count: announcements?.length || undefined },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Compact tab bar — one place to reach every organization tool */}
+      <div className="flex gap-1 overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {tabs.map((tb) => {
+          const on = tab === tb.id;
+          const Icon = tb.icon;
+          return (
+            <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
+              className={`flex flex-none items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${on ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+              <Icon className="h-4 w-4" />
+              <span>{tb.label}</span>
+              {tb.count ? <span className={`rounded-full px-1.5 text-[11px] font-bold ${on ? 'bg-primary/15 text-primary' : 'bg-muted-foreground/15 text-muted-foreground'}`}>{tb.count}</span> : null}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Active tab */}
+      {tab === 'settings' && settings}
+
+      {tab === 'members' && (
+        <div className="space-y-6">
+          <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3">
+            <span>
+              <span className="flex items-center gap-2 text-sm font-medium"><ShieldCheck className="h-4 w-4" /> {t.approvalTitle}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{t.approvalDesc}</span>
+            </span>
+            <button type="button" role="switch" aria-checked={approval} onClick={() => toggleApproval(!approval)}
+              className={`relative h-6 w-11 flex-none rounded-full transition-colors ${approval ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${approval ? 'left-0.5 translate-x-5' : 'left-0.5'}`} />
+            </button>
+          </label>
+          <MembersManager siteId={siteId} members={members} reload={load} />
+        </div>
+      )}
+
+      {tab === 'materials' && <MaterialsEditor siteId={siteId} materials={materials} reload={load} />}
+      {tab === 'courses' && <CoursesEditor siteId={siteId} courses={courses} reload={load} />}
+      {tab === 'documents' && <DocumentsEditor siteId={siteId} documents={documents} reload={load} />}
+      {tab === 'tickets' && <TicketsEditor siteId={siteId} tickets={tickets} reload={load} />}
+      {tab === 'announcements' && <AnnouncementsEditor siteId={siteId} announcements={announcements} reload={load} />}
+    </div>
+  );
+}
+
+type ApiResp = { ok?: boolean; error?: string; password?: string; member?: Member; result?: { created: number; skipped: number; invalid: number; passwords: { email: string; password: string }[] } };
+async function postJson(body: Record<string, unknown>): Promise<ApiResp> {
+  const res = await fetch('/api/site-members', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return res.json().catch(() => ({} as ApiResp));
+}
+
+// Inline copy for the member-admin tools (kept local to avoid growing the shared dict).
+const MM = {
+  ru: { add: 'Добавить участника', import: 'Импорт', export: 'Экспорт CSV', emailPh: 'E-mail', namePh: 'Имя (необязательно)', create: 'Создать', importHint: 'Вставьте по строке на участника: email, имя', importRun: 'Импортировать', done: 'Готово', copy: 'Копировать', copied: 'Скопировано', close: 'Закрыть', save: 'Сохранить', cancel: 'Отмена', edit: 'Изменить', resetPwd: 'Сбросить пароль', del: 'Удалить', delConfirm: 'Удалить участника навсегда?', resetConfirm: 'Сбросить пароль этому участнику?', credAdded: 'Участник создан. Передайте ему данные для входа:', credReset: 'Пароль сброшен. Новые данные для входа:', credImport: 'Импортировано. Данные для входа новых участников:', search: 'Поиск по имени или e-mail', created: 'создано', skipped: 'пропущено (уже есть)', invalid: 'ошибочных' },
+  en: { add: 'Add member', import: 'Import', export: 'Export CSV', emailPh: 'E-mail', namePh: 'Name (optional)', create: 'Create', importHint: 'One member per line: email, name', importRun: 'Import', done: 'Done', copy: 'Copy', copied: 'Copied', close: 'Close', save: 'Save', cancel: 'Cancel', edit: 'Edit', resetPwd: 'Reset password', del: 'Delete', delConfirm: 'Delete this member permanently?', resetConfirm: 'Reset this member\u2019s password?', credAdded: 'Member created. Share these sign-in details:', credReset: 'Password reset. New sign-in details:', credImport: 'Imported. Sign-in details for new members:', search: 'Search by name or e-mail', created: 'created', skipped: 'skipped (existing)', invalid: 'invalid' },
+  hy: { add: '\u0531\u057E\u0565\u056C\u0561\u0581\u0576\u0565\u056C \u0561\u0576\u0564\u0561\u0574', import: '\u0546\u0565\u0580\u0574\u0578\u0582\u056E\u0578\u0582\u0574', export: 'Արտահանում CSV', emailPh: 'E-mail', namePh: 'Անուն (ոչ պարտադիր)', create: 'Ստեղծել', importHint: 'Մեկ անդամ՝ տողում. email, անուն', importRun: 'Ներմուծել', done: 'Պատրաստ է', copy: 'Պատճենել', copied: 'Պատճենվեց', close: 'Փակել', save: 'Պահպանել', cancel: 'Չեղարկել', edit: 'Խմբագրել', resetPwd: 'Զրոյացնել գաղտնաբառը', del: 'Ջնջել', delConfirm: 'Ջնջե՞լ անդամին ընդմիշտ։', resetConfirm: 'Զրոյացնե՞լ այս անդամի գաղտնաբառը։', credAdded: 'Անդամը ստեղծվեց։ Փոխանցեք մուտքի տվյալները՝', credReset: 'Գաղտնաբառը զրոյացվեց։ Նոր մուտքի տվյալներ՝', credImport: 'Ներմուծվեց։ Նոր անդամների մուտքի տվյալները՝', search: 'Որոնել ըստ անվան կամ e-mail-ի', created: 'ստեղծված', skipped: 'բաց թողնված (առկա)', invalid: 'սխալ' },
+} as const;
+
+function Creds({ title, items, onClose, m }: { title: string; items: { email: string; password: string }[]; onClose: () => void; m: (typeof MM)[keyof typeof MM] }) {
+  const [copied, setCopied] = useState('');
+  const copy = (text: string, key: string) => { navigator.clipboard?.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 1500); };
+  return (
+    <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
+      <div className="mb-2 flex items-start gap-2">
+        <KeyRound className="mt-0.5 h-4 w-4 flex-none text-primary" />
+        <p className="flex-1 text-sm font-medium">{title}</p>
+        <button type="button" onClick={onClose} className="rounded-lg px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted">{m.close}</button>
+      </div>
+      <ul className="space-y-1.5">
+        {items.map((c) => (
+          <li key={c.email} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+            <span className="min-w-0 flex-1 truncate"><span className="font-medium">{c.email}</span> · <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{c.password}</code></span>
+            <button type="button" onClick={() => copy(`${c.email} / ${c.password}`, c.email)} className="flex flex-none items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs hover:bg-muted">
+              <Copy className="h-3.5 w-3.5" /> {copied === c.email ? m.copied : m.copy}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function MembersManager({ siteId, members, reload }: { siteId: string; members: Member[] | null; reload: () => void }) {
+  const locale = useLocale().locale;
+  const t = dashDict(locale).members;
+  const m = MM[locale] ?? MM.en;
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState('');
+  const [panel, setPanel] = useState<'add' | 'import' | null>(null);
+  const [cred, setCred] = useState<{ title: string; items: { email: string; password: string }[] } | null>(null);
+  // add form
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  // import
+  const [importText, setImportText] = useState('');
+  const [importInfo, setImportInfo] = useState<string>('');
+  // inline edit
+  const [editId, setEditId] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+
   const act = async (memberId: string, status: string) => {
     let reason = '';
     if (status === 'rejected' || status === 'suspended') reason = window.prompt(t.reasonPrompt) ?? '';
     setBusy(memberId);
-    await post({ action: 'set-status', siteId, memberId, status, reason });
-    setBusy(''); load();
+    await postJson({ action: 'set-status', siteId, memberId, status, reason });
+    setBusy(''); reload();
   };
 
-  const toggleApproval = async (v: boolean) => { setApproval(v); await post({ action: 'set-approval-policy', siteId, memberApproval: v }); };
+  const addMember = async () => {
+    if (!email.trim()) return;
+    setBusy('add');
+    const r = await postJson({ action: 'member-create', siteId, email, name });
+    setBusy('');
+    if (r.ok && r.member && r.password) {
+      setCred({ title: m.credAdded, items: [{ email: r.member.email, password: r.password }] });
+      setEmail(''); setName(''); setPanel(null); reload();
+    } else {
+      window.alert(r.error || 'Error');
+    }
+  };
 
-  const pending = members?.filter((m) => m.status === 'pending') ?? [];
-  const others = members?.filter((m) => m.status !== 'pending') ?? [];
+  const resetPwd = async (member: Member) => {
+    if (!window.confirm(m.resetConfirm)) return;
+    setBusy(member.id);
+    const r = await postJson({ action: 'member-reset-password', siteId, memberId: member.id });
+    setBusy('');
+    if (r.ok && r.password) setCred({ title: m.credReset, items: [{ email: member.email, password: r.password }] });
+  };
+
+  const del = async (member: Member) => {
+    if (!window.confirm(m.delConfirm)) return;
+    setBusy(member.id);
+    await postJson({ action: 'member-delete', siteId, memberId: member.id });
+    setBusy(''); reload();
+  };
+
+  const startEdit = (member: Member) => { setEditId(member.id); setEditName(member.name); setEditEmail(member.email); };
+  const saveEdit = async () => {
+    setBusy(editId);
+    const r = await postJson({ action: 'member-update', siteId, memberId: editId, name: editName, email: editEmail });
+    setBusy('');
+    if (r.ok) { setEditId(''); reload(); } else { window.alert(r.error || 'Error'); }
+  };
+
+  const runImport = async () => {
+    const rows = importText.split(/\r?\n/).map((line) => {
+      const parts = line.split(/[,;\t]/);
+      return { email: (parts[0] ?? '').trim(), name: parts.slice(1).join(' ').trim() };
+    }).filter((r) => r.email);
+    if (rows.length === 0) return;
+    setBusy('import');
+    const r = await postJson({ action: 'member-import', siteId, rows });
+    setBusy('');
+    if (r.ok && r.result) {
+      setImportInfo(`${r.result.created} ${m.created} · ${r.result.skipped} ${m.skipped} · ${r.result.invalid} ${m.invalid}`);
+      if (r.result.passwords.length) setCred({ title: m.credImport, items: r.result.passwords });
+      setImportText(''); reload();
+    }
+  };
+
+  const exportCsv = () => {
+    const list = members ?? [];
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const csv = ['email,name,status,createdAt', ...list.map((mm) => [mm.email, mm.name, mm.status, new Date(mm.createdAt).toISOString()].map((c) => esc(String(c))).join(','))].join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = `members-${siteId}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const ql = q.trim().toLowerCase();
+  const match = (mm: Member) => !ql || `${mm.name} ${mm.email}`.toLowerCase().includes(ql);
+  const pending = (members ?? []).filter((mm) => mm.status === 'pending' && match(mm));
+  const others = (members ?? []).filter((mm) => mm.status !== 'pending' && match(mm));
+
+  const rowActions = (member: Member) => (
+    <div className="flex flex-none items-center gap-1">
+      <button type="button" title={m.edit} onClick={() => startEdit(member)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil className="h-4 w-4" /></button>
+      <button type="button" title={m.resetPwd} onClick={() => resetPwd(member)} disabled={busy === member.id} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"><KeyRound className="h-4 w-4" /></button>
+      <button type="button" title={m.del} onClick={() => del(member)} disabled={busy === member.id} className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500">{busy === member.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</button>
+    </div>
+  );
+
+  const editRow = (
+    <div className="flex flex-col gap-2 rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 sm:flex-row sm:items-center">
+      <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={m.namePh} className="h-9 sm:flex-1" />
+      <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder={m.emailPh} className="h-9 sm:flex-1" />
+      <div className="flex gap-2">
+        <Button size="sm" disabled={busy === editId} onClick={saveEdit} className="gap-1.5">{busy === editId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {m.save}</Button>
+        <Button size="sm" variant="outline" onClick={() => setEditId('')}>{m.cancel}</Button>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-8">
-      {/* Approval policy */}
-      <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3">
-        <span>
-          <span className="flex items-center gap-2 text-sm font-medium"><ShieldCheck className="h-4 w-4" /> {t.approvalTitle}</span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">{t.approvalDesc}</span>
-        </span>
-        <button type="button" role="switch" aria-checked={approval} onClick={() => toggleApproval(!approval)}
-          className={`relative h-6 w-11 flex-none rounded-full transition-colors ${approval ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
-          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${approval ? 'left-0.5 translate-x-5' : 'left-0.5'}`} />
-        </button>
-      </label>
+    <section className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={m.search} className="h-10 pl-10" />
+        </div>
+        <Button size="sm" className="gap-1.5" onClick={() => setPanel(panel === 'add' ? null : 'add')}><UserPlus className="h-4 w-4" /> {m.add}</Button>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPanel(panel === 'import' ? null : 'import')}><Upload className="h-4 w-4" /> {m.import}</Button>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={exportCsv}><Download className="h-4 w-4" /> {m.export}</Button>
+      </div>
+
+      {panel === 'add' && (
+        <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 sm:flex-row">
+          <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={m.emailPh} className="h-10 sm:flex-1" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={m.namePh} className="h-10 sm:flex-1" />
+          <Button className="gap-1.5" disabled={busy === 'add' || !email.trim()} onClick={addMember}>{busy === 'add' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {m.create}</Button>
+        </div>
+      )}
+
+      {panel === 'import' && (
+        <div className="space-y-2 rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">{m.importHint}</p>
+          <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={4} placeholder={`ann@mail.com, Ann\nbob@mail.com, Bob`}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus:border-primary" />
+          <div className="flex items-center gap-3">
+            <Button size="sm" className="gap-1.5" disabled={busy === 'import' || !importText.trim()} onClick={runImport}>{busy === 'import' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} {m.importRun}</Button>
+            {importInfo && <span className="text-xs text-muted-foreground">{importInfo}</span>}
+          </div>
+        </div>
+      )}
+
+      {cred && <Creds title={cred.title} items={cred.items} onClose={() => setCred(null)} m={m} />}
 
       {/* Pending requests */}
-      <section>
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Clock className="h-4 w-4 text-amber-500" /> {t.requestsTitle} {pending.length > 0 && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-600">{pending.length}</span>}</h3>
+      <div>
+        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><Clock className="h-4 w-4 text-amber-500" /> {t.requestsTitle} {pending.length > 0 && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-600">{pending.length}</span>}</h3>
         {!members ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : pending.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t.noRequests}</p>
         ) : (
           <ul className="space-y-2">
-            {pending.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+            {pending.map((mm) => editId === mm.id ? <li key={mm.id}>{editRow}</li> : (
+              <li key={mm.id} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{m.name || t.noName}</p>
-                  <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+                  <p className="truncate text-sm font-medium">{mm.name || t.noName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{mm.email}</p>
                 </div>
-                <Button size="sm" className="gap-1.5 bg-green-600 text-white hover:bg-green-700" disabled={busy === m.id} onClick={() => act(m.id, 'approved')}>
-                  {busy === m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t.approve}
+                <Button size="sm" className="gap-1.5 bg-green-600 text-white hover:bg-green-700" disabled={busy === mm.id} onClick={() => act(mm.id, 'approved')}>
+                  {busy === mm.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t.approve}
                 </Button>
-                <Button size="sm" variant="outline" className="gap-1.5 border-red-500/40 text-red-500 hover:bg-red-500/10" disabled={busy === m.id} onClick={() => act(m.id, 'rejected')}>
+                <Button size="sm" variant="outline" className="gap-1.5 border-red-500/40 text-red-500 hover:bg-red-500/10" disabled={busy === mm.id} onClick={() => act(mm.id, 'rejected')}>
                   <X className="h-4 w-4" /> {t.reject}
                 </Button>
+                {rowActions(mm)}
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </div>
 
       {/* All members */}
-      <section>
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Users className="h-4 w-4" /> {t.membersTitle}</h3>
+      <div>
+        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><Users className="h-4 w-4" /> {t.membersTitle}</h3>
         {members && others.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t.noMembers}</p>
         ) : (
           <ul className="space-y-2">
-            {others.map((m) => {
-              const cls = STATUS_CLS[m.status] ?? STATUS_CLS.approved;
+            {others.map((mm) => {
+              if (editId === mm.id) return <li key={mm.id}>{editRow}</li>;
+              const cls = STATUS_CLS[mm.status] ?? STATUS_CLS.approved;
               return (
-                <li key={m.id} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+                <li key={mm.id} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{m.name || t.noName}</p>
-                    <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+                    <p className="truncate text-sm font-medium">{mm.name || t.noName}</p>
+                    <p className="truncate text-xs text-muted-foreground">{mm.email}</p>
                   </div>
-                  <span className={`flex-none rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{t.status[m.status as keyof typeof t.status] ?? m.status}</span>
-                  {m.status === 'approved' ? (
-                    <Button size="sm" variant="outline" className="gap-1.5 border-red-500/40 text-red-500 hover:bg-red-500/10" disabled={busy === m.id} onClick={() => act(m.id, 'suspended')}>
+                  <span className={`flex-none rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{t.status[mm.status as keyof typeof t.status] ?? mm.status}</span>
+                  {mm.status === 'approved' ? (
+                    <Button size="sm" variant="outline" className="gap-1.5 border-red-500/40 text-red-500 hover:bg-red-500/10" disabled={busy === mm.id} onClick={() => act(mm.id, 'suspended')}>
                       <Ban className="h-4 w-4" /> {t.suspend}
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline" className="gap-1.5" disabled={busy === m.id} onClick={() => act(m.id, 'approved')}>
-                      {busy === m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t.restore}
+                    <Button size="sm" variant="outline" className="gap-1.5" disabled={busy === mm.id} onClick={() => act(mm.id, 'approved')}>
+                      {busy === mm.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t.restore}
                     </Button>
                   )}
+                  {rowActions(mm)}
                 </li>
               );
             })}
           </ul>
         )}
-      </section>
-
-      <MaterialsEditor siteId={siteId} materials={materials} reload={load} />
-      <CoursesEditor siteId={siteId} courses={courses} reload={load} />
-      <DocumentsEditor siteId={siteId} documents={documents} reload={load} />
-      <TicketsEditor siteId={siteId} tickets={tickets} reload={load} />
-      <AnnouncementsEditor siteId={siteId} announcements={announcements} reload={load} />
-    </div>
+      </div>
+    </section>
   );
 }
 

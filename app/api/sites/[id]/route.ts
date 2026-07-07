@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { getDb, sites } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-import { getSiteForUser, listDomains, slugify, getSiteBySlug, RESERVED_SLUGS } from '@/lib/sites';
+import { getManageableSite, listDomains, slugify, getSiteBySlug, RESERVED_SLUGS } from '@/lib/sites';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
 
@@ -15,7 +15,7 @@ export async function GET(_req: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
   const { id } = await params;
-  const site = getSiteForUser(user.id, id);
+  const site = getManageableSite(user, id);
   if (!site) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
   return NextResponse.json({
     site: {
@@ -35,7 +35,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
   const { id } = await params;
-  const site = getSiteForUser(user.id, id);
+  const site = getManageableSite(user, id);
   if (!site) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
 
   let body: { name?: string; slug?: string };
@@ -73,7 +73,7 @@ export async function DELETE(_req: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
   const { id } = await params;
-  const site = getSiteForUser(user.id, id);
+  const site = getManageableSite(user, id);
   if (!site) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
   getDb().delete(sites).where(eq(sites.id, site.id)).run();
   return NextResponse.json({ ok: true });

@@ -78,13 +78,7 @@
   * {
     @apply border-border;
   }
-  html {
-    /* Always reserve the vertical scrollbar's gutter so the page doesn't shift
-       sideways when content grows tall enough to need a scrollbar (or when a
-       modal locks scrolling). On mobile the scrollbar is hidden (width: none),
-       so the reserved gutter collapses to 0 — no effect there. */
-    scrollbar-gutter: stable;
-  }
+
   /* Full-viewport app shells (dashboard, account) are position:fixed and own
      their internal scroll, so the document never scrolls. Disable the reserved
      html gutter in that case — otherwise it leaves a dead empty strip at the

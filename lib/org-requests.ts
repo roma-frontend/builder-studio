@@ -1,7 +1,8 @@
 import 'server-only';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { getDb, newId, orgRequests, siteUsers, sites, users, type OrgRequest, type User } from '@/lib/db';
 import { createSite } from '@/lib/sites';
+import { LANDING_SLUG } from '@/lib/landing-site';
 
 // Platform-level organization requests (ported from hr-project). A logged-in
 // platform user requests to CREATE a new org (tenant site) or JOIN an existing
@@ -14,11 +15,59 @@ export function normalizeSlug(s: string): string {
 
 const slugTaken = (slug: string) => Boolean(getDb().select({ id: sites.id }).from(sites).where(eq(sites.slug, slug)).get());
 
+/**
+ * Who may use the create/join onboarding at all. Enforced server-side (the UI
+ * mirrors it). Superadmins run the platform — they never own a tenant org.
+ * Anyone who already owns a site is an org admin and must not re-enter the flow
+ * (a `join` would DELETE their platform account + org — see approveOrgRequest).
+ */
+export function orgEligibility(user: User): { eligible: boolean; reason: 'ok' | 'super' | 'owns'; ownedSiteName: string | null } {
+  if (user.role === 'superadmin') return { eligible: false, reason: 'super', ownedSiteName: null };
+  const owned = getDb().select({ name: sites.name }).from(sites).where(eq(sites.userId, user.id)).get();
+  if (owned) return { eligible: false, reason: 'owns', ownedSiteName: owned.name };
+  return { eligible: true, reason: 'ok', ownedSiteName: null };
+}
+
+/**
+ * Organizations a user may request to JOIN. Excludes: the reserved platform
+ * landing, any superadmin-owned site (the platform itself is not an org), the
+ * user's own sites, and orgs they already belong to. This is the only list the
+ * join dropdown should ever show.
+ */
+export function listJoinableOrgs(user: User): { id: string; name: string; slug: string }[] {
+  const db = getDb();
+  const rows = db
+    .select({ site: sites, ownerRole: users.role })
+    .from(sites)
+    .innerJoin(users, eq(sites.userId, users.id))
+    .orderBy(asc(sites.name))
+    .all();
+  const memberSiteIds = new Set(
+    db.select({ siteId: siteUsers.siteId })
+      .from(siteUsers)
+      .where(and(eq(siteUsers.email, user.email), eq(siteUsers.status, 'approved')))
+      .all()
+      .map((r) => r.siteId),
+  );
+  return rows
+    .filter(({ site, ownerRole }) =>
+      site.slug !== LANDING_SLUG &&
+      ownerRole !== 'superadmin' &&
+      site.userId !== user.id &&
+      !memberSiteIds.has(site.id),
+    )
+    .map(({ site }) => ({ id: site.id, name: site.name, slug: site.slug }));
+}
+
 /** Create a pending request. Throws on validation problems. */
 export function createOrgRequest(
   user: User,
   input: { type: 'create' | 'join'; requestedName?: string; requestedSlug?: string; targetSiteId?: string; message?: string },
 ): OrgRequest {
+  // Eligibility gate (defense-in-depth; the UI hides the form for these users).
+  const elig = orgEligibility(user);
+  if (!elig.eligible) throw new Error(elig.reason === 'super' ? 'SUPERADMIN_NO_ORG' : 'ALREADY_HAS_ORG');
+
   // Only one pending request at a time per requester.
   const existing = getDb()
     .select({ id: orgRequests.id })
@@ -40,8 +89,9 @@ export function createOrgRequest(
     if (slugTaken(requestedSlug)) throw new Error('SLUG_TAKEN');
   } else {
     targetSiteId = (input.targetSiteId ?? '').trim();
-    const site = getDb().select({ id: sites.id }).from(sites).where(eq(sites.id, targetSiteId)).get();
-    if (!site) throw new Error('ORG_NOT_FOUND');
+    // Must be a real, joinable organization — never the landing, a superadmin
+    // site, your own site, or one you already belong to.
+    if (!listJoinableOrgs(user).some((o) => o.id === targetSiteId)) throw new Error('INVALID_TARGET');
   }
 
   const row: OrgRequest = {

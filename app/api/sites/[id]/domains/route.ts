@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { promises as dns } from 'node:dns';
 import { getCurrentUser } from '@/lib/auth';
 import {
-  getSiteForUser,
+  getManageableSite,
   getSiteByHostname,
   listDomains,
   addDomain,
@@ -14,6 +14,7 @@ import {
 
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
+import { enforceFeature } from '@/lib/billing/enforce';
 
 export const runtime = 'nodejs';
 
@@ -25,7 +26,7 @@ export async function GET(_req: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
   const { id } = await params;
-  const site = getSiteForUser(user.id, id);
+  const site = getManageableSite(user, id);
   if (!site) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
   return NextResponse.json({ domains: listDomains(site.id) });
 }
@@ -35,8 +36,11 @@ export async function POST(request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
   const { id } = await params;
-  const site = getSiteForUser(user.id, id);
+  const site = getManageableSite(user, id);
   if (!site) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
+
+  const gate = enforceFeature(user, 'sites.customDomain', t.forbidden);
+  if (gate) return gate;
 
   let body: { hostname?: string };
   try {
@@ -67,7 +71,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
   const { id } = await params;
-  const site = getSiteForUser(user.id, id);
+  const site = getManageableSite(user, id);
   if (!site) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
 
   let body: { domainId?: string };
@@ -108,7 +112,7 @@ export async function DELETE(request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
   const { id } = await params;
-  const site = getSiteForUser(user.id, id);
+  const site = getManageableSite(user, id);
   if (!site) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
 
   const { searchParams } = new URL(request.url);

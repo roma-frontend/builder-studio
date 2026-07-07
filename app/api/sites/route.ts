@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSuperadmin } from '@/lib/auth';
 import { createSite, listSitesForUser } from '@/lib/sites';
+import { siteLimitFor } from '@/lib/billing/enforce';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
 
@@ -47,8 +48,14 @@ export async function POST(request: Request) {
   if (owned === 0 && !isSuperadmin(user)) {
     return NextResponse.json({ error: t.orgNeedsApproval }, { status: 403 });
   }
-  if (owned >= MAX_SITES_PER_USER) {
-    return NextResponse.json({ error: t.maxSites.replace('{max}', String(MAX_SITES_PER_USER)) }, { status: 400 });
+  // Plan-enforced site limit (null = unlimited); capped by the hard platform max.
+  const planLimit = siteLimitFor(user);
+  const effectiveLimit = planLimit == null ? MAX_SITES_PER_USER : Math.min(planLimit, MAX_SITES_PER_USER);
+  if (owned >= effectiveLimit) {
+    return NextResponse.json(
+      { error: t.maxSites.replace('{max}', String(effectiveLimit)), upgrade: '/pricing' },
+      { status: 403 },
+    );
   }
 
   const site = createSite(user.id, name, locale);

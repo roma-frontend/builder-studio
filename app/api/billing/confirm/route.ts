@@ -2,17 +2,24 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
-import { isInterval, isPlanId, PLANS, type BillingInterval, type PlanId } from '@/lib/billing/plans';
+import { isInterval, isPlanId, type BillingInterval, type PlanId } from '@/lib/billing/plans';
 import { stripeConfigured } from '@/lib/billing/provider';
-import { upsertSubscription, recordPayment } from '@/lib/billing/subscriptions';
+import { getEffectivePlan } from '@/lib/billing/plan-config';
+import { upsertSubscription, recordPayment, hasAnySubscription } from '@/lib/billing/subscriptions';
 import { recordAudit } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
-// Manual-mode checkout completion (test/no-Stripe): activates the subscription
-// immediately and records a paid invoice. Disabled once Stripe is configured
-// (real money must flow through the provider + webhook).
-function periodEnd(interval: BillingInterval, from = new Date()): Date {
+// Manual-mode checkout completion (test/no-Stripe). Honors the plan's free
+// trial: a first-time subscriber to a plan with trialDays>0 starts in
+// 'trialing' with NO charge until the trial ends; otherwise the subscription
+// activates and a paid invoice is recorded. Disabled once Stripe is configured.
+function addDays(d: Date, days: number): Date {
+  const x = new Date(d);
+  x.setDate(x.getDate() + days);
+  return x;
+}
+function periodEnd(interval: BillingInterval, from: Date): Date {
   const d = new Date(from);
   if (interval === 'year') d.setFullYear(d.getFullYear() + 1);
   else d.setMonth(d.getMonth() + 1);
@@ -36,34 +43,47 @@ export async function POST(request: Request) {
   }
   const planId = body.planId as PlanId;
   const interval = body.interval as BillingInterval;
+  const plan = getEffectivePlan(planId);
+  const amount = interval === 'year' ? plan.priceYear : plan.priceMonth;
   const now = new Date();
-  const end = periodEnd(interval, now);
-  const amount = PLANS[planId].price[interval];
+
+  // Free trial: only for first-time subscribers of a plan that offers one.
+  const trialEligible = plan.trialDays > 0 && !hasAnySubscription(me.id);
+  const end = trialEligible ? addDays(now, plan.trialDays) : periodEnd(interval, now);
 
   const subId = upsertSubscription({
     userId: me.id,
     planId,
     interval,
-    status: 'active',
+    status: trialEligible ? 'trialing' : 'active',
     provider: 'manual',
     amount,
-    currency: PLANS[planId].currency,
+    currency: plan.currency,
     currentPeriodStart: now,
     currentPeriodEnd: end,
     cancelAtPeriodEnd: false,
   });
-  recordPayment({
-    userId: me.id,
-    subscriptionId: subId,
+
+  // No charge during a trial — the invoice is recorded when it converts.
+  if (!trialEligible) {
+    recordPayment({
+      userId: me.id,
+      subscriptionId: subId,
+      planId,
+      amount,
+      currency: plan.currency,
+      status: 'paid',
+      provider: 'manual',
+      description: `Manual activation — ${planId} (${interval})`,
+      periodStart: now,
+      periodEnd: end,
+    });
+  }
+  recordAudit(
+    { id: me.id, email: me.email },
+    trialEligible ? 'billing.trial_start' : 'billing.manual_activate',
     planId,
-    amount,
-    currency: PLANS[planId].currency,
-    status: 'paid',
-    provider: 'manual',
-    description: `Manual activation — ${planId} (${interval})`,
-    periodStart: now,
-    periodEnd: end,
-  });
-  recordAudit({ id: me.id, email: me.email }, 'billing.manual_activate', planId, interval);
-  return NextResponse.json({ ok: true });
+    interval,
+  );
+  return NextResponse.json({ ok: true, trial: trialEligible });
 }

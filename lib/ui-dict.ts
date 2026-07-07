@@ -13,6 +13,7 @@ export type UiDict = {
     features: string;
     themes: string;
     examples: string;
+    pricing: string;
     builder: string;
     studio: string;
     presets: string;
@@ -76,6 +77,7 @@ const ru: UiDict = {
     features: 'Возможности',
     themes: 'Темы',
     examples: 'Примеры',
+    pricing: 'Тарифы',
     builder: 'Конструктор',
     studio: 'Студия',
     presets: 'Пресеты',
@@ -143,6 +145,7 @@ const en: UiDict = {
     features: 'Features',
     themes: 'Themes',
     examples: 'Examples',
+    pricing: 'Pricing',
     builder: 'Builder',
     studio: 'Studio',
     presets: 'Presets',
@@ -210,6 +213,7 @@ const hy: UiDict = {
     features: 'Հնարավորություններ',
     themes: 'Թեմաներ',
     examples: 'Օրինակներ',
+    pricing: 'Սակագներ',
     builder: 'Կառուցիչ',
     studio: 'Ստուդիա',
     presets: 'Կաղապարներ',

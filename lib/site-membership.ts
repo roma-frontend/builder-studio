@@ -1,7 +1,9 @@
 import 'server-only';
+import { randomBytes } from 'node:crypto';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { getDb, newId, sites, siteUsers, siteMaterials, siteNotifications, type SiteMaterial, type User } from '@/lib/db';
-import { isSuperadmin } from '@/lib/auth';
+import { isSuperadmin, hashPassword } from '@/lib/auth';
+import { createSiteUser, getSiteUserByEmail } from '@/lib/site-auth';
 import { getUserById } from '@/lib/admin';
 import { sendEmail } from '@/lib/email';
 import { renderNewMemberEmail } from '@/lib/email-templates';
@@ -136,6 +138,92 @@ export function setMemberStatus(
   if (status === 'approved') notifyMember(siteId, memberId, 'join_approved', 'Заявка одобрена', 'Добро пожаловать! Ваш доступ к материалам открыт.');
   else if (status === 'rejected') notifyMember(siteId, memberId, 'join_rejected', 'Заявка отклонена', reason ? `Причина: ${reason}` : 'Ваша заявка на вступление отклонена.');
   else if (status === 'suspended') notifyMember(siteId, memberId, 'suspended', 'Доступ приостановлен', reason ? `Причина: ${reason}` : 'Ваш доступ временно приостановлен.');
+}
+
+// ── Members: admin-side create / edit / delete / import ─────────────────────
+// The owner (admin) has full control over the people in THEIR organization:
+// add them manually, edit their info, reset a password, remove them, or import
+// a batch. Every write is scoped by siteId (verified via requireSiteOwner at the
+// API layer) so it can never touch another organization's members.
+
+/** A readable temporary password (no ambiguous chars) for admin-created members. */
+export function genMemberPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const buf = randomBytes(12);
+  let out = '';
+  for (let i = 0; i < 12; i++) out += chars[buf[i] % chars.length];
+  return out;
+}
+
+/** Create a member directly (already approved). Returns the temp password so the
+ *  admin can hand it over. Throws 'EMAIL_TAKEN' / 'INVALID_EMAIL'. */
+export function adminCreateMember(
+  siteId: string,
+  data: { email: string; name?: string; password?: string; status?: MemberStatus },
+): { member: MemberRow; password: string } {
+  const email = data.email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('INVALID_EMAIL');
+  const password = data.password?.trim() || genMemberPassword();
+  const status = data.status === 'pending' ? 'pending' : 'approved';
+  const created = createSiteUser(siteId, email, password, data.name ?? '', status);
+  const member: MemberRow = {
+    id: created.id,
+    email: created.email,
+    name: created.name,
+    status: created.status,
+    rejectionReason: created.rejectionReason,
+    createdAt: created.createdAt,
+    approvedAt: created.approvedAt,
+  };
+  return { member, password };
+}
+
+/** Edit a member's name and/or email (email is deduped within the site). */
+export function adminUpdateMember(siteId: string, memberId: string, data: { name?: string; email?: string }): void {
+  const set: Record<string, unknown> = { updatedAt: new Date() };
+  if (typeof data.name === 'string') set.name = data.name.trim().slice(0, 120);
+  if (typeof data.email === 'string' && data.email.trim()) {
+    const email = data.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('INVALID_EMAIL');
+    const existing = getSiteUserByEmail(siteId, email);
+    if (existing && existing.id !== memberId) throw new Error('EMAIL_TAKEN');
+    set.email = email;
+  }
+  getDb().update(siteUsers).set(set).where(and(eq(siteUsers.id, memberId), eq(siteUsers.siteId, siteId))).run();
+}
+
+/** Reset a member's password to a fresh temp value; returns it for hand-off. */
+export function adminResetMemberPassword(siteId: string, memberId: string): string {
+  const password = genMemberPassword();
+  getDb().update(siteUsers).set({ passwordHash: hashPassword(password), failedAttempts: 0, lockedUntil: null, updatedAt: new Date() })
+    .where(and(eq(siteUsers.id, memberId), eq(siteUsers.siteId, siteId))).run();
+  return password;
+}
+
+/** Permanently remove a member from the organization (sessions cascade). */
+export function adminDeleteMember(siteId: string, memberId: string): void {
+  getDb().delete(siteUsers).where(and(eq(siteUsers.id, memberId), eq(siteUsers.siteId, siteId))).run();
+}
+
+export interface ImportResult { created: number; skipped: number; invalid: number; passwords: { email: string; password: string }[] }
+
+/** Bulk-add members (approved). Existing emails are skipped, malformed ones
+ *  counted as invalid. Returns generated passwords so the admin can distribute. */
+export function adminImportMembers(siteId: string, rows: { email: string; name?: string }[]): ImportResult {
+  const out: ImportResult = { created: 0, skipped: 0, invalid: 0, passwords: [] };
+  for (const raw of rows.slice(0, 1000)) {
+    const email = (raw.email ?? '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { out.invalid++; continue; }
+    try {
+      const password = genMemberPassword();
+      createSiteUser(siteId, email, password, raw.name ?? '', 'approved');
+      out.created++;
+      out.passwords.push({ email, password });
+    } catch {
+      out.skipped++; // EMAIL_TAKEN
+    }
+  }
+  return out;
 }
 
 // ── Materials (admin CRUD) ──────────────────────────────────────────────────

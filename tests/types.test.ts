@@ -14,7 +14,7 @@ const ALL_TYPES: NodeType[] = [
   'section', 'stack', 'row', 'grid', 'card', 'heading', 'text', 'list',
   'counter', 'button', 'image', 'video', 'input', 'textarea', 'form',
   'pricing', 'testimonial', 'socials', 'faq', 'tabs', 'divider', 'spacer',
-  'themeGallery', 'videoGrid', 'authLogin', 'authRegister', 'authAccount',
+  'themeGallery', 'videoGrid', 'landingHero', 'authLogin', 'authRegister', 'authAccount',
 ];
 
 describe('isContainer / CONTAINER_TYPES', () => {

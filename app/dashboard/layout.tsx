@@ -52,6 +52,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       orgRequests={orgRequests}
       siteMembers={siteMembers}
       disabled={disabled}
+      hideOrgNav={isSuperadmin(user) || hasOrg}
     >
       {gated ? (
         <>

@@ -95,6 +95,17 @@ export function getSiteBySlug(slug: string): Site | null {
   return getDb().select().from(sites).where(eq(sites.slug, slug)).get() ?? null;
 }
 
+/** Site by id, regardless of owner — for superadmin org management only. */
+export function getSite(siteId: string): Site | null {
+  return getDb().select().from(sites).where(eq(sites.id, siteId)).get() ?? null;
+}
+
+/** Site if the user owns it OR is a superadmin — the manage gate for the site
+ *  config APIs (mirrors requireSiteOwner's superadmin bypass in site-membership). */
+export function getManageableSite(user: { id: string; role?: string }, siteId: string): Site | null {
+  return getSiteForUser(user.id, siteId) ?? (user.role === 'superadmin' ? getSite(siteId) : null);
+}
+
 /** All published sites (publishedDoc present) — for the public sitemap. */
 export function listPublishedSites(): { slug: string; publishedAt: Date | null; updatedAt: Date }[] {
   return getDb()

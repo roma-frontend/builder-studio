@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { makeNode, newId, type BuilderNode, type NodeType } from '@/lib/builder/types';
 import { requireUser, unauthorized } from '@/lib/api-guard';
+import { enforceFeature } from '@/lib/billing/enforce';
 import { rateLimit } from '@/lib/auth';
+import { isStaff } from '@/lib/auth';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
 
@@ -122,6 +124,10 @@ export async function POST(request: Request) {
   const user = await requireUser();
   if (!user) return unauthorized();
   const t = apiErrors(await getLocale());
+  if (!isStaff(user)) {
+    const gate = enforceFeature(user, 'ai.generate', t.forbidden);
+    if (gate) return gate;
+  }
   if (!rateLimit(`generate-page:${user.id}`, 10)) {
     return NextResponse.json({ error: t.tooManyGenerations }, { status: 429 });
   }

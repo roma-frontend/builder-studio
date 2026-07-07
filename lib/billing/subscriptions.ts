@@ -47,6 +47,11 @@ export function getSubscription(id: string): Subscription | null {
   return getDb().select().from(subscriptions).where(eq(subscriptions.id, id)).get() ?? null;
 }
 
+/** Whether the user has ever had any subscription row (trial-abuse guard). */
+export function hasAnySubscription(userId: string): boolean {
+  return !!getDb().select({ id: subscriptions.id }).from(subscriptions).where(eq(subscriptions.userId, userId)).get();
+}
+
 export function getSubscriptionByProviderSub(providerSubId: string): Subscription | null {
   if (!providerSubId) return null;
   return (
@@ -76,7 +81,14 @@ export function upsertSubscription(input: UpsertSubInput): string {
   const now = new Date();
   const existing =
     (input.providerSubId ? getSubscriptionByProviderSub(input.providerSubId) : null) ??
-    (input.provider === 'manual' ? null : null);
+    (input.providerSubId
+      ? null
+      : (db
+          .select()
+          .from(subscriptions)
+          .where(eq(subscriptions.userId, input.userId))
+          .orderBy(desc(subscriptions.createdAt))
+          .get() ?? null));
   const values = {
     planId: input.planId,
     interval: input.interval,

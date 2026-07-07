@@ -38,6 +38,7 @@ import { builderTr } from '@/lib/builder-dict';
 import { cn } from '@/lib/utils';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { studioDict } from '@/lib/studio-dict';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 type Field = { k: string; label: string; kind?: 'text' | 'textarea'; opts?: string[] };
 
@@ -53,7 +54,7 @@ const FIELDS: Record<NodeType, Field[]> = {
     { k: 'justifyItems', label: 'justify-items (grid)', opts: ['—', 'start', 'center', 'end', 'stretch'] },
     { k: 'colWidth', label: 'Ширина колонок (flex-row)', opts: ['equal', 'auto'] },
     { k: 'bg', label: 'Фон', opts: ['none', 'muted', 'card', 'primary', 'gradient'] },
-    { k: 'fx', label: 'Спецэффект фона', opts: ['none', 'aurora', 'grid', 'dots'] },
+    { k: 'fx', label: 'Спецэффект фона', opts: ['none', 'webgl', 'aurora', 'grid', 'dots'] },
     { k: 'width', label: 'Ширина', opts: ['narrow', 'normal', 'wide'] },
     { k: 'bgImage', label: 'Фоновая картинка (URL)' },
     { k: 'bgMode', label: 'Режим фона', opts: ['cover', 'blur', 'glass', 'overlay', 'tint', 'duotone'] },
@@ -118,10 +119,23 @@ const FIELDS: Record<NodeType, Field[]> = {
     { k: 'shimmer', label: 'Блик (shimmer)', opts: ['false', 'true'] },
   ],
   image: [
-    { k: 'src', label: 'URL картинки' },
+    { k: 'src', label: 'URL картинки (светлая тема)' },
+    { k: 'srcDark', label: 'URL картинки (тёмная тема)' },
     { k: 'alt', label: 'Alt-текст' },
     { k: 'rounded', label: 'Скругление', opts: ['none', 'lg', 'full'] },
     { k: 'ratio', label: 'Пропорции (напр. 16/9)' },
+  ],
+  landingHero: [
+    { k: 'badge', label: 'Бейдж' },
+    { k: 'title', label: 'Заголовок', kind: 'textarea' },
+    { k: 'subtitle', label: 'Подзаголовок', kind: 'textarea' },
+    { k: 'ctaPrimaryLabel', label: 'Кнопка 1 — текст' },
+    { k: 'ctaPrimaryHref', label: 'Кнопка 1 — ссылка' },
+    { k: 'ctaSecondaryLabel', label: 'Кнопка 2 — текст' },
+    { k: 'ctaSecondaryHref', label: 'Кнопка 2 — ссылка' },
+    { k: 'microcopy', label: 'Микротекст (пункты через ·)' },
+    { k: 'previewUrl', label: 'Макет браузера: адрес' },
+    { k: 'previewPublish', label: 'Макет браузера: бейдж «опубликовано»' },
   ],
   video: [
     { k: 'src', label: 'URL (YouTube/Vimeo/MP4)' },
@@ -216,24 +230,25 @@ const FIELDS: Record<NodeType, Field[]> = {
   ],
 };
 
-const PALETTE: NodeType[] = ['section', 'stack', 'row', 'grid', 'card', 'heading', 'text', 'list', 'counter', 'button', 'image', 'video', 'input', 'textarea', 'form', 'pricing', 'testimonial', 'socials', 'faq', 'tabs', 'divider', 'spacer', 'themeGallery', 'videoGrid', 'authLogin', 'authRegister', 'authAccount', 'courseList', 'documentList', 'materialList'];
+const PALETTE: NodeType[] = ['section', 'stack', 'row', 'grid', 'card', 'heading', 'text', 'list', 'counter', 'button', 'image', 'video', 'input', 'textarea', 'form', 'pricing', 'testimonial', 'socials', 'faq', 'tabs', 'divider', 'spacer', 'themeGallery', 'videoGrid', 'landingHero', 'authLogin', 'authRegister', 'authAccount', 'courseList', 'documentList', 'materialList'];
 
 // videoGrid manual items: one "URL::Title::Caption::Poster" line per card.
-type GridItem = { src: string; title: string; subtitle: string; poster: string };
+type GridItem = { src: string; title: string; subtitle: string; poster: string; srcDark: string; posterDark: string };
 const parseGridItems = (items?: string): GridItem[] =>
   (items ?? '')
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
     .map((l) => {
-      const [src = '', title = '', subtitle = '', poster = ''] = l.split('::').map((s) => s.trim());
-      return { src, title, subtitle, poster };
+      const [src = '', title = '', subtitle = '', poster = '', srcDark = '', posterDark = ''] = l.split('::').map((s) => s.trim());
+      return { src, title, subtitle, poster, srcDark, posterDark };
     });
 const serializeGridItems = (rows: GridItem[]): string =>
   rows
     // An all-empty row (just added via "+") is kept as '::' so it survives the
     // round-trip until the user types a URL; render-node skips src-less lines.
-    .map((r) => [r.src, r.title, r.subtitle, r.poster].join('::').replace(/(::)+$/, '') || '::')
+    // Trailing empty fields (poster / dark variants) are trimmed off.
+    .map((r) => [r.src, r.title, r.subtitle, r.poster, r.srcDark, r.posterDark].join('::').replace(/(::)+$/, '') || '::')
     .join('\n');
 const GRID_IMG_RE = /\.(webp|jpe?g|png|gif|avif|svg)(\?.*)?$/i;
 
@@ -544,6 +559,7 @@ function BuilderEditor() {
   const locale = useLocale().locale;
   const tr = builderTr(locale);
   const t = studioDict(locale);
+  const { confirm, confirmDialog } = useConfirm();
   const siteId = useSearchParams().get('site');
   const [siteMeta, setSiteMeta] = useState<SiteMeta | null>(null);
   const [doc, setDoc] = useState<BuilderDoc>(seed as unknown as BuilderDoc);
@@ -1141,6 +1157,7 @@ function BuilderEditor() {
 
   // Image upload for the selected image node.
   const uploadRef = useRef<HTMLInputElement>(null);
+  const uploadDarkRef = useRef<HTMLInputElement>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   // Logo upload (writes to doc.logoUrl instead of a node).
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -1161,7 +1178,7 @@ function BuilderEditor() {
       setLogoBusy(false);
     }
   };
-  const uploadImage = async (file: File, nodeId: string) => {
+  const uploadImage = async (file: File, nodeId: string, key: string = 'src') => {
     setUploadBusy(true);
     setMsg('');
     try {
@@ -1169,7 +1186,7 @@ function BuilderEditor() {
       fd.append('file', file);
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       const data = await res.json();
-      if (res.ok) patch(nodeId, { src: data.url });
+      if (res.ok) patch(nodeId, { [key]: data.url });
       else setMsg(data.error || tr('Ошибка загрузки'));
     } catch {
       setMsg(tr('Ошибка загрузки'));
@@ -1180,6 +1197,8 @@ function BuilderEditor() {
   // Photo/video upload for the media grid — appends a "URL::Title[::::Poster]"
   // line to the node's items list (uploads land in R2 when it is configured).
   const gridUploadRef = useRef<HTMLInputElement>(null);
+  const gridDarkUploadRef = useRef<HTMLInputElement>(null);
+  const darkRowRef = useRef<number>(-1);
   const videoUploadRef = useRef<HTMLInputElement>(null);
   const uploadGridMedia = async (files: File[], nodeId: string, items: string) => {
     setUploadBusy(true);
@@ -1208,6 +1227,25 @@ function BuilderEditor() {
     }
     if (failed.length) setMsg(`${tr('Ошибка загрузки')}: ${failed.join(', ')}`);
     setUploadBusy(false);
+  };
+  // Upload one file as the DARK-theme variant of a specific grid row.
+  const uploadGridItemDark = async (file: File, nodeId: string, rows: GridItem[], i: number) => {
+    setUploadBusy(true);
+    setMsg('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        const next = rows.map((r, idx) => (idx === i ? { ...r, srcDark: data.url, posterDark: data.poster || '' } : r));
+        patch(nodeId, { items: serializeGridItems(next) });
+      } else setMsg(data.error || tr('Ошибка загрузки'));
+    } catch {
+      setMsg(tr('Ошибка загрузки'));
+    } finally {
+      setUploadBusy(false);
+    }
   };
 
   // Generate a whole page from a brief.
@@ -1535,6 +1573,43 @@ function BuilderEditor() {
     }
   };
 
+  // Reset the landing to its initial seeded state + unpublish (staff only). This
+  // is the escape hatch: once a site is published, every save re-syncs the live
+  // copy, so this cleanly reverts / back to the coded showcase.
+  const [resetBusy, setResetBusy] = useState(false);
+  const resetLanding = async () => {
+    const ok = await confirm({
+      title: tr('Сбросить лендинг к начальному виду?'),
+      description: tr('Все изменения лендинга будут удалены, а страница «/» вернётся к исходному оформлению со всеми эффектами.'),
+      confirmLabel: tr('Сбросить'),
+      tone: 'warning',
+    });
+    if (!ok) return;
+    setResetBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/landing-site/reset', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.doc) {
+        skipHistory.current = true;
+        past.current = [];
+        future.current = [];
+        setHistCaps({ undo: false, redo: false });
+        setDoc(data.doc);
+        setPageId((data.doc.pages.find((p: { path: string; id: string }) => p.path === '') ?? data.doc.pages[0]).id);
+        setSelectedId(null);
+        setSiteMeta((m) => (m ? { ...m, published: false } : m));
+        setDirty(false);
+        setPreviewKey((k) => k + 1);
+        setMsg(tr('Лендинг сброшен к начальному виду.'));
+      } else setMsg(data.error || tr('Ошибка'));
+    } catch {
+      setMsg(tr('Ошибка'));
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
   // Owner draft preview on the tenant route ('?draft=1' shows unsaved-published work).
   const isLanding = siteMeta?.slug === '__landing__';
   const previewSrc = isLanding
@@ -1545,6 +1620,7 @@ function BuilderEditor() {
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-background">
+      {confirmDialog}
       {/* Toolbar */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-1.5 px-2 sm:gap-2 sm:px-4 xl:gap-3">
@@ -1604,12 +1680,12 @@ function BuilderEditor() {
           <TutorialModal
             locale={locale as 'ru' | 'en' | 'hy'}
             scenes={[
-              { src: `/media/tutorial-shot-1.${locale}.png`, label: tr('Общий вид: палитра, живое превью, панель свойств'), arrow: { xPct: 58, yPct: 38, angle: 0 } },
-              { src: `/media/tutorial-shot-2.${locale}.png`, label: tr('Добавление блоков из палитры'), arrow: { xPct: 30, yPct: 28, angle: 180 } },
-              { src: `/media/tutorial-shot-3.${locale}.png`, label: tr('Адаптив: мобильный, планшет, десктоп'), arrow: { xPct: 64, yPct: 13, angle: 270 } },
+              { src: `/media/tutorial-shot-1.${locale}.webp`, label: tr('Общий вид: палитра, живое превью, панель свойств'), arrow: { xPct: 58, yPct: 38, angle: 0 } },
+              { src: `/media/tutorial-shot-2.${locale}.webp`, label: tr('Добавление блоков из палитры'), arrow: { xPct: 30, yPct: 28, angle: 180 } },
+              { src: `/media/tutorial-shot-3.${locale}.webp`, label: tr('Адаптив: мобильный, планшет, десктоп'), arrow: { xPct: 64, yPct: 13, angle: 270 } },
               { src: `/media/tutorial-shot-4.${locale}.mp4`, label: tr('Готовые эффекты в один клик'), arrow: { xPct: 53, yPct: 40, angle: 180 } },
               { src: `/media/tutorial-shot-5.${locale}.mp4`, label: tr('Тонкая настройка: CSS-анимация и свой CSS'), arrow: { xPct: 53, yPct: 58, angle: 180 } },
-              { src: '/media/tutorial-shot-6.png', label: tr('Готовая страница и публикация'), arrow: { xPct: 10, yPct: 33, angle: 0 } },
+              { src: '/media/tutorial-shot-6.webp', label: tr('Готовая страница и публикация'), arrow: { xPct: 10, yPct: 33, angle: 0 } },
             ]}
             labels={{
               watch: tr('Туториал'),
@@ -1675,7 +1751,11 @@ function BuilderEditor() {
           {isLanding && (
             <Card className="border-primary/40 p-3">
               <p className="flex items-center gap-1.5 text-sm font-semibold text-primary"><Home className="h-4 w-4" /> {tr('Редактирование лендинга')}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{tr('Это главная страница сайта («/»). Здесь только она — без других страниц и без путаницы с проектами тенантов. Меняйте блоки на вкладках «Блоки» и «Сайт», жмите «Сохранить» — изменения уйдут именно в лендинг.')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{tr('Это лендинг («/»). Блок «Лендинг-герой» — настоящий кодовый герой со всеми эффектами (WebGL, браузер-макет, анимации); правьте его тексты в свойствах блока. Жмите «Опубликовать» — «/» обновится со всеми эффектами.')}</p>
+              <Button size="sm" variant="outline" onClick={resetLanding} disabled={resetBusy || busy || pubBusy} className="mt-2.5 w-full gap-1.5">
+                {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />} {tr('Сбросить лендинг к начальному виду')}
+              </Button>
+              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{tr('Вернёт исходные секции и снимет публикацию — «/» снова покажет оригинальный лендинг со всеми эффектами.')}</p>
             </Card>
           )}
           {!isLanding && (<>
@@ -1927,11 +2007,50 @@ function BuilderEditor() {
                   </div>
                 )}
                 {selected.type === 'image' && (
-                  <div className="border-t border-border/60 pt-2">
-                    <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={uploadBusy} onClick={() => uploadRef.current?.click()}>
-                      {uploadBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} {tr('Загрузить картинку')}
-                    </Button>
-                    <input ref={uploadRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], selected.id)} />
+                  <div className="space-y-2 border-t border-border/60 pt-2">
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      {tr('Задайте разные картинки для светлой и тёмной темы — сайт покажет подходящую автоматически.')}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Light theme image */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground"><Sun className="h-3.5 w-3.5" /> {tr('Светлая тема')}</div>
+                        {selected.props.src ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={selected.props.src} alt="" className="h-16 w-full rounded-md border border-border object-cover" />
+                        ) : (
+                          <div className="flex h-16 w-full items-center justify-center rounded-md border border-dashed border-border text-[10px] text-muted-foreground">{tr('нет')}</div>
+                        )}
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="outline" className="h-7 flex-1 gap-1 px-1.5 text-[11px]" disabled={uploadBusy} onClick={() => uploadRef.current?.click()}>
+                            {uploadBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} {tr('Загрузить')}
+                          </Button>
+                          {selected.props.src && (
+                            <button onClick={() => patch(selected.id, { src: '' })} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-red-500" title={tr('Удалить')} aria-label={tr('Удалить')}><X className="h-3.5 w-3.5" /></button>
+                          )}
+                        </div>
+                        <input ref={uploadRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f, selected.id, 'src'); e.target.value = ''; }} />
+                      </div>
+                      {/* Dark theme image */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground"><Moon className="h-3.5 w-3.5" /> {tr('Тёмная тема')}</div>
+                        {selected.props.srcDark ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={selected.props.srcDark} alt="" className="h-16 w-full rounded-md border border-border object-cover" />
+                        ) : (
+                          <div className="flex h-16 w-full items-center justify-center rounded-md border border-dashed border-border text-center text-[10px] text-muted-foreground">{selected.props.src ? tr('как светлая') : tr('нет')}</div>
+                        )}
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="outline" className="h-7 flex-1 gap-1 px-1.5 text-[11px]" disabled={uploadBusy} onClick={() => uploadDarkRef.current?.click()}>
+                            {uploadBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} {tr('Загрузить')}
+                          </Button>
+                          {selected.props.srcDark && (
+                            <button onClick={() => patch(selected.id, { srcDark: '' })} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-red-500" title={tr('Удалить')} aria-label={tr('Удалить')}><X className="h-3.5 w-3.5" /></button>
+                          )}
+                        </div>
+                        <input ref={uploadDarkRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f, selected.id, 'srcDark'); e.target.value = ''; }} />
+                      </div>
+                    </div>
                   </div>
                 )}
                 {selected.type === 'video' && (
@@ -1976,13 +2095,19 @@ function BuilderEditor() {
                         </div>
                         <Input value={r.title} onChange={(e) => setRow(i, 'title', e.target.value)} placeholder="Заголовок" className="h-7 text-xs" />
                         <Input value={r.subtitle} onChange={(e) => setRow(i, 'subtitle', e.target.value)} placeholder="Подпись" className="h-7 text-xs" />
+                        <div className="flex items-center gap-2">
+                          <Moon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <Input value={r.srcDark} onChange={(e) => setRow(i, 'srcDark', e.target.value)} placeholder={tr('URL для тёмной темы (необязательно)')} className="h-7 min-w-0 flex-1 text-[11px]" />
+                          <button onClick={() => { darkRowRef.current = i; gridDarkUploadRef.current?.click(); }} disabled={uploadBusy} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30" title={tr('Загрузить для тёмной темы')} aria-label={tr('Загрузить для тёмной темы')}><Upload className="h-3.5 w-3.5" /></button>
+                          {r.srcDark && <button onClick={() => setRow(i, 'srcDark', '')} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-red-500" title={tr('Удалить')} aria-label={tr('Удалить')}><X className="h-3.5 w-3.5" /></button>}
+                        </div>
                       </div>
                     ))}
                     <div className="flex gap-1.5">
                       <Button size="sm" variant="outline" className="flex-1 gap-1.5" disabled={uploadBusy} onClick={() => gridUploadRef.current?.click()}>
                         {uploadBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} {tr('Загрузить фото/видео')}
                       </Button>
-                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setRows([...rows, { src: '', title: '', subtitle: '', poster: '' }])} title={tr('Добавить по URL')} aria-label={tr('Добавить по URL')}>
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setRows([...rows, { src: '', title: '', subtitle: '', poster: '', srcDark: '', posterDark: '' }])} title={tr('Добавить по URL')} aria-label={tr('Добавить по URL')}>
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
@@ -1993,6 +2118,13 @@ function BuilderEditor() {
                       multiple
                       hidden
                       onChange={(e) => { const fs = Array.from(e.target.files ?? []); if (fs.length) uploadGridMedia(fs, selected.id, selected.props.items ?? ''); e.target.value = ''; }}
+                    />
+                    <input
+                      ref={gridDarkUploadRef}
+                      type="file"
+                      accept="image/*,video/*"
+                      hidden
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f && darkRowRef.current >= 0) uploadGridItemDark(f, selected.id, rows, darkRowRef.current); e.target.value = ''; }}
                     />
                     <p className="text-[11px] leading-snug text-muted-foreground">
                       {tr('Можно выбрать сразу несколько файлов — каждый оптимизируется и добавится карточкой выше. Видео до 64 МБ.')}

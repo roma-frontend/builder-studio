@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getCurrentUser } from '@/lib/auth';
-import { getSiteForUser, publishSite, unpublishSite, parseDoc } from '@/lib/sites';
+import { getManageableSite, publishSite, unpublishSite, parseDoc } from '@/lib/sites';
+import { enforceFeature } from '@/lib/billing/enforce';
 import { LANDING_SLUG } from '@/lib/landing-site';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
@@ -36,13 +37,15 @@ export async function POST(_req: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
   const { id } = await params;
-  const site = getSiteForUser(user.id, id);
+  const site = getManageableSite(user, id);
   if (!site) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
 
   const doc = parseDoc(site.draftDoc);
   if (!doc || !doc.pages.length) {
     return NextResponse.json({ error: t.nothingToPublish }, { status: 400 });
   }
+  const gate = enforceFeature(user, 'sites.publish', t.forbidden);
+  if (gate) return gate;
   publishSite(site);
   if (site.slug === LANDING_SLUG) await syncLandingTheme(doc.themeId);
   return NextResponse.json({ ok: true, publishedAt: new Date().toISOString() });
@@ -53,7 +56,7 @@ export async function DELETE(_req: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: t.loginRequired }, { status: 401 });
   const { id } = await params;
-  const site = getSiteForUser(user.id, id);
+  const site = getManageableSite(user, id);
   if (!site) return NextResponse.json({ error: t.siteNotFoundDot }, { status: 404 });
   unpublishSite(site);
   return NextResponse.json({ ok: true });

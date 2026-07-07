@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { resetDb } from './helpers';
 import { getDb, newId, users, sites, siteUsers, orgRequests } from '@/lib/db';
 import { createUser } from '@/lib/auth';
@@ -40,20 +41,41 @@ describe('createOrgRequest', () => {
   });
 
   it('join type validations', () => {
-    const su = createUser('a@x.com', 'pw', 'Admin');
+    createUser('a@x.com', 'pw', 'Admin'); // bootstrap superadmin
+    const owner = createUser('o@x.com', 'pw', 'Owner');
+    getDb().update(users).set({ role: 'admin' }).where(eq(users.id, owner.id)).run();
     const cust = createUser('c@x.com', 'pw', 'Cust');
-    expect(() => createOrgRequest(cust, { type: 'join', targetSiteId: 'nope' })).toThrow('ORG_NOT_FOUND');
-    const site = createSite(su.id, 'Org');
+    // Unknown / non-joinable targets are rejected.
+    expect(() => createOrgRequest(cust, { type: 'join', targetSiteId: 'nope' })).toThrow('INVALID_TARGET');
+    const site = createSite(owner.id, 'Org'); // a real org owned by an admin
     const req = createOrgRequest(cust, { type: 'join', targetSiteId: site.id });
     expect(req.targetSiteId).toBe(site.id);
+  });
+
+  it('join: cannot join a superadmin-owned site (not an org)', () => {
+    const su = createUser('a@x.com', 'pw', 'Admin'); // superadmin
+    const cust = createUser('c@x.com', 'pw', 'Cust');
+    const suSite = createSite(su.id, 'Platform site');
+    expect(() => createOrgRequest(cust, { type: 'join', targetSiteId: suSite.id })).toThrow('INVALID_TARGET');
+  });
+
+  it('eligibility: superadmin and org owners cannot create/join', () => {
+    const su = createUser('a@x.com', 'pw', 'Admin'); // superadmin
+    expect(() => createOrgRequest(su, { type: 'create', requestedName: 'X' })).toThrow('SUPERADMIN_NO_ORG');
+    const owner = createUser('o@x.com', 'pw', 'Owner');
+    getDb().update(users).set({ role: 'admin' }).where(eq(users.id, owner.id)).run();
+    createSite(owner.id, 'Owned');
+    expect(() => createOrgRequest(owner, { type: 'create', requestedName: 'Y' })).toThrow('ALREADY_HAS_ORG');
   });
 });
 
 describe('queries', () => {
   it('getMyOrgRequests, listOrgRequests, countPending', () => {
-    const su = createUser('a@x.com', 'pw', 'Admin');
+    createUser('a@x.com', 'pw', 'Admin'); // superadmin
+    const owner = createUser('o@x.com', 'pw', 'Owner');
+    getDb().update(users).set({ role: 'admin' }).where(eq(users.id, owner.id)).run();
     const cust = createUser('c@x.com', 'pw', 'Cust');
-    const site = createSite(su.id, 'Target Org');
+    const site = createSite(owner.id, 'Target Org');
     createOrgRequest(cust, { type: 'join', targetSiteId: site.id });
 
     expect(getMyOrgRequests(cust.id).length).toBe(1);
@@ -97,8 +119,10 @@ describe('approveOrgRequest', () => {
 
   it('join: creates a tenant member and removes the platform user', () => {
     const su = createUser('a@x.com', 'pw', 'Admin');
+    const owner = createUser('o@x.com', 'pw', 'Owner');
+    getDb().update(users).set({ role: 'admin' }).where(eq(users.id, owner.id)).run();
     const cust = createUser('c@x.com', 'pw', 'Cust');
-    const site = createSite(su.id, 'Org');
+    const site = createSite(owner.id, 'Org');
     const req = createOrgRequest(cust, { type: 'join', targetSiteId: site.id });
     const { siteId } = approveOrgRequest(su.id, req.id);
     expect(siteId).toBe(site.id);
@@ -111,8 +135,10 @@ describe('approveOrgRequest', () => {
 
   it('join: re-approves an existing tenant member', () => {
     const su = createUser('a@x.com', 'pw', 'Admin');
+    const owner = createUser('o@x.com', 'pw', 'Owner');
+    getDb().update(users).set({ role: 'admin' }).where(eq(users.id, owner.id)).run();
     const cust = createUser('c@x.com', 'pw', 'Cust');
-    const site = createSite(su.id, 'Org');
+    const site = createSite(owner.id, 'Org');
     getDb().insert(siteUsers).values({
       id: newId('su'), siteId: site.id, email: 'c@x.com', name: 'Cust', passwordHash: 'h',
       status: 'pending', rejectionReason: '', phone: '', avatarColor: '', locale: '', createdAt: new Date(),

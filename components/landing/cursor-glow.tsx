@@ -1,0 +1,84 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+
+/**
+ * Premium custom cursor: a small precise ring dot + a large blurred primary
+ * glow that trails the pointer with easing. Desktop only (fine pointer) and
+ * disabled under prefers-reduced-motion. Purely decorative (pointer-events:none)
+ * and self-cleaning, so it never interferes with clicks or touch devices.
+ */
+export function CursorGlow() {
+  const dot = useRef<HTMLDivElement>(null);
+  const glow = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fine = window.matchMedia('(pointer: fine)').matches;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!fine || reduced) return;
+
+    let mx = window.innerWidth / 2;
+    let my = window.innerHeight / 2;
+    let gx = mx;
+    let gy = my;
+    let raf = 0;
+    let visible = false;
+
+    const onMove = (e: MouseEvent) => {
+      mx = e.clientX;
+      my = e.clientY;
+      if (!visible) {
+        visible = true;
+        if (dot.current) dot.current.style.opacity = '1';
+        if (glow.current) glow.current.style.opacity = '1';
+      }
+      if (dot.current) dot.current.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -50%)`;
+    };
+    const onLeave = () => {
+      visible = false;
+      if (dot.current) dot.current.style.opacity = '0';
+      if (glow.current) glow.current.style.opacity = '0';
+    };
+    // Enlarge over interactive elements for an affordance cue.
+    const onOver = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      const interactive = t.closest('a, button, [role="button"], input, select, textarea, label');
+      if (dot.current) dot.current.style.setProperty('--dot-scale', interactive ? '2.4' : '1');
+    };
+
+    const tick = () => {
+      gx += (mx - gx) * 0.12;
+      gy += (my - gy) * 0.12;
+      if (glow.current) glow.current.style.transform = `translate(${gx}px, ${gy}px) translate(-50%, -50%)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    window.addEventListener('mousemove', onMove, { passive: true });
+    window.addEventListener('mouseover', onOver, { passive: true });
+    document.addEventListener('mouseleave', onLeave);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseover', onOver);
+      document.removeEventListener('mouseleave', onLeave);
+    };
+  }, []);
+
+  return (
+    <>
+      <div
+        ref={glow}
+        aria-hidden
+        className="pointer-events-none fixed left-0 top-0 z-[70] h-[320px] w-[320px] rounded-full opacity-0 blur-[60px] transition-opacity duration-300 will-change-transform"
+        style={{ background: 'radial-gradient(circle, color-mix(in oklch, var(--primary) 40%, transparent), transparent 65%)' }}
+      />
+      <div
+        ref={dot}
+        aria-hidden
+        className="pointer-events-none fixed left-0 top-0 z-[71] hidden h-5 w-5 rounded-full border border-primary/70 opacity-0 transition-[opacity,width,height] duration-200 will-change-transform lg:block"
+        style={{ scale: 'var(--dot-scale, 1)', mixBlendMode: 'difference' }}
+      />
+    </>
+  );
+}
