@@ -10,7 +10,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Film, Blocks, LayoutDashboard, Globe, Inbox, UserCircle, Users, LayoutList,
   LogOut, Menu, X, ExternalLink, Crown, ShieldCheck, Plus, Search, Building2, Database,
-  ScrollText, KeyRound, Activity, Trash2, ChevronLeft, ChevronRight,
+  ScrollText, KeyRound, Activity, Trash2, ChevronLeft, ChevronRight, CreditCard,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ import { LanguageSwitcher } from '../language-switcher';
 export type Role = 'customer' | 'admin' | 'superadmin';
 export interface ShellUser { name: string; email: string; role: Role }
 
-type NavKey = 'overview' | 'sites' | 'organization' | 'submissions' | 'account' | 'users' | 'allSites' | 'audit' | 'organizations' | 'database' | 'access' | 'activity' | 'control' | 'studio' | 'trash';
+type NavKey = 'overview' | 'sites' | 'organization' | 'submissions' | 'account' | 'users' | 'allSites' | 'audit' | 'organizations' | 'database' | 'access' | 'activity' | 'control' | 'studio' | 'trash' | 'billing' | 'billingAdmin';
 interface NavItem { href: string; key: NavKey; icon: React.ComponentType<{ className?: string }>; staff?: boolean; super?: boolean }
 
 const NAV: NavItem[] = [
@@ -36,6 +36,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard/join', key: 'organization', icon: Building2 },
   { href: '/dashboard/submissions', key: 'submissions', icon: Inbox },
   { href: '/dashboard/account', key: 'account', icon: UserCircle },
+  { href: '/dashboard/billing', key: 'billing', icon: CreditCard },
   { href: '/dashboard/users', key: 'users', icon: Users, staff: true },
   { href: '/dashboard/all-sites', key: 'allSites', icon: LayoutList, staff: true },
   { href: '/dashboard/audit', key: 'audit', icon: ScrollText, staff: true },
@@ -45,6 +46,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard/activity', key: 'activity', icon: Activity, super: true },
   { href: '/dashboard/trash', key: 'trash', icon: Trash2, super: true },
   { href: '/dashboard/control', key: 'control', icon: Crown, super: true },
+  { href: '/dashboard/billing-admin', key: 'billingAdmin', icon: CreditCard, super: true },
   { href: '/studio', key: 'studio', icon: Film, super: true },
 ];
 
@@ -363,7 +365,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
   };
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
+    <div className="fixed inset-0 flex overflow-hidden bg-background">
       <CommandPalette commands={commands} />
       <IdleTimeout onLogout={logout} />
       {isStaff && <ActivityTracker />}      {/* Desktop sidebar */}
