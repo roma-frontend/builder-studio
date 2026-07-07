@@ -62,7 +62,7 @@ export default function BuilderPreview() {
       walk = walk.parentElement;
     }
     const hasText = !!el.innerText.trim();
-    window.parent?.postMessage({ source: 'builder-preview', type: 'rect', id, rect: { top: r.top, left: r.left, width: r.width, height: r.height }, color, bg, hasText }, '*');
+    window.parent?.postMessage({ source: 'builder-preview', type: 'rect', id, rect: { top: r.top, left: r.left, width: r.width, height: r.height }, color, bg, hasText, vw: window.innerWidth, vh: window.innerHeight }, '*');
   }, []);
 
   useEffect(() => {

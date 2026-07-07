@@ -79,6 +79,55 @@ export function deleteRow(table: string, rowid: number): void {
   getRawDb().prepare(`DELETE FROM "${table}" WHERE rowid = ?`).run(rowid);
 }
 
+/**
+ * Insert one row. `values` keys must be real columns; empty strings become NULL.
+ * Returns the rowid of the freshly-created row.
+ */
+export function insertRow(table: string, values: Record<string, unknown>): number {
+  assertTable(table);
+  // Only keep keys that map to real columns and carry a non-empty value — this
+  // lets DEFAULT / autoincrement columns fill themselves in.
+  const cols = tableColumns(table);
+  const valid = new Set(cols.map((c) => c.name));
+  const keys = Object.keys(values).filter((k) => valid.has(k) && normalize(values[k]) !== null);
+  assertColumns(table, keys);
+  const db = getRawDb();
+  if (keys.length === 0) {
+    const info = db.prepare(`INSERT INTO "${table}" DEFAULT VALUES`).run();
+    return Number(info.lastInsertRowid);
+  }
+  const placeholders = keys.map(() => '?').join(', ');
+  const columnList = keys.map((k) => `"${k}"`).join(', ');
+  const params = keys.map((k) => normalize(values[k]));
+  const info = db.prepare(`INSERT INTO "${table}" (${columnList}) VALUES (${placeholders})`).run(...params);
+  return Number(info.lastInsertRowid);
+}
+
+/**
+ * Full dump of a table for export: real column names as the header and every
+ * row (capped) as an aligned array of primitive values. Optionally filtered by
+ * the same free-text `q` used by the browser.
+ */
+export function exportTable(table: string, opts: { q?: string; limit?: number } = {}): { header: string[]; rows: unknown[][] } {
+  assertTable(table);
+  const db = getRawDb();
+  const columns = tableColumns(table);
+  const header = columns.map((c) => c.name);
+  const limit = Math.min(Math.max(opts.limit ?? 100000, 1), 500000);
+  const q = (opts.q ?? '').trim();
+
+  let where = '';
+  const params: unknown[] = [];
+  if (q) {
+    where = ' WHERE ' + columns.map((c) => `CAST("${c.name}" AS TEXT) LIKE ?`).join(' OR ');
+    for (const _ of columns) params.push(`%${q}%`);
+  }
+  const rows = db
+    .prepare(`SELECT * FROM "${table}"${where} ORDER BY rowid DESC LIMIT ?`)
+    .all(...params, limit) as Record<string, unknown>[];
+  return { header, rows: rows.map((r) => columns.map((c) => r[c.name] ?? '')) };
+}
+
 // Coerce form strings into DB-friendly values: '' → NULL, numeric strings kept
 // (SQLite column affinity converts), everything else as text.
 function normalize(v: unknown): unknown {

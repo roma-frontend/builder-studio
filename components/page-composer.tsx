@@ -40,7 +40,7 @@ export function PageComposer({ theme, media, layoutOverride }: { theme: Theme; m
                 subtitle: e.subtitle ?? 'Особенность',
                 prompt: e.prompt ?? 'Ключевое преимущество — одним ёмким абзацем, поданным кинематографично.',
                 ctaLabel: 'Смотреть каталог',
-                ctaHref: '/presets/product',
+                ctaHref: '/presets',
               }}
             />
           </Reveal>

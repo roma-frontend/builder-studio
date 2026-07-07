@@ -12,7 +12,11 @@ import { r2Configured, r2List, r2Delete } from '@/lib/storage';
 // so a freshly uploaded file isn't removed before its doc is saved.
 
 const UPLOAD_RE = /\/uploads\/[A-Za-z0-9._-]+/g;
-const GRACE_MS = 10 * 60 * 1000; // don't touch files newer than 10 min
+// Long grace window: uploads are never auto-reaped shortly after upload. GC now
+// runs only from the explicit admin "clean storage" action (not on every save),
+// so a generous window makes accidental loss of in-use media effectively
+// impossible while still letting admins reclaim genuinely stale orphans.
+const GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 function refsFrom(text: string | null | undefined, set: Set<string>) {
   if (!text) return;

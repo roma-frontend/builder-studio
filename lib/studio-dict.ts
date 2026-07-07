@@ -11,6 +11,7 @@ export type StudioDict = {
   builderBtn: string;
   toHome: string;
   studioBadge: string;
+  studioLabel: string;
   // messages
   error: string;
   saveError: string;
@@ -113,6 +114,7 @@ const ru: StudioDict = {
   builderBtn: 'Конструктор сайта',
   toHome: 'На главную',
   studioBadge: 'Cinematic Studio',
+  studioLabel: 'Студия',
   error: 'Ошибка',
   saveError: 'Ошибка сохранения',
   landingBuilderTitle: 'Конструктор лендинга',
@@ -206,6 +208,7 @@ const en: StudioDict = {
   builderBtn: 'Site builder',
   toHome: 'Home',
   studioBadge: 'Cinematic Studio',
+  studioLabel: 'Studio',
   error: 'Error',
   saveError: 'Save error',
   landingBuilderTitle: 'Landing builder',
@@ -299,6 +302,7 @@ const hy: StudioDict = {
   builderBtn: 'Կայքի կոնստրուկտոր',
   toHome: 'Գլխավոր',
   studioBadge: 'Cinematic Studio',
+  studioLabel: 'Ստուդիա',
   error: 'Սխալ',
   saveError: 'Պահպանման սխալ',
   landingBuilderTitle: 'Լենդինգի կոնստրուկտոր',

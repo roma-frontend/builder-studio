@@ -62,6 +62,21 @@ export type SiteRtDict = {
   requestNewLink: string;
   pwMin8: string;
   pwMin8Ph: string;
+  // member content blocks (courses / documents / materials)
+  membersOnly: string;
+  signInToAccess: string;
+  loadFailed: string;
+  empty: string;
+  lessonsCount: string;
+  completedOf: string;
+  open: string;
+  download: string;
+  back: string;
+  markComplete: string;
+  markIncomplete: string;
+  completed: string;
+  notFound: string;
+  openLink: string;
 };
 
 const ru: SiteRtDict = {
@@ -118,6 +133,20 @@ const ru: SiteRtDict = {
   requestNewLink: 'Запросить новую ссылку',
   pwMin8: 'Пароль должен быть не короче 8 символов.',
   pwMin8Ph: 'Минимум 8 символов',
+  membersOnly: 'Только для участников',
+  signInToAccess: 'Войдите в аккаунт, чтобы получить доступ к этому разделу.',
+  loadFailed: 'Не удалось загрузить.',
+  empty: 'Пока ничего нет.',
+  lessonsCount: 'уроков',
+  completedOf: 'пройдено',
+  open: 'Открыть',
+  download: 'Скачать',
+  back: 'Назад',
+  markComplete: 'Отметить пройденным',
+  markIncomplete: 'Снять отметку',
+  completed: 'Пройдено',
+  notFound: 'Не найдено.',
+  openLink: 'Открыть ссылку',
 };
 
 const en: SiteRtDict = {
@@ -174,6 +203,20 @@ const en: SiteRtDict = {
   requestNewLink: 'Request a new link',
   pwMin8: 'Password must be at least 8 characters.',
   pwMin8Ph: 'At least 8 characters',
+  membersOnly: 'Members only',
+  signInToAccess: 'Sign in to your account to access this section.',
+  loadFailed: 'Could not load.',
+  empty: 'Nothing here yet.',
+  lessonsCount: 'lessons',
+  completedOf: 'completed',
+  open: 'Open',
+  download: 'Download',
+  back: 'Back',
+  markComplete: 'Mark complete',
+  markIncomplete: 'Mark incomplete',
+  completed: 'Completed',
+  notFound: 'Not found.',
+  openLink: 'Open link',
 };
 
 const hy: SiteRtDict = {
@@ -230,6 +273,20 @@ const hy: SiteRtDict = {
   requestNewLink: 'Հայցել նոր հղում',
   pwMin8: 'Գաղտնաբառը պետք է լինի առնվազն 8 նիշ։',
   pwMin8Ph: 'Առնվազն 8 նիշ',
+  membersOnly: 'Միայն անդամների համար',
+  signInToAccess: 'Մուտք գործեք ձեր հաշիվ՝ այս բաժնին հասանելիություն ստանալու համար։',
+  loadFailed: 'Չհաջողվեց բեռնել։',
+  empty: 'Դեռ ոչինչ չկա։',
+  lessonsCount: 'դաս',
+  completedOf: 'ավարտված',
+  open: 'Բացել',
+  download: 'Ներբեռնել',
+  back: 'Հետ',
+  markComplete: 'Նշել որպես ավարտված',
+  markIncomplete: 'Հանել նշումը',
+  completed: 'Ավարտված',
+  notFound: 'Չի գտնվել։',
+  openLink: 'Բացել հղումը',
 };
 
 export const SITE_RT: Record<Locale, SiteRtDict> = { ru, en, hy };

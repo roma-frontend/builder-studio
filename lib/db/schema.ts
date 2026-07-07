@@ -24,6 +24,8 @@ export const users = sqliteTable(
     totpSecret: text('totp_secret'),
     /** When true, TOTP replaces the emailed login code as the second factor. */
     totpEnabled: integer('totp_enabled', { mode: 'boolean' }).notNull().default(false),
+    /** Forces a password change on next dashboard entry (set by superadmin temp-password issue). */
+    mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [uniqueIndex('users_email_idx').on(t.email)],

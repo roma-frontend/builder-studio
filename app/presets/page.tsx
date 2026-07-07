@@ -6,20 +6,16 @@ import { siteTheme } from '@/lib/site-theme';
 import { LayoutTemplate, ArrowRight, Sparkles } from 'lucide-react';
 import { getLocale } from '@/lib/i18n';
 import { pagesDict } from '@/lib/pages-dict';
+import { PRESETS } from '@/lib/presets';
+import { presetDict } from '@/lib/preset-demo-dict';
 
 export async function generateMetadata() {
   const t = pagesDict(await getLocale()).presets;
   return { title: t.metaTitle, description: t.metaDesc };
 }
 
-const PRESET_DEFS = [
-  { key: 'product', href: '/presets/product', blocks: ['VideoHero', 'SplitHero', 'BeforeAfter', 'StickyShowcase', 'VideoMosaic'] },
-  { key: 'portfolio', href: '/presets/portfolio', blocks: ['SplitHero', 'VideoMosaic', 'VideoCardGrid'] },
-  { key: 'story', href: '/presets/story', blocks: ['VideoHero', 'StickyShowcase', 'VideoSection'] },
-] as const;
-
 /**
- * The real preset page rendered small: a desktop-width iframe scaled to 1/4.
+ * The real preset landing rendered small: a desktop-width iframe scaled to 1/4.
  * It is purely decorative here — hidden from AT and keyboard, clicks fall
  * through to the card link.
  */
@@ -42,8 +38,22 @@ function LivePreview({ href, title }: { href: string; title: string }) {
 }
 
 export default async function PresetsIndex() {
-  const t = pagesDict(await getLocale()).presets;
-  const presets = PRESET_DEFS.map((p) => ({ ...p, title: t.items[p.key].title, desc: t.items[p.key].desc }));
+  const locale = await getLocale();
+  const t = pagesDict(locale).presets;
+  const d = presetDict(locale);
+
+  const presets = PRESETS.map((def) => {
+    const c = d.presets[def.slug];
+    return {
+      slug: def.slug,
+      href: `/presets/${def.slug}`,
+      title: c.label,
+      tag: c.tag,
+      desc: c.hero.subtitle,
+      sections: def.sections,
+    };
+  });
+
   return (
     <main className="min-h-dvh">
       <ThemeStyle theme={siteTheme()} />
@@ -60,19 +70,20 @@ export default async function PresetsIndex() {
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {presets.map((p) => (
-            <Link key={p.title} href={p.href} className="group">
+            <Link key={p.slug} href={p.href} className="group">
               <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/60 backdrop-blur transition-shadow hover:shadow-lg">
                 <LivePreview href={p.href} title={t.previewOf.replace('{title}', p.title)} />
                 <div className="flex flex-1 flex-col p-6">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-primary">{p.tag}</div>
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-lg font-bold tracking-tight">{p.title}</h2>
                     <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
                   </div>
                   <p className="flex-1 text-sm text-muted-foreground">{p.desc}</p>
                   <div className="mt-4 flex flex-wrap gap-1.5">
-                    {p.blocks.map((b) => (
-                      <span key={b} className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                        {b}
+                    {p.sections.map((s) => (
+                      <span key={s} className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {s}
                       </span>
                     ))}
                   </div>

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getSiteForUser, parseDoc, saveDraft, publishSite } from '@/lib/sites';
-import { gcUploads } from '@/lib/uploads-gc';
 import type { BuilderDoc } from '@/lib/builder/types';
 import { DEFAULT_DOC } from '@/lib/builder/types';
 import { getLocale } from '@/lib/i18n';
@@ -66,8 +65,6 @@ export async function POST(request: Request) {
     // "publish" step needed once the site has been published the first time.
     const live = Boolean(site.publishedDoc);
     if (live) publishSite({ ...site, draftDoc: JSON.stringify(doc) });
-    // Remove now-orphaned uploads (e.g. an image that was just replaced).
-    void gcUploads();
     return NextResponse.json({ ok: true, pages: doc.pages.length, published: live });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'write failed' }, { status: 500 });

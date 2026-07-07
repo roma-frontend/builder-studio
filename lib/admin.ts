@@ -89,6 +89,16 @@ export function setUserRole(id: string, role: Role): void {
   getDb().update(users).set({ role }).where(eq(users.id, id)).run();
 }
 
+/** Overwrite a user's password hash (used by the superadmin temp-password reset). */
+export function setUserPasswordHash(id: string, passwordHash: string): void {
+  getDb().update(users).set({ passwordHash, failedAttempts: 0, lockedUntil: null }).where(eq(users.id, id)).run();
+}
+
+/** Toggle the "must change password on next entry" flag. */
+export function setMustChangePassword(id: string, value: boolean): void {
+  getDb().update(users).set({ mustChangePassword: value }).where(eq(users.id, id)).run();
+}
+
 export function countUsers(): number {
   const r = getDb().select({ n: sql<number>`count(*)` }).from(users).get();
   return Number(r?.n ?? 0);
@@ -216,7 +226,7 @@ export function assignSiteAdmin(siteId: string, email: string): { id: string; em
     const now = new Date();
     const created: User = {
       id: newId('u'), email: norm, name: su.name, passwordHash: su.passwordHash,
-      role: 'admin', isActive: true, failedAttempts: 0, lockedUntil: null, totpSecret: null, totpEnabled: false, createdAt: now,
+      role: 'admin', isActive: true, failedAttempts: 0, lockedUntil: null, totpSecret: null, totpEnabled: false, mustChangePassword: false, createdAt: now,
     };
     db.insert(users).values(created).run();
     // Single identity: drop ALL tenant memberships for this email (sessions cascade).

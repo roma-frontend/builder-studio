@@ -28,7 +28,7 @@ afterEach(cleanup);
 describe('gcUploads (local disk)', () => {
   it('deletes old orphans, keeps referenced and fresh files', async () => {
     await mkdir(UPLOAD_DIR, { recursive: true });
-    const oldTime = new Date(Date.now() - 60 * 60 * 1000); // 1h ago (> grace)
+    const oldTime = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000); // 40d ago (> grace)
     for (const f of [orphan, keep]) {
       const p = path.join(UPLOAD_DIR, f);
       await writeFile(p, 'x');

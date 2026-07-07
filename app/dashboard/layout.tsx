@@ -29,6 +29,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const returnToken = jar.get(ADMIN_RETURN_COOKIE)?.value;
   const impersonating = Boolean(returnToken && getUserByToken(returnToken));
 
+  // Forced password change after a superadmin issued a temporary password.
+  // Skipped while impersonating so a superadmin never sets the real user's
+  // password without their knowledge.
+  if (user.mustChangePassword && !impersonating) redirect('/change-password');
+
   // Access gate: you can't just enter the dashboard — a superadmin must let you
   // in. Until you own an organization (a superadmin approved your create/join
   // request), every dashboard section shows the onboarding instead of content.

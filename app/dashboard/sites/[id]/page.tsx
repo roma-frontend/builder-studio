@@ -4,6 +4,7 @@ import { getSiteForUser, listDomains, listSubmissions, APP_HOST } from '@/lib/si
 import { listSiteUsers } from '@/lib/site-auth';
 import { SiteSettings } from '@/components/dashboard/site-settings';
 import { SiteMembers } from '@/components/dashboard/site-members';
+import { TourLauncher } from '@/components/tour/tour-launcher';
 import { getLocale } from '@/lib/i18n';
 import { siteSettingsDict } from '@/lib/site-settings-dict';
 
@@ -57,6 +58,7 @@ export default async function SiteSettingsPage({ params }: { params: Promise<{ i
         <p className="mb-5 text-sm text-muted-foreground">{t.orgSectionDesc}</p>
         <SiteMembers siteId={site.id} memberApproval={site.memberApproval} />
       </section>
+      <TourLauncher tour="site-content" />
     </div>
   );
 }

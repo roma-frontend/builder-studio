@@ -23,6 +23,20 @@ export function hashPassword(password: string): string {
   return `scrypt:${SCRYPT.N}:${SCRYPT.r}:${SCRYPT.p}:${salt.toString('base64')}:${key.toString('base64')}`;
 }
 
+// Ambiguous glyphs (0/O, 1/l/I) are excluded so a temporary password can be
+// safely read aloud or typed from a screen.
+const PW_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+
+/**
+ * Cryptographically-random, human-friendly password for superadmin-issued
+ * temporary credentials. Grouped as XXXX-XXXX-XXXX for readability.
+ */
+export function generatePassword(): string {
+  const bytes = randomBytes(12);
+  const chars = Array.from(bytes, (b) => PW_ALPHABET[b % PW_ALPHABET.length]);
+  return `${chars.slice(0, 4).join('')}-${chars.slice(4, 8).join('')}-${chars.slice(8, 12).join('')}`;
+}
+
 export function verifyPassword(password: string, stored: string): boolean {
   try {
     const [algo, N, r, p, saltB64, keyB64] = stored.split(':');
@@ -167,6 +181,7 @@ export function createUser(email: string, password: string, name: string): User 
     lockedUntil: null,
     totpSecret: null,
     totpEnabled: false,
+    mustChangePassword: false,
     createdAt: new Date(),
   };
   db.insert(users).values(user).run();

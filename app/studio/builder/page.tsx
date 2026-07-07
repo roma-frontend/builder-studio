@@ -20,6 +20,7 @@ import { usePrefs, usePref, setPref } from '@/hooks/use-user-prefs';
 import { useMounted } from '@/hooks/use-mounted';
 import { THEMES, getTheme, themeCss } from '@/lib/themes';
 import { RenderNode } from '@/components/builder/render-node';
+import { TourLauncher } from '@/components/tour/tour-launcher';
 import { RevealDisabled } from '@/components/builder/reveal';
 import { Header as ChromeHeader, Footer as ChromeFooter } from '@/components/builder/site-chrome';
 import { TEMPLATES, LANDINGS, SECTION_PRESETS, isPristineStarter, buildTemplatePage, buildSubpages, buildSection, tplText } from '@/lib/builder/templates';
@@ -30,10 +31,13 @@ import {
 import { updateProps, removeNode, insertChild, moveNode, findNode, duplicateNode, moveTo, insertAfter, ancestorTypes, ancestorPath, cloneWithNewIds, findSymbolOf, applySymbol, collectSymbols, findBySymbol } from '@/lib/builder/tree';
 import { contrastRatio, wcagLevel } from '@/lib/contrast';
 import { chromeBtnClass, CHROME_BTN_VARIANTS, CHROME_BTN_VARIANT_LABELS, CHROME_BTN_ROUNDED_LABELS, NAV_STYLES, NAV_STYLE_LABELS, THEME_BTN_PRESETS } from '@/lib/builder/chrome-buttons';
+import { EFFECT_PRESETS, applyEffectPatch, clearEffectPatch, type EffectPreset } from '@/lib/builder/effects';
+import { TutorialModal } from '@/components/builder/tutorial-modal';
 import { useLocale } from '@/hooks/use-locale';
 import { builderTr } from '@/lib/builder-dict';
 import { cn } from '@/lib/utils';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { studioDict } from '@/lib/studio-dict';
 
 type Field = { k: string; label: string; kind?: 'text' | 'textarea'; opts?: string[] };
 
@@ -197,9 +201,22 @@ const FIELDS: Record<NodeType, Field[]> = {
     { k: 'title', label: 'Заголовок' },
     { k: 'logoutText', label: 'Текст кнопки выхода' },
   ],
+  courseList: [
+    { k: 'title', label: 'Заголовок' },
+    { k: 'columns', label: 'Колонок', opts: ['1', '2', '3', '4'] },
+    { k: 'showProgress', label: 'Показывать прогресс', opts: ['true', 'false'] },
+  ],
+  documentList: [
+    { k: 'title', label: 'Заголовок' },
+    { k: 'columns', label: 'Колонок', opts: ['1', '2', '3', '4'] },
+  ],
+  materialList: [
+    { k: 'title', label: 'Заголовок' },
+    { k: 'columns', label: 'Колонок', opts: ['1', '2', '3', '4'] },
+  ],
 };
 
-const PALETTE: NodeType[] = ['section', 'stack', 'row', 'grid', 'card', 'heading', 'text', 'list', 'counter', 'button', 'image', 'video', 'input', 'textarea', 'form', 'pricing', 'testimonial', 'socials', 'faq', 'tabs', 'divider', 'spacer', 'themeGallery', 'videoGrid', 'authLogin', 'authRegister', 'authAccount'];
+const PALETTE: NodeType[] = ['section', 'stack', 'row', 'grid', 'card', 'heading', 'text', 'list', 'counter', 'button', 'image', 'video', 'input', 'textarea', 'form', 'pricing', 'testimonial', 'socials', 'faq', 'tabs', 'divider', 'spacer', 'themeGallery', 'videoGrid', 'authLogin', 'authRegister', 'authAccount', 'courseList', 'documentList', 'materialList'];
 
 // videoGrid manual items: one "URL::Title::Caption::Poster" line per card.
 type GridItem = { src: string; title: string; subtitle: string; poster: string };
@@ -276,8 +293,144 @@ const STYLE_GROUPS: { title: string; fields: Field[] }[] = [
       { k: 'hoverText', label: 'Цвет текста при наведении', opts: ['—', 'none', 'primary', 'foreground', 'muted'] },
     ],
   },
+  {
+    title: 'Размеры (свои значения CSS)',
+    fields: [
+      { k: 'cssWidth', label: 'Ширина (напр. 320px / 60%)', kind: 'text' },
+      { k: 'cssHeight', label: 'Высота (напр. 240px / 40vh)', kind: 'text' },
+      { k: 'cssMaxW', label: 'Макс. ширина', kind: 'text' },
+      { k: 'cssMinW', label: 'Мин. ширина', kind: 'text' },
+      { k: 'cssMaxH', label: 'Макс. высота', kind: 'text' },
+      { k: 'cssMinH', label: 'Мин. высота', kind: 'text' },
+      { k: 'cssAspect', label: 'Соотношение (напр. 16/9)', kind: 'text' },
+    ],
+  },
+  {
+    title: 'Отступы (свои значения CSS)',
+    fields: [
+      { k: 'cssPadding', label: 'padding (напр. 16px 24px)', kind: 'text' },
+      { k: 'cssMargin', label: 'margin (напр. 0 auto)', kind: 'text' },
+      { k: 'cssGap', label: 'gap (в колонке/ряду/сетке)', kind: 'text' },
+    ],
+  },
+  {
+    title: 'Трансформации и фильтры',
+    fields: [
+      { k: 'cssTransform', label: 'transform (rotate/scale/translate/skew)', kind: 'text' },
+      { k: 'cssTransformOrigin', label: 'Точка трансформации', opts: ['—', 'center', 'top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'] },
+      { k: 'cssFilter', label: 'filter (blur/brightness/…)', kind: 'text' },
+      { k: 'cssBackdrop', label: 'backdrop-filter (напр. blur(8px))', kind: 'text' },
+      { k: 'cssMixBlend', label: 'Смешивание (mix-blend-mode)', opts: ['—', 'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'difference', 'exclusion', 'hue', 'luminosity'] },
+      { k: 'cssTransition', label: 'transition (напр. all .3s ease)', kind: 'text' },
+    ],
+  },
+  {
+    title: 'Тени, фон, текст (свои значения CSS)',
+    fields: [
+      { k: 'cssShadow', label: 'box-shadow (напр. 0 10px 30px #0003)', kind: 'text' },
+      { k: 'cssTextShadow', label: 'text-shadow', kind: 'text' },
+      { k: 'cssGradient', label: 'Градиент-фон (linear-gradient(…))', kind: 'text' },
+      { k: 'cssBgImage', label: 'Фон-картинка (URL)', kind: 'text' },
+      { k: 'cssBgSize', label: 'Размер фона', opts: ['—', 'cover', 'contain', 'auto', '100% 100%'] },
+      { k: 'cssBgPosition', label: 'Позиция фона (напр. center)', kind: 'text' },
+      { k: 'cssTextAlign', label: 'Выравнивание текста', opts: ['—', 'left', 'center', 'right', 'justify'] },
+      { k: 'cssTextTransform', label: 'Регистр', opts: ['—', 'none', 'uppercase', 'lowercase', 'capitalize'] },
+      { k: 'cssTextDecoration', label: 'Оформление текста', opts: ['—', 'none', 'underline', 'line-through', 'overline'] },
+      { k: 'cssFontStyle', label: 'Начертание', opts: ['—', 'normal', 'italic'] },
+      { k: 'cssFontFamily', label: 'Шрифт (font-family)', kind: 'text' },
+      { k: 'cssWhiteSpace', label: 'Перенос (white-space)', opts: ['—', 'normal', 'nowrap', 'pre', 'pre-wrap', 'pre-line'] },
+    ],
+  },
+  {
+    title: 'Позиционирование и слои',
+    fields: [
+      { k: 'cssPosition', label: 'position', opts: ['—', 'static', 'relative', 'absolute', 'fixed', 'sticky'] },
+      { k: 'cssZ', label: 'z-index', kind: 'text' },
+      { k: 'cssOverflow', label: 'overflow', opts: ['—', 'visible', 'hidden', 'auto', 'scroll', 'clip'] },
+      { k: 'cssCursor', label: 'Курсор', opts: ['—', 'auto', 'pointer', 'default', 'not-allowed', 'grab', 'zoom-in', 'help', 'text'] },
+      { k: 'cssTop', label: 'top', kind: 'text' },
+      { k: 'cssRight', label: 'right', kind: 'text' },
+      { k: 'cssBottom', label: 'bottom', kind: 'text' },
+      { k: 'cssLeft', label: 'left', kind: 'text' },
+    ],
+  },
+  {
+    title: 'CSS-анимация',
+    fields: [
+      { k: 'animName', label: 'Анимация', opts: ['—', 'none', 'fadein', 'fadeup', 'fadedown', 'fadeleft', 'faderight', 'zoomin', 'zoomout', 'spin', 'pulse', 'float', 'bounce', 'shake', 'swing', 'wobble', 'heartbeat', 'blink', 'glow', 'jelly', 'gradient-shift', 'custom'] },
+      { k: 'animDuration', label: 'Длительность (напр. 1s / 800ms)', kind: 'text' },
+      { k: 'animTiming', label: 'Кривая', opts: ['—', 'ease', 'linear', 'ease-in', 'ease-out', 'ease-in-out', 'spring', 'smooth'] },
+      { k: 'animDelay', label: 'Задержка (напр. .2s)', kind: 'text' },
+      { k: 'animIter', label: 'Повторы', opts: ['—', '1', '2', '3', 'infinite'] },
+      { k: 'animDirection', label: 'Направление', opts: ['—', 'normal', 'reverse', 'alternate', 'alternate-reverse'] },
+      { k: 'animFill', label: 'Заполнение (fill-mode)', opts: ['—', 'both', 'forwards', 'backwards', 'none'] },
+      { k: 'animKeyframes', label: 'Свои @keyframes (для «custom»), напр. 0%{…}100%{…}', kind: 'textarea' },
+    ],
+  },
+  {
+    title: 'Наведение — свои стили (hover)',
+    fields: [
+      { k: 'hvBg', label: 'Фон', opts: ['—', 'primary', 'muted', 'card', 'foreground', 'white', 'black'] },
+      { k: 'hvText', label: 'Цвет текста', opts: ['—', 'primary', 'foreground', 'muted', 'white'] },
+      { k: 'hvBorderColor', label: 'Цвет рамки', opts: ['—', 'border', 'primary', 'muted', 'foreground', 'white'] },
+      { k: 'hvRadius', label: 'Скругление', opts: ['—', 'none', 'sm', 'lg', 'xl', 'full'] },
+      { k: 'hvShadow', label: 'Тень (box-shadow)', kind: 'text' },
+      { k: 'hvScale', label: 'Масштаб (напр. 1.05)', kind: 'text' },
+      { k: 'hvRotate', label: 'Поворот (напр. 3deg)', kind: 'text' },
+      { k: 'hvTranslateY', label: 'Сдвиг по Y (напр. -6px)', kind: 'text' },
+      { k: 'hvOpacity', label: 'Прозрачность (0–1)', kind: 'text' },
+      { k: 'hvFilter', label: 'filter', kind: 'text' },
+      { k: 'hvTransform', label: 'Свой transform', kind: 'text' },
+      { k: 'hvCss', label: 'Свои CSS-объявления при наведении', kind: 'textarea' },
+    ],
+  },
+  {
+    title: 'Свой CSS (полный контроль)',
+    fields: [
+      { k: 'customCss', label: 'CSS-объявления для элемента (напр. color:red; gap:8px)', kind: 'textarea' },
+      { k: 'customCssFull', label: 'Полный CSS, где & = этот элемент (можно @media, @keyframes, вложенные селекторы)', kind: 'textarea' },
+    ],
+  },
 ];
 const DEVICE = { full: '100%', tablet: '834px', mobile: '390px' } as const;
+// Scoped stylesheet powering the little animated preview tile inside each effect
+// button. Entrance/hover effects play on button hover (.fxgrp:hover), loop
+// effects run continuously, style effects show a static look. Mirrors the real
+// engine so the tile faithfully hints at what the effect does.
+const FX_PREVIEW_CSS = `
+.fxp{display:block;width:70%;height:14px;border-radius:4px;background:linear-gradient(135deg,var(--primary),#8b5cf6)}
+.fxgrp:hover .fxp-fade-up{animation:fxk-fadeup .7s cubic-bezier(.4,0,.2,1) both}
+.fxgrp:hover .fxp-fade-in{animation:fxk-fadein .8s ease-out both}
+.fxgrp:hover .fxp-zoom-in{animation:fxk-zoomin .6s cubic-bezier(.34,1.56,.64,1) both}
+.fxgrp:hover .fxp-reveal-right{animation:fxk-faderight .7s cubic-bezier(.4,0,.2,1) both}
+.fxgrp:hover .fxp-reveal-left{animation:fxk-fadeleft .7s cubic-bezier(.4,0,.2,1) both}
+.fxp-float{animation:fxk-float 3s ease-in-out infinite}
+.fxp-pulse{animation:fxk-pulse 2s ease-in-out infinite}
+.fxp-spin{width:14px;animation:fxk-spin 6s linear infinite}
+.fxp-heartbeat{animation:fxk-heartbeat 1.5s ease-in-out infinite}
+.fxp-blink{animation:fxk-blink 1.4s ease-in-out infinite}
+.fxp-lift,.fxp-grow,.fxp-neon,.fxp-tilt,.fxp-brighten{transition:all .25s ease}
+.fxgrp:hover .fxp-lift{transform:translateY(-4px);box-shadow:0 8px 18px rgba(0,0,0,.35)}
+.fxgrp:hover .fxp-grow{transform:scale(1.14)}
+.fxgrp:hover .fxp-neon{box-shadow:0 0 10px var(--primary),0 0 22px var(--primary)}
+.fxgrp:hover .fxp-tilt{transform:perspective(300px) rotateX(12deg) rotateY(-14deg)}
+.fxgrp:hover .fxp-brighten{filter:brightness(1.25) saturate(1.25)}
+.fxp-glass{background:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.45)}
+.fxp-gradient-text{background:linear-gradient(90deg,var(--primary),#8b5cf6,#ec4899)}
+.fxp-gradient-animated{background:linear-gradient(270deg,var(--primary),#8b5cf6,#ec4899,var(--primary));background-size:400% 400%;animation:fxk-gradient 6s linear infinite}
+.fxp-soft-shadow{box-shadow:0 10px 22px -8px rgba(0,0,0,.55)}
+@keyframes fxk-fadeup{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:none}}
+@keyframes fxk-fadein{0%{opacity:0}100%{opacity:1}}
+@keyframes fxk-zoomin{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
+@keyframes fxk-faderight{0%{opacity:0;transform:translateX(-16px)}100%{opacity:1;transform:none}}
+@keyframes fxk-fadeleft{0%{opacity:0;transform:translateX(16px)}100%{opacity:1;transform:none}}
+@keyframes fxk-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes fxk-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@keyframes fxk-spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+@keyframes fxk-heartbeat{0%,100%{transform:scale(1)}14%{transform:scale(1.22)}28%{transform:scale(1)}42%{transform:scale(1.16)}70%{transform:scale(1)}}
+@keyframes fxk-blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes fxk-gradient{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+`;
 // Preview pane width bounds: never wider than 1100px and always leaves the
 // editor panel at least ~360px, so neither side can be crushed off-screen.
 const clampPreviewWidth = (w: number) =>
@@ -311,7 +464,13 @@ function effectiveImgMode(props: Record<string, string>, dev: keyof typeof DEVIC
 // Generic per-breakpoint styling for surface props. Base key = mobile (applies
 // everywhere); `<key>Tablet` overrides at >=768px, `<key>Desktop` at >=1024px.
 // Switching the device selector scopes edits to that breakpoint.
-const RESP_KEYS = new Set(['textColor', 'fontWeight', 'fontSize', 'letterSpacing', 'lineHeight', 'opacity', 'bgColor', 'borderWidth', 'borderColor', 'radius', 'shadow', 'mt', 'mb', 'alignSelf', 'justifySelf', 'grow', 'width']);
+const RESP_KEYS = new Set(['textColor', 'fontWeight', 'fontSize', 'letterSpacing', 'lineHeight', 'opacity', 'bgColor', 'borderWidth', 'borderColor', 'radius', 'shadow', 'mt', 'mb', 'alignSelf', 'justifySelf', 'grow', 'width',
+  'cssWidth', 'cssHeight', 'cssMaxW', 'cssMinW', 'cssMaxH', 'cssMinH', 'cssAspect',
+  'cssPadding', 'cssMargin', 'cssGap',
+  'cssShadow', 'cssGradient', 'cssBgImage', 'cssBgSize', 'cssBgPosition',
+  'cssTransform', 'cssTransformOrigin', 'cssFilter', 'cssBackdrop', 'cssMixBlend', 'cssTransition',
+  'cssTextAlign', 'cssTextTransform', 'cssTextDecoration', 'cssFontStyle', 'cssFontFamily', 'cssTextShadow', 'cssWhiteSpace',
+  'cssCursor', 'cssOverflow', 'cssZ', 'cssPosition', 'cssTop', 'cssLeft', 'cssRight', 'cssBottom']);
 const BP_SUFFIX = { mobile: '', tablet: 'Tablet', full: 'Desktop' } as const;
 // Per-type layout FIELDS that should also be scoped per breakpoint.
 const RESP_FIELD_KEYS = new Set(['layout', 'gap', 'align', 'justify', 'justifyItems', 'columns', 'imgBg']);
@@ -384,6 +543,7 @@ function BuilderEditor() {
   const router = useRouter();
   const locale = useLocale().locale;
   const tr = builderTr(locale);
+  const t = studioDict(locale);
   const siteId = useSearchParams().get('site');
   const [siteMeta, setSiteMeta] = useState<SiteMeta | null>(null);
   const [doc, setDoc] = useState<BuilderDoc>(seed as unknown as BuilderDoc);
@@ -396,7 +556,9 @@ function BuilderEditor() {
   const [previewDark, setPreviewDark] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [treeQuery, setTreeQuery] = useState('');
-  const [selRect, setSelRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  // Clipboard for copy/paste of an element's style props (feature 4).
+  const [copiedStyle, setCopiedStyle] = useState<Record<string, string> | null>(null);
+  const [selRect, setSelRect] = useState<{ top: number; left: number; width: number; height: number; vw: number; vh: number } | null>(null);
   const [selColors, setSelColors] = useState<{ color: string; bg: string; hasText: boolean } | null>(null);
   // Stable indirection so the preview message listener can commit inline text
   // edits via `patch` (defined later) without re-subscribing every render.
@@ -562,7 +724,6 @@ function BuilderEditor() {
       // Edits landing within 600ms merge into one undo step (Ctrl+Z reverts a
       // typed word, not one character) and the 60-slot history isn't burned
       // through by a single sentence.
-      // eslint-disable-next-line react-hooks/purity -- effect-only bookkeeping, not render state
       const now = Date.now();
       if (now - lastHistPush.current > 600) {
         past.current.push(prevDoc.current);
@@ -668,7 +829,7 @@ function BuilderEditor() {
         dropOnPreview(e.data.nodeType as NodeType, (e.data.targetId as string | null) ?? null);
       } else if (e.data.type === 'rect') {
         const has = Boolean(e.data.id && e.data.rect);
-        setSelRect(has ? (e.data.rect as { top: number; left: number; width: number; height: number }) : null);
+        setSelRect(has ? { ...(e.data.rect as { top: number; left: number; width: number; height: number }), vw: Number(e.data.vw) || 0, vh: Number(e.data.vh) || 0 } : null);
         setSelColors(has ? { color: e.data.color as string, bg: e.data.bg as string, hasText: Boolean(e.data.hasText) } : null);
       } else if (e.data.type === 'edittext' && e.data.id && e.data.prop) {
         editTextRef.current(e.data.id as string, e.data.prop as string, String(e.data.value ?? ''));
@@ -693,7 +854,7 @@ function BuilderEditor() {
   // element is selected without hunting for it. Latest page via ref so this
   // only runs on selection changes, not on every edit.
   const pageRef = useRef(page);
-  pageRef.current = page;
+  useEffect(() => { pageRef.current = page; });
   useEffect(() => {
     if (!selectedId) return;
     const pg = pageRef.current;
@@ -749,7 +910,7 @@ function BuilderEditor() {
   };
 
   const patch = (id: string, p: Record<string, string>) => setBlocks((b) => updateProps(b, id, p));
-  editTextRef.current = (id, prop, value) => patch(id, { [prop]: value });
+  useEffect(() => { editTextRef.current = (id, prop, value) => patch(id, { [prop]: value }); });
   // Responsive override management: clear all overrides for a breakpoint, or copy
   // the values from the next-smaller breakpoint into it (empty string = "unset").
   const resetBreakpoint = (id: string, dev: keyof typeof DEVICE) => {
@@ -780,6 +941,23 @@ function BuilderEditor() {
   };
   const applyStylePreset = (ps: { props: Record<string, string> }) => { if (selected) patch(selected.id, ps.props); };
   const deleteStylePreset = (id: string) => setDoc((d) => ({ ...d, stylePresets: (d.stylePresets ?? []).filter((p) => p.id !== id) }));
+  // ---- Copy / paste style between elements (feature 4) ----
+  const copyStyle = () => {
+    if (!selected) return;
+    const props = collectStyleProps(selected.props);
+    if (Object.keys(props).length === 0) { setMsg(tr('У элемента нет заданных стилей для копирования.')); return; }
+    setCopiedStyle(props);
+    setMsg(tr('Стиль скопирован.'));
+  };
+  const pasteStyle = () => {
+    if (!selected || !copiedStyle) return;
+    // Clear the target's existing style props first, then apply the copied ones,
+    // so paste replaces the look exactly (no leftovers from the old element).
+    const cleared: Record<string, string> = {};
+    for (const k of Object.keys(collectStyleProps(selected.props))) cleared[k] = '';
+    patch(selected.id, { ...cleared, ...copiedStyle });
+    setMsg(tr('Стиль вставлен.'));
+  };
   // ---- Reusable blocks / symbols (feature 2) ----
   const symbolsMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -1343,7 +1521,7 @@ function BuilderEditor() {
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-1.5 px-2 sm:gap-2 sm:px-4 xl:gap-3">
           <Link href={isLanding ? '/studio' : '/dashboard'} className="flex shrink-0 items-center gap-2 font-bold tracking-tight" title={isLanding ? tr('Назад в Студию') : tr('К списку сайтов')}>
-            <LayoutTemplate className="h-5 w-5 text-primary" /> <span className="hidden md:inline">{tr('Конструктор')}</span>
+            <LayoutTemplate className="h-5 w-5 text-primary" /> <span className="hidden md:inline">{t.studioLabel}</span>
           </Link>
           <div className="mx-1 hidden h-6 w-px bg-border md:block xl:mx-2" />
           {isLanding && (
@@ -1395,6 +1573,24 @@ function BuilderEditor() {
               );
             })}
           </div>
+          <TutorialModal
+            locale={locale as 'ru' | 'en' | 'hy'}
+            scenes={[
+              { src: `/media/tutorial-shot-1.${locale}.png`, label: tr('Общий вид: палитра, живое превью, панель свойств'), arrow: { xPct: 58, yPct: 38, angle: 0 } },
+              { src: `/media/tutorial-shot-2.${locale}.png`, label: tr('Добавление блоков из палитры'), arrow: { xPct: 30, yPct: 28, angle: 180 } },
+              { src: `/media/tutorial-shot-3.${locale}.png`, label: tr('Адаптив: мобильный, планшет, десктоп'), arrow: { xPct: 64, yPct: 13, angle: 270 } },
+              { src: `/media/tutorial-shot-4.${locale}.mp4`, label: tr('Готовые эффекты в один клик'), arrow: { xPct: 53, yPct: 40, angle: 180 } },
+              { src: `/media/tutorial-shot-5.${locale}.mp4`, label: tr('Тонкая настройка: CSS-анимация и свой CSS'), arrow: { xPct: 53, yPct: 58, angle: 180 } },
+              { src: '/media/tutorial-shot-6.png', label: tr('Готовая страница и публикация'), arrow: { xPct: 10, yPct: 33, angle: 0 } },
+            ]}
+            labels={{
+              watch: tr('Туториал'),
+              title: tr('Как пользоваться конструктором'),
+              soon: tr('Видео скоро появится'),
+              soonHint: tr('Видео-туториал готовится. Как только оно будет добавлено, оно появится здесь.'),
+              close: tr('Закрыть'),
+            }}
+          />
           <Link href={previewSrc} target="_blank" className="hidden shrink-0 sm:block"><Button size="sm" variant="outline" className="gap-1.5"><ExternalLink className="h-4 w-4" /> <span className="hidden xl:inline">{tr('Открыть')}</span></Button></Link>
           <div className="relative hidden lg:block">
             <button onClick={() => setShowKeys((v) => !v)} className={`rounded-md p-1.5 ${showKeys ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'}`} aria-label={tr('Горячие клавиши')} title={tr('Горячие клавиши')}><Keyboard className="h-4 w-4" /></button>
@@ -1434,12 +1630,16 @@ function BuilderEditor() {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className={cn('min-w-0 flex-1 overflow-y-auto p-3 @container lg:border-r lg:border-border/60', mobileView === 'preview' && 'hidden lg:block')}>
-          {/* Tabs */}
-          <div className="mb-3 grid grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1">
-            {([['pages', 'Страницы'], ['blocks', 'Блоки'], ['design', 'Сайт']] as const).map(([id, label]) => (
-              <button key={id} onClick={() => setTab(id)} className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${tab === id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>{tr(label)}</button>
-            ))}
+        <aside className={cn('min-w-0 flex-1 overflow-y-auto px-3 pb-3 @container lg:border-r lg:border-border/60', mobileView === 'preview' && 'hidden lg:block')}>
+          {/* Tabs — pinned to the top of the panel so they stay visible while
+              the rest of the panel scrolls. Negative margins cancel the aside's
+              p-3 so the sticky bar spans full width and reaches the very top. */}
+          <div className="sticky top-0 z-20 -mx-3 mb-2 border-b border-border/60 bg-background px-3 pb-2 pt-3">
+            <div className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1">
+              {([['pages', 'Страницы'], ['blocks', 'Блоки'], ['design', 'Сайт']] as const).map(([id, label]) => (
+                <button key={id} data-tour={`tab-${id}`} onClick={() => setTab(id)} className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${tab === id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>{tr(label)}</button>
+              ))}
+            </div>
           </div>
 
           {/* TAB: Страницы */}
@@ -1547,10 +1747,10 @@ function BuilderEditor() {
           <div className={tab === 'blocks' ? 'grid items-start gap-4 @3xl:grid-cols-2' : 'hidden'}>
           <div className="space-y-4">
           {/* Palette */}
-          <Card className="p-3">
+          <Card className="p-3" data-tour="palette">
             <p className="mb-1 text-sm font-semibold">{tr('Добавить элемент')}</p>
             <p className="mb-2 text-xs text-muted-foreground">{selected && isContainer(selected.type) ? tr('Клик — внутрь: {label}').replace('{label}', tr(NODE_LABELS[selected.type])) : tr('Клик — в конец страницы')} · {tr('или перетащите на блок')}</p>
-            <Input value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} placeholder={tr('Поиск элемента…')} className="mb-2 h-8" />
+            <Input data-tour="palette-search" value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} placeholder={tr('Поиск элемента…')} className="mb-2 h-8" />
             {(() => {
               // Match against the LOCALIZED label — the user searches in the
               // language they see, not in the internal Russian keys.
@@ -1773,6 +1973,87 @@ function BuilderEditor() {
                   );
                 })()}
 
+                {/* Copy / paste an element's whole style (feature 4) */}
+                <div className="border-t border-border/60 pt-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={copyStyle}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-card/60 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                      title={tr('Скопировать все стили этого элемента')}
+                    >
+                      <Copy className="h-3.5 w-3.5" /> {tr('Копировать стиль')}
+                    </button>
+                    <button
+                      onClick={pasteStyle}
+                      disabled={!copiedStyle}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-card/60 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                      title={tr('Применить скопированные стили к этому элементу')}
+                    >
+                      <ClipboardPaste className="h-3.5 w-3.5" /> {tr('Вставить стиль')}
+                    </button>
+                  </div>
+                </div>
+
+                {/* One-click effect presets — apply a bundle of advanced styles */}
+                {(() => {
+                  const GROUPS: { kind: EffectPreset['kind']; title: string }[] = [
+                    { kind: 'entrance', title: 'Появление' },
+                    { kind: 'loop', title: 'Постоянные' },
+                    { kind: 'hover', title: 'При наведении' },
+                    { kind: 'style', title: 'Стили' },
+                  ];
+                  const isActive = (e: EffectPreset) => Object.entries(e.props).every(([k, v]) => (selected.props[k] ?? '') === v);
+                  return (
+                    <div className="border-t border-border/60 pt-2.5">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr('Готовые эффекты')}</p>
+                        <button
+                          onClick={() => patch(selected.id, clearEffectPatch())}
+                          className="text-[10px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                        >
+                          {tr('Сбросить')}
+                        </button>
+                      </div>
+                      <style dangerouslySetInnerHTML={{ __html: FX_PREVIEW_CSS }} />
+                      <div className="space-y-2">
+                        {GROUPS.map((g) => {
+                          const items = EFFECT_PRESETS.filter((e) => e.kind === g.kind);
+                          if (!items.length) return null;
+                          return (
+                            <div key={g.kind}>
+                              <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">{tr(g.title)}</p>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {items.map((e) => {
+                                  const active = isActive(e);
+                                  return (
+                                    <button
+                                      key={e.id}
+                                      onClick={() => patch(selected.id, applyEffectPatch(e.id))}
+                                      title={`${tr(e.label)} — ${tr('Наведите, чтобы посмотреть')}`}
+                                      className={cn(
+                                        'fxgrp flex flex-col gap-1 rounded-md border p-1.5 text-[10px] font-medium leading-tight transition-colors',
+                                        active ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                                      )}
+                                    >
+                                      <span className="flex h-6 w-full items-center justify-center overflow-hidden rounded bg-muted/40">
+                                        <span className={`fxp fxp-${e.id}`} />
+                                      </span>
+                                      <span className="line-clamp-1 text-center">{tr(e.label)}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-2 text-[10px] leading-snug text-muted-foreground/70">
+                        {tr('Клик применяет набор стилей; результат сразу виден в превью и дальше настраивается в блоках ниже.')}
+                      </p>
+                    </div>
+                  );
+                })()}
+
                 {/* Styling for every element */}
                 {STYLE_GROUPS.map((g) => (
                   <div key={g.title} className="border-t border-border/60 pt-2.5">
@@ -1794,6 +2075,7 @@ function BuilderEditor() {
                                 <button onClick={() => patch(selected.id, { [key]: '' })} title={tr('Своё значение для этого экрана — сбросить')} className="ml-auto h-2 w-2 rounded-full bg-primary" aria-label={tr('Сбросить это переопределение')} />
                               ) : null}
                             </label>
+                            {f.opts ? (
                             <div className="flex gap-1">
                               <Select value={val && !val.startsWith('#') ? val : '—'} onValueChange={(v) => patch(selected.id, { [key]: v === '—' ? '' : v })}>
                                 <SelectTrigger className="h-8 min-w-0 flex-1"><SelectValue placeholder={val?.startsWith('#') ? tr('свой') : undefined} /></SelectTrigger>
@@ -1809,6 +2091,11 @@ function BuilderEditor() {
                                 />
                               )}
                             </div>
+                            ) : f.kind === 'textarea' ? (
+                              <Textarea value={selected.props[key] ?? ''} onChange={(e) => patch(selected.id, { [key]: e.target.value })} rows={2} className="min-h-0 font-mono text-[11px] leading-snug" />
+                            ) : (
+                              <Input value={val ?? ''} onChange={(e) => patch(selected.id, { [key]: e.target.value })} className="h-8" />
+                            )}
                             {isColor && (hasEyeDropper || recentColors.length > 0) && (
                               <div className="mt-1 flex flex-wrap items-center gap-1">
                                 {hasEyeDropper && (
@@ -2161,7 +2448,7 @@ function BuilderEditor() {
           className={cn(
             '@container',
             fullscreen
-              ? 'fixed inset-x-0 bottom-0 top-14 z-30 flex flex-col bg-muted/20'
+              ? 'fixed inset-x-0 bottom-0 top-14 z-40 flex flex-col bg-background'
               : 'min-w-0 flex-1 flex-col bg-muted/20 lg:w-(--pw) lg:flex-none lg:shrink-0 lg:border-l lg:border-border/60',
             !fullscreen && (mobileView === 'panel' ? 'hidden lg:flex' : 'flex'),
           )}
@@ -2201,11 +2488,16 @@ function BuilderEditor() {
                 {selectedId && selRect && !dragType && !isResizing && page && (
                   <div
                     className="pointer-events-auto absolute z-20 flex items-center gap-0.5 rounded-lg border border-border bg-background/95 p-0.5 shadow-xl backdrop-blur"
-                    style={{
-                      top: selRect.top < 34 ? selRect.top + selRect.height + 4 : selRect.top - 4,
-                      left: Math.max(4, selRect.left),
-                      transform: selRect.top < 34 ? 'none' : 'translateY(-100%)',
-                    }}
+                    style={(() => {
+                      const BAR_W = 240; // approx toolbar width incl. contrast chip
+                      const flipBelow = selRect.top < 40; // no room above → drop below
+                      const maxLeft = selRect.vw ? Math.max(6, selRect.vw - BAR_W) : 100000;
+                      return {
+                        top: flipBelow ? selRect.top + selRect.height + 6 : selRect.top - 6,
+                        left: Math.min(Math.max(6, selRect.left), maxLeft),
+                        transform: flipBelow ? 'none' : 'translateY(-100%)',
+                      };
+                    })()}
                   >
                     <button
                       onClick={() => { const anc = ancestorPath(page.blocks, selectedId); const par = anc[anc.length - 1]; if (par) setSelectedId(par.id); }}
@@ -2243,6 +2535,7 @@ function BuilderEditor() {
           {NODE_LABELS[dragType] ?? dragType}
         </div>
       )}
+      <TourLauncher tour="studio-builder" />
     </main>
   );
 }

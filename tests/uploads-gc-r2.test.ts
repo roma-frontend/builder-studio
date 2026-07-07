@@ -7,7 +7,7 @@ vi.mock('@/lib/storage', () => ({
   r2Configured: () => true,
   r2Delete,
   r2List: async () => {
-    const past = Date.now() - 20 * 60 * 1000; // older than the 10-min grace
+    const past = Date.now() - 40 * 24 * 60 * 60 * 1000; // older than the 30-day grace
     return [
       { key: 'uploads/orphan-a.webp', lastModified: past },
       { key: 'uploads/orphan-b.webp', lastModified: past },

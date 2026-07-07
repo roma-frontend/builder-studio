@@ -66,3 +66,23 @@ export function patchUserPrefs(userId: string, patch: Record<string, unknown>): 
     .run();
   return merged;
 }
+
+/**
+ * Clear all onboarding-tour "seen" flags for a user (every key starting with
+ * "tour:"), so the tours auto-play again on their next visit. Other prefs
+ * (theme, locale, …) are preserved. Returns how many flags were removed.
+ */
+export function resetTours(userId: string): number {
+  const prefs = getUserPrefs(userId);
+  const keys = Object.keys(prefs).filter((k) => k.startsWith('tour:'));
+  if (keys.length === 0) return 0;
+  for (const k of keys) delete prefs[k];
+  const json = JSON.stringify(prefs);
+  const now = new Date();
+  getDb()
+    .insert(userPrefs)
+    .values({ userId, prefs: json, updatedAt: now })
+    .onConflictDoUpdate({ target: userPrefs.userId, set: { prefs: json, updatedAt: now } })
+    .run();
+  return keys.length;
+}

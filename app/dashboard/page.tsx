@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader, StatCard, EmptyState } from '@/components/dashboard/ui';
 import { getLocale } from '@/lib/i18n';
 import { dashDict } from '@/lib/dashboard-dict';
+import { TourLauncher } from '@/components/tour/tour-launcher';
 
 export async function generateMetadata() {
   const t = dashDict(await getLocale());
@@ -84,6 +85,7 @@ export default async function DashboardOverview() {
           ))}
         </div>
       )}
+      <TourLauncher tour="dashboard-overview" />
     </>
   );
 }

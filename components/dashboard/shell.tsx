@@ -18,6 +18,7 @@ import { CommandPalette, type Command } from '@/components/dashboard/command-pal
 import { IdleTimeout } from '@/components/dashboard/idle-timeout';
 import { ActivityTracker } from '@/components/dashboard/activity-tracker';
 import { OrgRequestsBadge } from '@/components/dashboard/org-requests-badge';
+import { UserMenu } from '@/components/dashboard/user-menu';
 import { SiteMembersBadge } from '@/components/dashboard/site-members-badge';
 import { useLocale } from '@/hooks/use-locale';
 import { dashDict } from '@/lib/dashboard-dict';
@@ -78,19 +79,16 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
   // Persist the desktop collapse preference across sessions.
   useEffect(() => {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot hydration from localStorage (unavailable during SSR)
       setCollapsed(localStorage.getItem('cwk:sidebar-collapsed') === '1');
     } catch { /* ignore */ }
   }, []);
-  // A collapsed rail has no room for the drill-in sub-panel.
-  useEffect(() => {
-    if (collapsed) setSubNav(null);
-  }, [collapsed]);
   const toggleCollapsed = () => {
-    setCollapsed((c) => {
-      const next = !c;
-      try { localStorage.setItem('cwk:sidebar-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
-      return next;
-    });
+    const next = !collapsed;
+    setCollapsed(next);
+    // A collapsed rail has no room for the drill-in sub-panel.
+    if (next) setSubNav(null);
+    try { localStorage.setItem('cwk:sidebar-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
   };
 
   const isStaff = user.role === 'admin' || user.role === 'superadmin';
@@ -148,7 +146,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
         ? sup ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-primary/10 text-primary'
         : sup ? 'text-foreground/90 hover:bg-amber-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground';
       return (
-        <Link key={item.href} href={item.href} onClick={() => setOpen(false)}
+        <Link key={item.href} href={item.href} data-tour={item.key === 'sites' ? 'nav-sites' : undefined} onClick={() => setOpen(false)}
           className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${cls}`}>
           {on && <span className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full ${sup ? 'bg-amber-500' : 'bg-primary'}`} />}
           <item.icon className={`h-4 w-4 shrink-0 transition-transform ${sup ? 'text-amber-500' : ''} ${on ? 'scale-110' : ''}`} />
@@ -424,6 +422,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
             )}
             <LanguageSwitcher />
             <ThemeToggle />
+            <UserMenu user={user} gated={gated} keys={visible.map((i) => i.key)} onLogout={logout} />
           </div>
         </header>
 

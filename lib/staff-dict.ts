@@ -71,6 +71,36 @@ export type StaffDict = {
     editRow: string; // {table}
     editHint: string;
     save: string;
+    // fullscreen db studio
+    fullscreen: string;
+    exitFullscreen: string;
+    studioTitle: string;
+    tablesLabel: string; // {n}
+    rowsLabel: string;
+    columnsLabel: string; // {n}
+    addRow: string;
+    addRowTitle: string; // {table}
+    addRowHint: string;
+    create: string;
+    exportXlsx: string;
+    exporting: string;
+    refresh: string;
+    searchTables: string;
+    pkReadonly: string;
+    saving: string;
+    creating: string;
+    opError: string;
+    // per-field validation hints
+    vRequired: string;
+    vInteger: string;
+    vNumber: string;
+    vJson: string;
+    hintRequired: string;
+    hintInteger: string;
+    hintNumber: string;
+    hintText: string;
+    hintNullable: string;
+    hintAuto: string;
   };
   // user dossier
   dossier: {
@@ -103,6 +133,16 @@ export type StaffDict = {
     deleteTitle: string; // {name}
     deleteDesc: string;
     deleteConfirm: string;
+    resetPw: string;
+    resetPwTitle: string; // {name}
+    resetPwDesc: string;
+    resetPwConfirm: string;
+    tempPwTitle: string;
+    tempPwDesc: string; // {name}
+    tempPwCopy: string;
+    tempPwCopied: string;
+    tempPwWarn: string;
+    tempPwDone: string;
     statTotal: string;
     stat24h: string;
     stat7d: string;
@@ -194,6 +234,34 @@ const ru: StaffDict = {
     editRow: 'Изменить строку · {table}',
     editHint: 'Пустое поле сохранится как NULL. Первичный ключ менять нельзя.',
     save: 'Сохранить',
+    fullscreen: 'Полноэкранный режим',
+    exitFullscreen: 'Выйти из полноэкранного режима',
+    studioTitle: 'Студия базы данных',
+    tablesLabel: 'Таблиц: {n}',
+    rowsLabel: 'строк',
+    columnsLabel: 'Колонок: {n}',
+    addRow: 'Добавить строку',
+    addRowTitle: 'Новая строка · {table}',
+    addRowHint: 'Заполните поля. Пустые сохранятся как NULL, автоключи заполнятся сами.',
+    create: 'Создать',
+    exportXlsx: 'Экспорт в XLSX',
+    exporting: 'Экспорт…',
+    refresh: 'Обновить',
+    searchTables: 'Поиск таблиц…',
+    pkReadonly: 'первичный ключ · только чтение',
+    saving: 'Сохранение…',
+    creating: 'Создание…',
+    opError: 'Не удалось выполнить операцию. Проверьте значения.',
+    vRequired: 'Обязательное поле',
+    vInteger: 'Нужно целое число',
+    vNumber: 'Нужно число',
+    vJson: 'Некорректный JSON',
+    hintRequired: 'Обязательное · NOT NULL',
+    hintInteger: 'Целое число',
+    hintNumber: 'Число (можно дробное)',
+    hintText: 'Текст',
+    hintNullable: 'Можно оставить пустым (NULL)',
+    hintAuto: 'Заполнится автоматически, если оставить пустым',
   },
   dossier: {
     metaTitle: 'Досье пользователя',
@@ -225,6 +293,16 @@ const ru: StaffDict = {
     deleteTitle: 'Удалить {name}?',
     deleteDesc: 'Пользователь будет удалён вместе со всеми его сайтами, сессиями и заявками. Действие необратимо.',
     deleteConfirm: 'Удалить',
+    resetPw: 'Временный пароль',
+    resetPwTitle: 'Выдать временный пароль для {name}?',
+    resetPwDesc: 'Будет создан новый случайный пароль, все активные сессии завершатся. Текущий пароль перестанет действовать. Пароль показывается один раз — передайте его пользователю и попросите сменить.',
+    resetPwConfirm: 'Сгенерировать',
+    tempPwTitle: 'Временный пароль создан',
+    tempPwDesc: 'Передайте этот пароль пользователю {name}. Он больше не будет показан.',
+    tempPwCopy: 'Скопировать',
+    tempPwCopied: 'Скопировано',
+    tempPwWarn: 'Попросите пользователя сменить пароль после входа.',
+    tempPwDone: 'Готово',
     statTotal: 'Действий всего',
     stat24h: 'За 24 часа',
     stat7d: 'За 7 дней',
@@ -316,6 +394,34 @@ const en: StaffDict = {
     editRow: 'Edit row · {table}',
     editHint: 'An empty field is saved as NULL. The primary key cannot be changed.',
     save: 'Save',
+    fullscreen: 'Fullscreen mode',
+    exitFullscreen: 'Exit fullscreen',
+    studioTitle: 'Database Studio',
+    tablesLabel: '{n} tables',
+    rowsLabel: 'rows',
+    columnsLabel: '{n} columns',
+    addRow: 'Add row',
+    addRowTitle: 'New row · {table}',
+    addRowHint: 'Fill in the fields. Empty ones are saved as NULL; auto keys fill themselves.',
+    create: 'Create',
+    exportXlsx: 'Export to XLSX',
+    exporting: 'Exporting…',
+    refresh: 'Refresh',
+    searchTables: 'Search tables…',
+    pkReadonly: 'primary key · read-only',
+    saving: 'Saving…',
+    creating: 'Creating…',
+    opError: 'Operation failed. Check the values.',
+    vRequired: 'Required field',
+    vInteger: 'Must be an integer',
+    vNumber: 'Must be a number',
+    vJson: 'Invalid JSON',
+    hintRequired: 'Required · NOT NULL',
+    hintInteger: 'Integer number',
+    hintNumber: 'Number (decimals allowed)',
+    hintText: 'Text',
+    hintNullable: 'Can be left empty (NULL)',
+    hintAuto: 'Filled automatically if left empty',
   },
   dossier: {
     metaTitle: 'User dossier',
@@ -347,6 +453,16 @@ const en: StaffDict = {
     deleteTitle: 'Delete {name}?',
     deleteDesc: 'The user will be deleted along with all their sites, sessions and submissions. This action is irreversible.',
     deleteConfirm: 'Delete',
+    resetPw: 'Temporary password',
+    resetPwTitle: 'Issue a temporary password for {name}?',
+    resetPwDesc: 'A new random password is generated and all active sessions end. The current password stops working. The password is shown once — hand it to the user and ask them to change it.',
+    resetPwConfirm: 'Generate',
+    tempPwTitle: 'Temporary password created',
+    tempPwDesc: 'Hand this password to {name}. It will not be shown again.',
+    tempPwCopy: 'Copy',
+    tempPwCopied: 'Copied',
+    tempPwWarn: 'Ask the user to change their password after signing in.',
+    tempPwDone: 'Done',
     statTotal: 'Total actions',
     stat24h: 'Last 24 hours',
     stat7d: 'Last 7 days',
@@ -438,6 +554,34 @@ const hy: StaffDict = {
     editRow: 'Խմբագրել տողը · {table}',
     editHint: 'Դատարկ դաշտը կպահվի որպես NULL։ Առաջնային բանալին հնարավոր չէ փոխել։',
     save: 'Պահպանել',
+    fullscreen: 'Լիաէկրան ռեժիմ',
+    exitFullscreen: 'Դուրս գալ լիաէկրանից',
+    studioTitle: 'Տվյալների բազայի ստուդիա',
+    tablesLabel: '{n} աղյուսակ',
+    rowsLabel: 'տող',
+    columnsLabel: '{n} սյունակ',
+    addRow: 'Ավելացնել տող',
+    addRowTitle: 'Նոր տող · {table}',
+    addRowHint: 'Լրացրեք դաշտերը։ Դատարկները կպահվեն որպես NULL, ավտո-բանալիները կլրացվեն ինքնաբերաբար։',
+    create: 'Ստեղծել',
+    exportXlsx: 'Արտահանել XLSX',
+    exporting: 'Արտահանում…',
+    refresh: 'Թարմացնել',
+    searchTables: 'Որոնել աղյուսակներ…',
+    pkReadonly: 'առաջնային բանալի · միայն կարդալու',
+    saving: 'Պահպանում…',
+    creating: 'Ստեղծում…',
+    opError: 'Գործողությունը ձախողվեց։ Ստուգեք արժեքները։',
+    vRequired: 'Պարտադիր դաշտ',
+    vInteger: 'Պետք է ամբողջ թիվ լինի',
+    vNumber: 'Պետք է թիվ լինի',
+    vJson: 'Սխալ JSON',
+    hintRequired: 'Պարտադիր · NOT NULL',
+    hintInteger: 'Ամբողջ թիվ',
+    hintNumber: 'Թիվ (կոտորակայինը թույլատրելի է)',
+    hintText: 'Տեքստ',
+    hintNullable: 'Կարելի է դատարկ թողնել (NULL)',
+    hintAuto: 'Ինքնաբերաբար կլրացվի, եթե դատարկ թողնեք',
   },
   dossier: {
     metaTitle: 'Օգտատիրոջ անձնական գործ',
@@ -469,6 +613,16 @@ const hy: StaffDict = {
     deleteTitle: 'Ջնջե՞լ {name}-ին։',
     deleteDesc: 'Օգտատերը կջնջվի իր բոլոր կայքերի, սեսիաների և հայտերի հետ։ Գործողությունն անշրջելի է։',
     deleteConfirm: 'Ջնջել',
+    resetPw: 'Ժամանակավոր գաղտնաբառ',
+    resetPwTitle: 'Տրամադրե՞լ ժամանակավոր գաղտնաբառ {name}-ի համար։',
+    resetPwDesc: 'Կստեղծվի նոր պատահական գաղտնաբառ, բոլոր ակտիվ սեսիաները կավարտվեն։ Ընթացիկ գաղտնաբառը կդադարի գործել։ Գաղտնաբառը ցուցադրվում է մեկ անգամ — փոխանցեք այն օգտատիրոջն ու խնդրեք փոխել։',
+    resetPwConfirm: 'Ստեղծել',
+    tempPwTitle: 'Ժամանակավոր գաղտնաբառը ստեղծված է',
+    tempPwDesc: 'Փոխանցեք այս գաղտնաբառը {name}-ին։ Այն այլևս ցույց չի տրվի։',
+    tempPwCopy: 'Պատճենել',
+    tempPwCopied: 'Պատճենված է',
+    tempPwWarn: 'Խնդրեք օգտատիրոջը մուտք գործելուց հետո փոխել գաղտնաբառը։',
+    tempPwDone: 'Պատրաստ է',
     statTotal: 'Ընդամենը գործողություններ',
     stat24h: '24 ժամում',
     stat7d: '7 օրում',

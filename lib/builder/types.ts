@@ -31,7 +31,10 @@ export type NodeType =
   | 'videoGrid'
   | 'authLogin'
   | 'authRegister'
-  | 'authAccount';
+  | 'authAccount'
+  | 'courseList'
+  | 'documentList'
+  | 'materialList';
 
 export interface BuilderNode {
   id: string;
@@ -144,6 +147,9 @@ export const NODE_LABELS: Record<NodeType, string> = {
   authLogin: 'Вход (клиенты сайта)',
   authRegister: 'Регистрация (клиенты сайта)',
   authAccount: 'Личный кабинет',
+  courseList: 'Курсы (клиенты сайта)',
+  documentList: 'Документы (клиенты сайта)',
+  materialList: 'Материалы (клиенты сайта)',
 };
 
 let counter = 0;
@@ -209,6 +215,12 @@ export function defaultProps(type: NodeType): Record<string, string> {
       return { title: 'Регистрация', submitText: 'Создать аккаунт', successMsg: 'Аккаунт создан.', showName: 'true' };
     case 'authAccount':
       return { title: 'Личный кабинет', logoutText: 'Выйти' };
+    case 'courseList':
+      return { title: 'Курсы', columns: '3', showProgress: 'true' };
+    case 'documentList':
+      return { title: 'Документы', columns: '3' };
+    case 'materialList':
+      return { title: 'Материалы', columns: '3' };
     default:
       return {};
   }

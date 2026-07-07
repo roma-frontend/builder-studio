@@ -14,6 +14,7 @@ import { VideoCardGrid } from '@/components/media/video-card';
 import mediaData from '@/data/media.json';
 import type { MediaEntry } from '@/lib/media';
 import { SiteAuthForm, SiteAccount } from '@/components/builder/site-auth-blocks';
+import { CourseListBlock, DocumentListBlock, MaterialListBlock } from '@/components/builder/site-content-blocks';
 import { siteRt, type SiteRtDict } from '@/lib/site-runtime-dict';
 
 const RT_DEFAULT = siteRt('ru');
@@ -228,8 +229,75 @@ function surfaceStyle(p: Record<string, string>): CSSProperties {
     s.borderColor = bc.startsWith('#') ? bc : BORDER_COLOR_VAR[bc] || 'var(--border)';
   }
   if (p.radius && RADIUS_VAL[p.radius] != null) s.borderRadius = RADIUS_VAL[p.radius];
+  advStyle(p, s);
   return s;
 }
+
+// ---- Advanced raw-value CSS props (namespaced css*) --------------------------
+// Every key below takes a RAW CSS value (e.g. "24px", "10px 20px", "rotate(6deg)
+// scale(1.05)", "blur(4px)") so a user can express essentially any CSS. They are
+// namespaced with `css`/typographic prefixes to never collide with the existing
+// scale-based class props (padding/gap/width/height/…). Because they live in
+// SURFACE_KEYS, each one is automatically per-breakpoint (base/Tablet/Desktop)
+// through bpProps + the scoped <style> emitter.
+const TRANSFORM_ORIGIN: Record<string, string> = {
+  center: 'center', top: 'top', bottom: 'bottom', left: 'left', right: 'right',
+  'top-left': 'top left', 'top-right': 'top right', 'bottom-left': 'bottom left', 'bottom-right': 'bottom right',
+};
+function advStyle(p: Record<string, string>, s: CSSProperties): void {
+  const v = (k: string) => { const x = p[k]; return x && x !== '—' ? x : undefined; };
+  // Sizing
+  if (v('cssWidth')) s.width = v('cssWidth');
+  if (v('cssHeight')) s.height = v('cssHeight');
+  if (v('cssMaxW')) s.maxWidth = v('cssMaxW');
+  if (v('cssMinW')) s.minWidth = v('cssMinW');
+  if (v('cssMaxH')) s.maxHeight = v('cssMaxH');
+  if (v('cssMinH')) s.minHeight = v('cssMinH');
+  if (v('cssAspect')) s.aspectRatio = v('cssAspect');
+  // Spacing (raw, per-side allowed via shorthand)
+  if (v('cssPadding')) s.padding = v('cssPadding');
+  if (v('cssMargin')) s.margin = v('cssMargin');
+  if (v('cssGap')) s.gap = v('cssGap');
+  // Box / effects
+  if (v('cssShadow')) s.boxShadow = v('cssShadow');
+  if (v('cssGradient')) s.backgroundImage = v('cssGradient');
+  if (v('cssBgImage')) s.backgroundImage = `url(${v('cssBgImage')})`;
+  if (v('cssBgSize')) s.backgroundSize = v('cssBgSize');
+  if (v('cssBgPosition')) s.backgroundPosition = v('cssBgPosition');
+  if (v('cssTransform')) s.transform = v('cssTransform');
+  if (v('cssTransformOrigin')) s.transformOrigin = TRANSFORM_ORIGIN[v('cssTransformOrigin')!] ?? v('cssTransformOrigin');
+  if (v('cssFilter')) s.filter = v('cssFilter');
+  if (v('cssBackdrop')) { s.backdropFilter = v('cssBackdrop'); (s as Record<string, string>).WebkitBackdropFilter = v('cssBackdrop')!; }
+  if (v('cssMixBlend')) s.mixBlendMode = v('cssMixBlend') as CSSProperties['mixBlendMode'];
+  if (v('cssTransition')) s.transition = v('cssTransition');
+  // Typography extras
+  if (v('cssTextAlign')) s.textAlign = v('cssTextAlign') as CSSProperties['textAlign'];
+  if (v('cssTextTransform')) s.textTransform = v('cssTextTransform') as CSSProperties['textTransform'];
+  if (v('cssTextDecoration')) s.textDecoration = v('cssTextDecoration');
+  if (v('cssFontStyle')) s.fontStyle = v('cssFontStyle');
+  if (v('cssFontFamily')) s.fontFamily = v('cssFontFamily');
+  if (v('cssTextShadow')) s.textShadow = v('cssTextShadow');
+  if (v('cssWhiteSpace')) s.whiteSpace = v('cssWhiteSpace') as CSSProperties['whiteSpace'];
+  // Box behavior / positioning
+  if (v('cssCursor')) s.cursor = v('cssCursor');
+  if (v('cssOverflow')) s.overflow = v('cssOverflow') as CSSProperties['overflow'];
+  if (v('cssZ')) s.zIndex = Number(v('cssZ')) || v('cssZ') as unknown as number;
+  if (v('cssPosition')) s.position = v('cssPosition') as CSSProperties['position'];
+  if (v('cssTop')) s.top = v('cssTop');
+  if (v('cssLeft')) s.left = v('cssLeft');
+  if (v('cssRight')) s.right = v('cssRight');
+  if (v('cssBottom')) s.bottom = v('cssBottom');
+}
+// Keys carrying advanced raw-value styles (kept separate so surfaceStyle stays
+// readable, but they ARE added to SURFACE_KEYS below for per-breakpoint output).
+const ADV_KEYS = [
+  'cssWidth', 'cssHeight', 'cssMaxW', 'cssMinW', 'cssMaxH', 'cssMinH', 'cssAspect',
+  'cssPadding', 'cssMargin', 'cssGap',
+  'cssShadow', 'cssGradient', 'cssBgImage', 'cssBgSize', 'cssBgPosition',
+  'cssTransform', 'cssTransformOrigin', 'cssFilter', 'cssBackdrop', 'cssMixBlend', 'cssTransition',
+  'cssTextAlign', 'cssTextTransform', 'cssTextDecoration', 'cssFontStyle', 'cssFontFamily', 'cssTextShadow', 'cssWhiteSpace',
+  'cssCursor', 'cssOverflow', 'cssZ', 'cssPosition', 'cssTop', 'cssLeft', 'cssRight', 'cssBottom',
+] as const;
 
 const pick = <T extends Record<string, string>>(map: T, key: string | undefined, fallback: keyof T): string =>
   map[(key ?? '') as keyof T] ?? map[fallback];
@@ -239,7 +307,7 @@ const pick = <T extends Record<string, string>>(map: T, key: string | undefined,
 // `Desktop` (>=1024px) override for larger screens, inheriting mobile → tablet →
 // desktop when unset. Because these are inline-style properties (which cannot
 // carry @media rules), we emit a scoped <style> targeting [data-nid] instead.
-const SURFACE_KEYS = ['textColor', 'fontWeight', 'fontSize', 'letterSpacing', 'lineHeight', 'opacity', 'bgColor', 'borderWidth', 'borderColor', 'radius'] as const;
+const SURFACE_KEYS = ['textColor', 'fontWeight', 'fontSize', 'letterSpacing', 'lineHeight', 'opacity', 'bgColor', 'borderWidth', 'borderColor', 'radius', ...ADV_KEYS] as const;
 function bpProps(p: Record<string, string>, bp: 'base' | 'tablet' | 'desktop'): Record<string, string> {
   const out: Record<string, string> = {};
   const ov = (k: string, s: string) => { const v = p[k + s]; return v && v !== '—' ? v : undefined; };
@@ -356,6 +424,98 @@ function gridColsClass(p: Record<string, string>, fallback: string): string {
   );
 }
 
+// ---- Advanced scoped CSS: animations, hover-state, raw custom CSS -----------
+// Built-in @keyframes library. Each is emitted (once per node that uses it) as
+// `@keyframes kf-<name>` so the animation shorthand can reference it.
+const KEYFRAMES: Record<string, string> = {
+  fadein: '0%{opacity:0}100%{opacity:1}',
+  fadeup: '0%{opacity:0;transform:translateY(24px)}100%{opacity:1;transform:none}',
+  fadedown: '0%{opacity:0;transform:translateY(-24px)}100%{opacity:1;transform:none}',
+  fadeleft: '0%{opacity:0;transform:translateX(24px)}100%{opacity:1;transform:none}',
+  faderight: '0%{opacity:0;transform:translateX(-24px)}100%{opacity:1;transform:none}',
+  zoomin: '0%{opacity:0;transform:scale(.85)}100%{opacity:1;transform:scale(1)}',
+  zoomout: '0%{opacity:0;transform:scale(1.15)}100%{opacity:1;transform:scale(1)}',
+  spin: '0%{transform:rotate(0)}100%{transform:rotate(360deg)}',
+  pulse: '0%,100%{transform:scale(1)}50%{transform:scale(1.06)}',
+  float: '0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}',
+  bounce: '0%,100%{transform:translateY(0)}25%{transform:translateY(-14px)}50%{transform:translateY(0)}75%{transform:translateY(-6px)}',
+  shake: '0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}',
+  swing: '0%,100%{transform:rotate(0)}30%{transform:rotate(6deg)}60%{transform:rotate(-4deg)}',
+  wobble: '0%,100%{transform:none}25%{transform:translateX(-6%) rotate(-3deg)}50%{transform:translateX(4%) rotate(2deg)}75%{transform:translateX(-2%) rotate(-1deg)}',
+  heartbeat: '0%,100%{transform:scale(1)}14%{transform:scale(1.18)}28%{transform:scale(1)}42%{transform:scale(1.14)}70%{transform:scale(1)}',
+  blink: '0%,100%{opacity:1}50%{opacity:.25}',
+  glow: '0%,100%{filter:drop-shadow(0 0 0 var(--primary))}50%{filter:drop-shadow(0 0 12px var(--primary))}',
+  jelly: '0%,100%{transform:scale(1,1)}30%{transform:scale(1.1,.9)}50%{transform:scale(.92,1.08)}70%{transform:scale(1.03,.97)}',
+  'gradient-shift': '0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}',
+};
+const ANIM_TIMING: Record<string, string> = {
+  ease: 'ease', linear: 'linear', 'ease-in': 'ease-in', 'ease-out': 'ease-out', 'ease-in-out': 'ease-in-out',
+  spring: 'cubic-bezier(.34,1.56,.64,1)', smooth: 'cubic-bezier(.4,0,.2,1)',
+};
+const HV_COLOR = (v: string) => (v.startsWith('#') ? v : COLOR_VAR[v] ?? BG_VAR[v] ?? BORDER_COLOR_VAR[v] ?? v);
+// Emit `@keyframes` (built-in or custom) + the `animation:` shorthand for a node.
+function animationCss(id: string, p: Record<string, string>): string {
+  const name = p.animName && p.animName !== '—' && p.animName !== 'none' ? p.animName : '';
+  if (!name) return '';
+  const kfName = name === 'custom' ? `kf-${id}` : `kf-${name}`;
+  const body = name === 'custom' ? (p.animKeyframes || '').trim() : KEYFRAMES[name];
+  if (!body) return '';
+  const dur = p.animDuration || '1s';
+  const timing = ANIM_TIMING[p.animTiming || 'ease'] ?? (p.animTiming || 'ease');
+  const delay = p.animDelay || '0s';
+  const iter = p.animIter && p.animIter !== '—' ? p.animIter : '1';
+  const dir = p.animDirection && p.animDirection !== '—' ? p.animDirection : 'normal';
+  const fill = p.animFill && p.animFill !== '—' ? p.animFill : 'both';
+  const kf = `@keyframes ${kfName}{${body}}`;
+  const anim = `[data-nid="${id}"]{animation:${kfName} ${dur} ${timing} ${delay} ${iter} ${dir} ${fill}}`;
+  return kf + anim;
+}
+// Hover-state scoped styles from hv* props (+ a default transition when none set).
+function hoverCss(id: string, p: Record<string, string>): string {
+  const v = (k: string) => { const x = p[k]; return x && x !== '—' ? x : undefined; };
+  const decl: string[] = [];
+  if (v('hvBg')) decl.push(`background:${HV_COLOR(v('hvBg')!)}`);
+  if (v('hvText')) decl.push(`color:${HV_COLOR(v('hvText')!)}`);
+  if (v('hvBorderColor')) decl.push(`border-color:${HV_COLOR(v('hvBorderColor')!)}`);
+  if (v('hvShadow')) decl.push(`box-shadow:${v('hvShadow')}`);
+  if (v('hvOpacity')) decl.push(`opacity:${v('hvOpacity')}`);
+  if (v('hvRadius')) decl.push(`border-radius:${RADIUS_VAL[v('hvRadius')!] ?? v('hvRadius')}`);
+  if (v('hvFilter')) decl.push(`filter:${v('hvFilter')}`);
+  const tf: string[] = [];
+  if (v('hvScale')) tf.push(`scale(${v('hvScale')})`);
+  if (v('hvRotate')) tf.push(`rotate(${v('hvRotate')})`);
+  if (v('hvTranslateY')) tf.push(`translateY(${v('hvTranslateY')})`);
+  if (v('hvTransform')) tf.push(v('hvTransform')!);
+  if (tf.length) decl.push(`transform:${tf.join(' ')}`);
+  if (v('hvCss')) decl.push(v('hvCss')!.replace(/;\s*$/, ''));
+  if (!decl.length) return '';
+  const sel = `[data-nid="${id}"]`;
+  // Default smooth transition on the base element unless the user set their own.
+  const base = p.cssTransition ? '' : `${sel}{transition:all .3s ease}`;
+  return `${base}${sel}:hover{${decl.join(';')}}`;
+}
+// Raw custom CSS. `customCss` = declarations applied to the node. `customCssFull`
+// = a full stylesheet where `&` is replaced by this node's selector, enabling
+// any selector, nested rule, @media or @keyframes the user wants.
+function customCssBlock(id: string, p: Record<string, string>): string {
+  const sel = `[data-nid="${id}"]`;
+  let out = '';
+  const decls = (p.customCss || '').trim();
+  if (decls) out += `${sel}{${decls.replace(/;\s*$/, '')}}`;
+  const full = (p.customCssFull || '').trim();
+  if (full) out += full.replace(/&/g, sel);
+  return out;
+}
+function advancedCss(id: string, p: Record<string, string>): string {
+  return animationCss(id, p) + hoverCss(id, p) + customCssBlock(id, p);
+}
+const HV_KEYS = ['hvBg', 'hvText', 'hvBorderColor', 'hvShadow', 'hvOpacity', 'hvRadius', 'hvFilter', 'hvScale', 'hvRotate', 'hvTranslateY', 'hvTransform', 'hvCss'];
+function hasAdvanced(p: Record<string, string>): boolean {
+  if (p.animName && p.animName !== '—' && p.animName !== 'none') return true;
+  if ((p.customCss && p.customCss.trim()) || (p.customCssFull && p.customCssFull.trim())) return true;
+  return HV_KEYS.some((k) => p[k] && p[k] !== '—');
+}
+
 function Field({ node }: { node: BuilderNode }) {
   const p = node.props;
   const base = 'w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/50';
@@ -411,7 +571,7 @@ export function RenderNode({ node, t = RT_DEFAULT }: { node: BuilderNode; t?: Si
     }
   }
   const cloned = cloneElement(el as ReactElement<typeof merged>, merged);
-  const css = (responsive ? responsiveCss(node.id, p, self) : '') + layoutCss + modeCss + (isContainer(node.type) ? containerTextCss(node.id, p) : '');
+  const css = (responsive ? responsiveCss(node.id, p, self) : '') + layoutCss + modeCss + (isContainer(node.type) ? containerTextCss(node.id, p) : '') + advancedCss(node.id, p);
   const out = css ? (
     <>
       {cloned}
@@ -837,20 +997,26 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
       return (
         <div className={cn('grid gap-4', cols)}>
           {THEMES.slice(0, count).map((th) => {
-            const d = th.dark;
+            const cls = `tgc-${th.id}`;
+            const pv = (pal: Record<string, string>) => ([
+              ['bg', pal.background], ['fg', pal.foreground], ['primary', pal.primary],
+              ['card', pal.card], ['muted', pal.muted], ['mfg', pal['muted-foreground']], ['border', pal.border],
+            ] as [string, string][]).map(([k, v]) => `--tp-${k}:${okl(v)}`).join(';');
+            const css = `.${cls}{${pv(th.light)}}.dark .${cls}{${pv(th.dark)}}`;
             return (
               <Link
                 key={th.id}
-                href="/themes"
-                className="group overflow-hidden rounded-2xl border shadow-sm transition-transform hover:-translate-y-0.5"
-                style={{ background: okl(d.background), color: okl(d.foreground), borderColor: okl(d.border) }}
+                href={`/themes/${th.id}`}
+                className={`${cls} group overflow-hidden rounded-2xl border shadow-sm transition-transform hover:-translate-y-0.5`}
+                style={{ background: 'var(--tp-bg)', color: 'var(--tp-fg)', borderColor: 'var(--tp-border)' }}
               >
+                <style dangerouslySetInnerHTML={{ __html: css }} />
                 <div className="p-5">
                   <span className="text-base font-bold tracking-tight">{th.label}</span>
-                  <p className="mt-1 text-xs" style={{ color: okl(d['muted-foreground']) }}>{th.fontDisplay} · {t.motion} {th.motion}</p>
+                  <p className="mt-1 text-xs" style={{ color: 'var(--tp-mfg)' }}>{th.fontDisplay} · {t.motion} {th.motion}</p>
                   <div className="mt-4 flex gap-2">
-                    {[d.primary, d.card, d.muted, d.foreground, d.border].map((c, i) => (
-                      <span key={i} className="h-6 w-6 rounded-md" style={{ background: okl(c), border: `1px solid ${okl(d.border)}` }} />
+                    {['var(--tp-primary)', 'var(--tp-card)', 'var(--tp-muted)', 'var(--tp-fg)', 'var(--tp-border)'].map((c, i) => (
+                      <span key={i} className="h-6 w-6 rounded-md" style={{ background: c, border: '1px solid var(--tp-border)' }} />
                     ))}
                   </div>
                 </div>
@@ -895,6 +1061,15 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
 
     case 'authAccount':
       return <SiteAccount title={p.title} logoutText={p.logoutText} />;
+
+    case 'courseList':
+      return <CourseListBlock title={p.title} columns={p.columns} showProgress={p.showProgress} />;
+
+    case 'documentList':
+      return <DocumentListBlock title={p.title} columns={p.columns} />;
+
+    case 'materialList':
+      return <MaterialListBlock title={p.title} columns={p.columns} />;
 
     default:
       return null;

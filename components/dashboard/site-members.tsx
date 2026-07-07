@@ -222,14 +222,14 @@ function CoursesEditor({ siteId, courses, reload }: { siteId: string; courses: C
   const del = async (id: string) => { setRowBusy(id); await post({ action: 'course-delete', siteId, courseId: id }); setRowBusy(''); if (openId === id) setOpenId(null); reload(); };
 
   return (
-    <section>
+    <section data-tour="courses">
       <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><GraduationCap className="h-4 w-4" /> {t.title}</h3>
       <p className="mb-3 text-xs text-muted-foreground">{t.desc}</p>
       <div className="space-y-2 rounded-xl border border-border bg-card p-4">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.courseTitle} className="h-10" />
+        <Input data-tour="course-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.courseTitle} className="h-10" />
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t.courseDesc} rows={2}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
-        <Button size="sm" className="gap-1.5" disabled={busy} onClick={add}>
+        <Button size="sm" data-tour="course-add" className="gap-1.5" disabled={busy} onClick={add}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t.addCourse}
         </Button>
       </div>
@@ -348,7 +348,7 @@ function DocumentsEditor({ siteId, documents, reload }: { siteId: string; docume
   const del = async (id: string) => { setDelBusy(id); await post({ action: 'document-delete', siteId, documentId: id }); setDelBusy(''); reload(); };
 
   return (
-    <section>
+    <section data-tour="documents">
       <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><FileType className="h-4 w-4" /> {t.title}</h3>
       <p className="mb-3 text-xs text-muted-foreground">{t.desc}</p>
       <div className="space-y-2 rounded-xl border border-border bg-card p-4">

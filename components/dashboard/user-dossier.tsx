@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Crown, ShieldCheck, UserCircle, LogIn, Trash2, Loader2, Ban, KeyRound,
   Globe, Rocket, CircleDashed, ExternalLink, ScrollText, Activity, LockOpen,
-  CalendarDays, Inbox, Flame,
+  CalendarDays, Inbox, Flame, RotateCcw, Copy, Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm, type ConfirmOptions } from '@/components/ui/confirm-dialog';
@@ -90,6 +90,8 @@ export function UserDossierView({ meId, dossier }: { meId: string; dossier: Doss
   const { user, metrics } = dossier;
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
+  const [tempPw, setTempPw] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const self = user.id === meId;
   const roleCls = ROLE_CLS[user.role];
   const RoleIcon = ROLE_ICON[user.role];
@@ -154,9 +156,61 @@ export function UserDossierView({ meId, dossier }: { meId: string; dossier: Doss
       tone: 'danger',
     });
 
+  // Issue a one-time temporary password. Unlike `act`, we need the response
+  // body (the plaintext), so this is handled inline.
+  const resetPassword = async () => {
+    if (!(await confirm({
+      title: dt.resetPwTitle.replace('{name}', user.name || user.email),
+      description: dt.resetPwDesc,
+      confirmLabel: dt.resetPwConfirm,
+      tone: 'warning',
+    }))) return;
+    setBusy('pw'); setMsg(''); setCopied(false);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reset-password' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setMsg(data.error || dt.opError); return; }
+      setTempPw(data.tempPassword ?? null);
+      router.refresh();
+    } catch {
+      setMsg(dt.network);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const copyTempPw = async () => {
+    if (!tempPw) return;
+    try { await navigator.clipboard.writeText(tempPw); setCopied(true); } catch { /* clipboard blocked */ }
+  };
+
   return (
     <>
       {confirmDialog}
+      {tempPw && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setTempPw(null)} />
+          <div className="relative w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-2xl">
+            <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><KeyRound className="h-6 w-6" /></span>
+            <h3 className="text-center text-lg font-bold">{dt.tempPwTitle}</h3>
+            <p className="mt-1 text-center text-sm text-muted-foreground">{dt.tempPwDesc.replace('{name}', user.name || user.email)}</p>
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-border bg-muted/40 p-3">
+              <code className="min-w-0 flex-1 select-all break-all text-center font-mono text-lg font-bold tracking-wider">{tempPw}</code>
+              <Button size="sm" variant="outline" onClick={copyTempPw} className="shrink-0 gap-1.5">
+                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                {copied ? dt.tempPwCopied : dt.tempPwCopy}
+              </Button>
+            </div>
+            <p className="mt-3 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400"><Ban className="mt-0.5 h-3.5 w-3.5 shrink-0" />{dt.tempPwWarn}</p>
+            <div className="mt-5 flex justify-end">
+              <Button onClick={() => setTempPw(null)}>{dt.tempPwDone}</Button>
+            </div>
+          </div>
+        </div>
+      )}
       <Link href="/dashboard/users" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> {dt.backAll}
       </Link>
@@ -198,6 +252,9 @@ export function UserDossierView({ meId, dossier }: { meId: string; dossier: Doss
               </Button>
               <Button size="sm" variant="ghost" disabled={busy === 'rev'} onClick={revokeAll} className="gap-1.5" title={dt.revokeAllTitle}>
                 {busy === 'rev' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy === 'pw'} onClick={resetPassword} className="gap-1.5" title={dt.resetPw}>
+                {busy === 'pw' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} {dt.resetPw}
               </Button>
               <Button size="sm" variant="ghost" disabled={busy === 'del'} onClick={deleteUser} className="gap-1.5 text-red-500 hover:text-red-600" title={dt.deleteUserTitle}>
                 {busy === 'del' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}

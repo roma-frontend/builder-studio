@@ -154,27 +154,34 @@ export default async function Home() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {THEMES.slice(0, 6).map((t) => {
-            const d = t.dark;
+            const cls = `tct-${t.id}`;
+            const pv = (p: Record<string, string>) => ([
+              ['bg', p.background], ['fg', p.foreground], ['primary', p.primary], ['pfg', p['primary-foreground']],
+              ['card', p.card], ['muted', p.muted], ['mfg', p['muted-foreground']], ['border', p.border],
+            ] as [string, string][]).map(([k, v]) => `--tp-${k}:${ok(v)}`).join(';');
+            const css = `.${cls}{${pv(t.light)}}.dark .${cls}{${pv(t.dark)}}`;
+            const activeCard = t.id === theme.id;
             return (
               <Link
                 key={t.id}
-                href="/themes"
-                className="group overflow-hidden rounded-2xl border shadow-sm transition-transform hover:-translate-y-0.5"
-                style={{ background: ok(d.background), color: ok(d.foreground), borderColor: t.id === theme.id ? ok(d.primary) : ok(d.border) }}
+                href={`/themes/${t.id}`}
+                className={`${cls} group overflow-hidden rounded-2xl border shadow-sm transition-transform hover:-translate-y-0.5`}
+                style={{ background: 'var(--tp-bg)', color: 'var(--tp-fg)', borderColor: activeCard ? 'var(--tp-primary)' : 'var(--tp-border)' }}
               >
+                <style dangerouslySetInnerHTML={{ __html: css }} />
                 <div className="p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-base font-bold tracking-tight">{t.label}</span>
-                    {t.id === theme.id && (
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: ok(d.primary), color: ok(d['primary-foreground']) }}>
+                    {activeCard && (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--tp-primary)', color: 'var(--tp-pfg)' }}>
                         <Check className="h-3 w-3" /> {dict.active}
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-xs" style={{ color: ok(d['muted-foreground']) }}>{t.fontDisplay} · {dict.motion} {t.motion}</p>
+                  <p className="mt-1 text-xs" style={{ color: 'var(--tp-mfg)' }}>{t.fontDisplay} · {dict.motion} {t.motion}</p>
                   <div className="mt-4 flex gap-2">
-                    {[d.primary, d.card, d.muted, d.foreground, d.border].map((c, i) => (
-                      <span key={i} className="h-6 w-6 rounded-md" style={{ background: ok(c), border: `1px solid ${ok(d.border)}` }} />
+                    {['var(--tp-primary)', 'var(--tp-card)', 'var(--tp-muted)', 'var(--tp-fg)', 'var(--tp-border)'].map((c, i) => (
+                      <span key={i} className="h-6 w-6 rounded-md" style={{ background: c, border: '1px solid var(--tp-border)' }} />
                     ))}
                   </div>
                 </div>

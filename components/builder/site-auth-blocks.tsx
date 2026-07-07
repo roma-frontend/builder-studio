@@ -16,6 +16,7 @@ export function SiteAuthProvider({ siteId, children }: { siteId: string; childre
   return <SiteAuthContext.Provider value={siteId}>{children}</SiteAuthContext.Provider>;
 }
 const useSiteId = () => useContext(SiteAuthContext);
+export { useSiteId };
 
 /** Auto header/footer auth buttons. Their hrefs are NOT editable in the
  *  builder — they always point at the site's built-in /login and /register

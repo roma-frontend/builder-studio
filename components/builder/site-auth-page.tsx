@@ -365,6 +365,7 @@ function ResetView({ siteId, base, brand }: Omit<Props, 'mode'>) {
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot hydration from the URL (unavailable during SSR)
       setToken(params.get('token'));
     } catch {
       setToken(null);

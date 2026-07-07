@@ -15,6 +15,7 @@ import { PageHeader, EmptyState } from '@/components/dashboard/ui';
 import { SITE_MEMBERS_SEEN_EVENT } from '@/components/dashboard/site-members-badge';
 import { useLocale } from '@/hooks/use-locale';
 import { dashDict } from '@/lib/dashboard-dict';
+import { TourLauncher } from '@/components/tour/tour-launcher';
 
 export interface DashSite {
   id: string;
@@ -77,7 +78,7 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
     <>
       <PageHeader title={t.title} description={t.subtitle} />
 
-      <form onSubmit={createSite} className="flex flex-col gap-2 rounded-2xl border border-border/60 bg-card/50 p-4 sm:flex-row sm:items-center">
+      <form onSubmit={createSite} className="flex flex-col gap-2 rounded-2xl border border-border/60 bg-card/50 p-4 sm:flex-row sm:items-center" data-tour="create-site">
         <Input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
@@ -97,8 +98,8 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
         </div>
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {sites.map((site) => (
-            <div key={site.id} className="group rounded-2xl border border-border/60 bg-card/50 p-5 transition-shadow hover:shadow-md">
+          {sites.map((site, idx) => (
+            <div key={site.id} data-tour={idx === 0 ? 'site-card' : undefined} className="group rounded-2xl border border-border/60 bg-card/50 p-5 transition-shadow hover:shadow-md">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h2 className="truncate font-semibold tracking-tight">{site.name}</h2>
@@ -121,7 +122,7 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
                 </Link>
               )}
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Link href={`/studio/builder?site=${site.id}`}>
+                <Link href={`/studio/builder?site=${site.id}`} data-tour={idx === 0 ? 'site-edit' : undefined}>
                   <Button size="sm" className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> {t.edit}</Button>
                 </Link>
                 <Link href={`/s/${site.slug}?draft=1`} target="_blank">
@@ -131,7 +132,7 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
                   {pubBusy === site.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
                   {site.published ? t.unpublish : t.publish}
                 </Button>
-                <Link href={`/dashboard/sites/${site.id}`} className="ml-auto">
+                <Link href={`/dashboard/sites/${site.id}`} data-tour={idx === 0 ? 'site-settings' : undefined} className="ml-auto">
                   <Button size="sm" variant="ghost" className="gap-1.5"><Settings2 className="h-3.5 w-3.5" /> {t.settings}</Button>
                 </Link>
               </div>
@@ -139,6 +140,7 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
           ))}
         </div>
       )}
+      <TourLauncher tour="dashboard-sites" />
     </>
   );
 }

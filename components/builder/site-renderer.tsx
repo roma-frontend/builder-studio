@@ -9,6 +9,7 @@ import { SiteChrome } from '@/components/builder/site-chrome';
 import { RenderNode } from '@/components/builder/render-node';
 import { EditBridge } from '@/components/builder/edit-bridge';
 import { SiteAuthProvider } from '@/components/builder/site-auth-blocks';
+import { SiteBaseProvider, CourseDetail, DocumentDetail, MaterialDetail } from '@/components/builder/site-content-blocks';
 import { SiteAuthClient } from '@/components/builder/site-auth-page';
 import { getLocale } from '@/lib/i18n';
 import { siteRt } from '@/lib/site-runtime-dict';
@@ -22,6 +23,34 @@ export function findPageByPath(doc: BuilderDoc, slug: string[]): BuilderPage | n
 /** Reserved built-in auth paths (per tenant), not editable in the builder. */
 export const AUTH_PATHS = new Set(['login', 'register', 'account', 'reset']);
 
+/** Reserved member-content detail paths: /<resource>/<id>. Rendered by
+ *  SiteResourcePage inside the tenant chrome; gated to approved members. */
+export const RESOURCE_PATHS = new Set(['course', 'document', 'material']);
+
+/** Detail page for a single member-content item (course/document/material).
+ *  Wrapped in the tenant chrome + auth/base context; content itself is
+ *  member-gated by the /api/site-auth resource it fetches. */
+export async function SiteResourcePage({ doc, resource, id }: { doc: BuilderDoc; resource: string; id: string }) {
+  const t = siteRt(await getLocale());
+  const base = doc.base === undefined ? '/site' : doc.base || '';
+  const detail =
+    resource === 'course' ? <CourseDetail id={id} />
+    : resource === 'document' ? <DocumentDetail id={id} />
+    : <MaterialDetail id={id} />;
+  return (
+    <>
+      <ThemeStyle theme={doc.themeId && doc.themeId !== 'auto' ? getTheme(doc.themeId) : DEFAULT_THEME} />
+      <SiteAuthProvider siteId={doc.siteId ?? ''}>
+        <SiteBaseProvider base={base}>
+          <SiteChrome doc={doc} t={t}>
+            <section className="py-12">{detail}</section>
+          </SiteChrome>
+        </SiteBaseProvider>
+      </SiteAuthProvider>
+    </>
+  );
+}
+
 /** Beautiful, non-editable login / register / account page — same construction
  *  as the platform auth (glass Shell), themed with the tenant's theme and wired
  *  to the isolated per-site auth. Standalone (no site chrome). */
@@ -30,7 +59,10 @@ export function SiteAuthPage({ doc, mode }: { doc: BuilderDoc; mode: 'login' | '
   const base = doc.base === undefined ? '/site' : doc.base || '';
   return (
     <>
-      <ThemeStyle theme={theme} />
+      {/* The account cabinet mirrors the platform admin/superadmin dashboards:
+          it uses the neutral platform palette (globals.css) rather than the
+          tenant's brand theme. Login/register/reset stay on-brand. */}
+      {mode !== 'account' && <ThemeStyle theme={theme} />}
       <SiteAuthProvider siteId={doc.siteId ?? ''}>
         <SiteAuthClient siteId={doc.siteId ?? ''} base={base} brand={doc.brand} mode={mode} />
       </SiteAuthProvider>
@@ -41,6 +73,7 @@ export function SiteAuthPage({ doc, mode }: { doc: BuilderDoc; mode: 'login' | '
 export async function SiteRenderer({ doc, page, edit, platformChrome }: { doc: BuilderDoc; page: BuilderPage; edit?: boolean; platformChrome?: boolean }) {
   const theme = doc.themeId && doc.themeId !== 'auto' ? getTheme(doc.themeId) : DEFAULT_THEME;
   const t = siteRt(await getLocale());
+  const base = doc.base === undefined ? '/site' : doc.base || '';
   const blocks = page.blocks.map((node) => (
     <RenderNode key={node.id} node={node} t={t} />
   ));
@@ -49,19 +82,21 @@ export async function SiteRenderer({ doc, page, edit, platformChrome }: { doc: B
       <ThemeStyle theme={theme} />
       {edit && <EditBridge />}
       <SiteAuthProvider siteId={doc.siteId ?? ''}>
-        {platformChrome ? (
-          // The platform landing (/) keeps the real site header/footer — only
-          // the sections between them come from the builder document.
-          <main className="min-h-dvh">
-            <SiteHeader />
-            {blocks}
-            <SiteFooter />
-          </main>
-        ) : (
-          <SiteChrome doc={doc} t={t}>
-            {blocks}
-          </SiteChrome>
-        )}
+        <SiteBaseProvider base={base}>
+          {platformChrome ? (
+            // The platform landing (/) keeps the real site header/footer — only
+            // the sections between them come from the builder document.
+            <main className="min-h-dvh">
+              <SiteHeader />
+              {blocks}
+              <SiteFooter />
+            </main>
+          ) : (
+            <SiteChrome doc={doc} t={t}>
+              {blocks}
+            </SiteChrome>
+          )}
+        </SiteBaseProvider>
       </SiteAuthProvider>
     </>
   );

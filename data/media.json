@@ -5,7 +5,7 @@
     "section": "hero",
     "subtitle": "Ремесленный кофе",
     "ctaLabel": "Смотреть каталог",
-    "ctaHref": "/presets/product",
+    "ctaHref": "/presets",
     "src": "/media/generated/coffee-hero.webm",
     "srcMp4": "/media/generated/coffee-hero.mp4",
     "poster": "/media/generated/coffee-hero-poster.jpg",

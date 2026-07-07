@@ -376,6 +376,7 @@ function createDb(): DB {
   addColumn('users', 'locked_until', `locked_until INTEGER`);
   addColumn('users', 'totp_secret', `totp_secret TEXT`);
   addColumn('users', 'totp_enabled', `totp_enabled INTEGER NOT NULL DEFAULT 0`);
+  addColumn('users', 'must_change_password', `must_change_password INTEGER NOT NULL DEFAULT 0`);
   addColumn('site_users', 'failed_attempts', `failed_attempts INTEGER NOT NULL DEFAULT 0`);
   addColumn('site_users', 'locked_until', `locked_until INTEGER`);
   addColumn('sessions', 'last_active_at', `last_active_at INTEGER`);

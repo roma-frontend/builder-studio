@@ -6,7 +6,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getSiteByHostname, parseDoc, rebaseDoc } from '@/lib/sites';
 import { tenantJsonLd } from '@/lib/seo';
-import { SiteRenderer, SiteAuthPage, AUTH_PATHS, findPageByPath } from '@/components/builder/site-renderer';
+import { SiteRenderer, SiteAuthPage, SiteResourcePage, AUTH_PATHS, RESOURCE_PATHS, findPageByPath } from '@/components/builder/site-renderer';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +49,10 @@ export default async function CustomDomainPage({ params }: Props) {
   const parts = slug ?? [];
   if (parts.length === 1 && AUTH_PATHS.has(parts[0])) {
     return <SiteAuthPage doc={resolved.doc} mode={parts[0] as 'login' | 'register' | 'account' | 'reset'} />;
+  }
+  // Reserved member-content detail pages: /<resource>/<id> (gated to members).
+  if (parts.length === 2 && RESOURCE_PATHS.has(parts[0])) {
+    return <SiteResourcePage doc={resolved.doc} resource={parts[0]} id={parts[1]} />;
   }
   const page = findPageByPath(resolved.doc, parts);
   if (!page) notFound();
