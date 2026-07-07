@@ -558,6 +558,23 @@ function BuilderEditor() {
   const [treeQuery, setTreeQuery] = useState('');
   // Clipboard for copy/paste of an element's style props (feature 4).
   const [copiedStyle, setCopiedStyle] = useState<Record<string, string> | null>(null);
+  // Entitlement gate: advanced builder capabilities (effects, animation, custom
+  // CSS, per-breakpoint styling, copy/paste) are Studio-plan-only. Optimistic
+  // default keeps paying users flash-free; a non-entitled account is locked once
+  // the snapshot loads. Superadmins are always unlimited.
+  const [builderUnlocked, setBuilderUnlocked] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/billing/entitlements')
+      .then((r) => r.json())
+      .then((e: { unlimited?: boolean; features?: string[] }) => {
+        if (!alive) return;
+        const unlocked = !!e.unlimited || (e.features ?? []).includes('builder.customCss');
+        setBuilderUnlocked(unlocked);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const [selRect, setSelRect] = useState<{ top: number; left: number; width: number; height: number; vw: number; vh: number } | null>(null);
   const [selColors, setSelColors] = useState<{ color: string; bg: string; hasText: boolean } | null>(null);
   // Stable indirection so the preview message listener can commit inline text
@@ -755,16 +772,21 @@ function BuilderEditor() {
   // Coalesced to one postMessage per frame: serializing the full doc for the
   // iframe on every keystroke is the single biggest source of typing jank.
   const postRaf = useRef(0);
+  // Immediate, uncoalesced send — used for the one-shot 'ready' handshake and
+  // iframe onLoad, where a dropped message means the preview never renders.
+  const sendState = useCallback(() => {
+    const s = stateRef.current;
+    const hover = hoverThemeRef.current;
+    const previewDoc = hover ? { ...s.doc, themeId: hover, ...(THEME_BTN_PRESETS[hover] ?? {}) } : s.doc;
+    previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', ...s, doc: previewDoc }, '*');
+  }, []);
   const postPreview = useCallback(() => {
     if (postRaf.current) return;
     postRaf.current = requestAnimationFrame(() => {
       postRaf.current = 0;
-      const s = stateRef.current;
-      const hover = hoverThemeRef.current;
-      const previewDoc = hover ? { ...s.doc, themeId: hover, ...(THEME_BTN_PRESETS[hover] ?? {}) } : s.doc;
-      previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', ...s, doc: previewDoc }, '*');
+      sendState();
     });
-  }, []);
+  }, [sendState]);
   useEffect(() => () => { if (postRaf.current) cancelAnimationFrame(postRaf.current); }, []);
   // While the palette is being dragged the picked shade is painted on the
   // target element by a tiny <style> inside the preview — no doc update, no
@@ -821,7 +843,13 @@ function BuilderEditor() {
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.data?.source !== 'builder-preview') return;
-      if (e.data.type === 'ready') postPreview();
+      if (e.data.type === 'ready') {
+        // Authoritative "preview is listening" signal — send the current state
+        // right now, bypassing the rAF coalescing so the handshake is never
+        // swallowed by an earlier (possibly missed) onLoad post.
+        if (postRaf.current) { cancelAnimationFrame(postRaf.current); postRaf.current = 0; }
+        sendState();
+      }
       else if (e.data.type === 'select' && e.data.id) {
         setSelectedId(e.data.id as string);
         setTab('blocks');
@@ -837,7 +865,7 @@ function BuilderEditor() {
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
-  }, [postPreview, dropOnPreview]);
+  }, [sendState, dropOnPreview]);
 
   const page: BuilderPage | undefined = useMemo(
     () => doc.pages.find((p) => p.id === pageId) ?? doc.pages[0],
@@ -1973,7 +2001,24 @@ function BuilderEditor() {
                   );
                 })()}
 
+                {/* Advanced builder capabilities are Studio-only (monetization gate). */}
+                {!builderUnlocked && (
+                  <div className="mt-1 rounded-lg border border-primary/40 bg-primary/5 p-3">
+                    <p className="text-xs font-semibold text-foreground">{tr('Продвинутый конструктор — на плане Studio')}</p>
+                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                      {tr('Эффекты, анимации, hover-состояния, произвольный CSS, адаптивные стили и копирование стиля доступны на самом полном плане.')}
+                    </p>
+                    <a
+                      href="/pricing"
+                      className="mt-2 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      {tr('Открыть все возможности')}
+                    </a>
+                  </div>
+                )}
+
                 {/* Copy / paste an element's whole style (feature 4) */}
+                {builderUnlocked && (
                 <div className="border-t border-border/60 pt-2.5">
                   <div className="flex items-center gap-1.5">
                     <button
@@ -1993,9 +2038,10 @@ function BuilderEditor() {
                     </button>
                   </div>
                 </div>
+                )}
 
                 {/* One-click effect presets — apply a bundle of advanced styles */}
-                {(() => {
+                {builderUnlocked && (() => {
                   const GROUPS: { kind: EffectPreset['kind']; title: string }[] = [
                     { kind: 'entrance', title: 'Появление' },
                     { kind: 'loop', title: 'Постоянные' },
@@ -2055,7 +2101,7 @@ function BuilderEditor() {
                 })()}
 
                 {/* Styling for every element */}
-                {STYLE_GROUPS.map((g) => (
+                {builderUnlocked && STYLE_GROUPS.map((g) => (
                   <div key={g.title} className="border-t border-border/60 pt-2.5">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr(g.title)}</p>
                     <div className="grid grid-cols-2 gap-2">
