@@ -17,7 +17,7 @@ import {
   LogIn, UserPlus,
   GraduationCap, PlayCircle, ArrowLeft, CheckCircle2, Circle,
   FolderOpen, Download, FileType,
-  LifeBuoy, Send, MessageSquare, Plus,
+  LifeBuoy, Send, MessageSquare, Plus, Megaphone, Pin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -109,6 +109,7 @@ const TABS = [
   { id: 'courses', icon: GraduationCap },
   { id: 'documents', icon: FolderOpen },
   { id: 'support', icon: LifeBuoy },
+  { id: 'news', icon: Megaphone },
   { id: 'notifications', icon: Bell },
   { id: 'security', icon: Shield },
   { id: 'activity', icon: FileText },
@@ -469,6 +470,7 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
                     {tab === 'courses' && <CoursesTab siteId={siteId} />}
                     {tab === 'documents' && <DocumentsTab siteId={siteId} />}
                     {tab === 'support' && <SupportTab siteId={siteId} />}
+                    {tab === 'news' && <NewsTab siteId={siteId} />}
                     {tab === 'notifications' && <NotificationsTab siteId={siteId} />}
                     {tab === 'security' && <SecurityTab siteId={siteId} />}
                     {tab === 'activity' && <ActivityTab siteId={siteId} />}
@@ -1204,6 +1206,48 @@ function SupportTab({ siteId }: { siteId: string }) {
                 <span className={`flex-none rounded-full px-2 py-0.5 text-[11px] font-semibold ${tk.status === 'open' ? 'bg-green-500/15 text-green-600' : 'bg-muted text-muted-foreground'}`}>{tk.status === 'open' ? ts.open : ts.closed}</span>
                 <ChevronRight className="h-4 w-4 flex-none text-muted-foreground" />
               </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+type MAnnouncement = { id: string; title: string; body: string; pinned: boolean; createdAt: string | number | Date };
+
+function NewsTab({ siteId }: { siteId: string }) {
+  const locale = useLocale().locale;
+  const t = siteAccountDict(locale);
+  const tn = t.news;
+  const [items, setItems] = useState<MAnnouncement[] | null>(null);
+  useEffect(() => {
+    fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}&resource=announcements`)
+      .then((r) => r.json()).then((d) => setItems(d.announcements ?? [])).catch(() => setItems([]));
+  }, [siteId]);
+
+  return (
+    <div>
+      <SectionTitle title={tn.title} desc={tn.desc} />
+      {!items ? (
+        <div className="py-6 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border py-10 text-center">
+          <Megaphone className="mx-auto h-8 w-8 text-muted-foreground/50" />
+          <p className="mt-2 text-sm text-muted-foreground">{tn.empty}</p>
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {items.map((a) => (
+            <li key={a.id} className={`rounded-xl border p-4 ${a.pinned ? 'border-primary/40 bg-primary/5' : 'border-border bg-background/60'}`}>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h3 className="flex min-w-0 items-center gap-2 font-semibold">
+                  <span className="truncate">{a.title || t.noTitle}</span>
+                  {a.pinned && <span className="inline-flex flex-none items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary"><Pin className="h-3 w-3" /> {tn.pinned}</span>}
+                </h3>
+                <span className="flex-none text-xs text-muted-foreground">{fmtDay(a.createdAt, locale)}</span>
+              </div>
+              {a.body && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{a.body}</p>}
             </li>
           ))}
         </ul>

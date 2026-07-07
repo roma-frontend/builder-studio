@@ -30,6 +30,7 @@ import { listPublishedMaterials } from '@/lib/site-membership';
 import { listPublishedCourses, getCourseForMember, setLessonProgress } from '@/lib/site-learning';
 import { listPublishedDocuments } from '@/lib/site-documents';
 import { listMemberTickets, getMemberTicket, createTicket, memberReply } from '@/lib/site-tickets';
+import { listPublished as listAnnouncements } from '@/lib/site-announcements';
 import {
   createSiteLoginOtp,
   verifySiteLoginOtp,
@@ -101,6 +102,10 @@ export async function GET(request: Request) {
   if (resource === 'tickets') {
     if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
     return NextResponse.json({ tickets: listMemberTickets(siteId, user.id) });
+  }
+  if (resource === 'announcements') {
+    if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    return NextResponse.json({ announcements: listAnnouncements(siteId) });
   }
   if (resource === 'ticket') {
     if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });

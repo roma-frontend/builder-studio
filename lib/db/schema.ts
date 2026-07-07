@@ -405,6 +405,26 @@ export const siteTicketMessages = sqliteTable(
 );
 export type SiteTicketMessage = typeof siteTicketMessages.$inferSelect;
 
+// Announcements: admin broadcasts to members (also fanned out as notifications).
+export const siteAnnouncements = sqliteTable(
+  'site_announcements',
+  {
+    id: text('id').primaryKey(),
+    siteId: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    title: text('title').notNull().default(''),
+    body: text('body').notNull().default(''),
+    /** Pinned announcements sort to the top. */
+    pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
+    createdBy: text('created_by').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('site_announcements_site_idx').on(t.siteId)],
+);
+export type SiteAnnouncement = typeof siteAnnouncements.$inferSelect;
+
+
 
 
 

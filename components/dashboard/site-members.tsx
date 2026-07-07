@@ -5,7 +5,7 @@
 // (platform-authenticated + ownership-checked). Fully siteId-scoped.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Check, X, Ban, Clock, Plus, Trash2, Users, Library, ShieldCheck, GraduationCap, ChevronRight, Eye, EyeOff, Upload, FileType, LifeBuoy, Send, ArrowLeft } from 'lucide-react';
+import { Loader2, Check, X, Ban, Clock, Plus, Trash2, Users, Library, ShieldCheck, GraduationCap, ChevronRight, Eye, EyeOff, Upload, FileType, LifeBuoy, Send, ArrowLeft, Megaphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SITE_MEMBERS_SEEN_EVENT } from '@/components/dashboard/site-members-badge';
@@ -20,6 +20,7 @@ type Document = { id: string; title: string; fileName: string; url: string; size
 type Ticket = { id: string; subject: string; status: string; lastActor: string; updatedAt: string | number; messageCount: number; memberName: string; memberEmail: string };
 type TicketMsg = { id: string; authorType: string; body: string; createdAt: string | number };
 type TicketThread = { id: string; subject: string; status: string; messages: TicketMsg[]; memberName: string; memberEmail: string };
+type Announcement = { id: string; title: string; body: string; pinned: boolean; createdAt: string | number };
 
 const STATUS_CLS: Record<string, string> = {
   pending: 'bg-amber-500/15 text-amber-600',
@@ -40,6 +41,7 @@ export function SiteMembers({ siteId, memberApproval }: { siteId: string; member
   const [courses, setCourses] = useState<Course[] | null>(null);
   const [documents, setDocuments] = useState<Document[] | null>(null);
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
+  const [announcements, setAnnouncements] = useState<Announcement[] | null>(null);
   const [approval, setApproval] = useState(memberApproval);
   const [busy, setBusy] = useState('');
 
@@ -52,10 +54,11 @@ export function SiteMembers({ siteId, memberApproval }: { siteId: string; member
         setCourses(d.courses ?? []);
         setDocuments(d.documents ?? []);
         setTickets(d.tickets ?? []);
+        setAnnouncements(d.announcements ?? []);
         // Owner opened the members panel → clear the nav badge blink.
         window.dispatchEvent(new CustomEvent(SITE_MEMBERS_SEEN_EVENT));
       })
-      .catch(() => { setMembers([]); setMaterials([]); setCourses([]); setDocuments([]); setTickets([]); });
+      .catch(() => { setMembers([]); setMaterials([]); setCourses([]); setDocuments([]); setTickets([]); setAnnouncements([]); });
   }, [siteId]);
   useEffect(() => { load(); }, [load]);
 
@@ -147,6 +150,7 @@ export function SiteMembers({ siteId, memberApproval }: { siteId: string; member
       <CoursesEditor siteId={siteId} courses={courses} reload={load} />
       <DocumentsEditor siteId={siteId} documents={documents} reload={load} />
       <TicketsEditor siteId={siteId} tickets={tickets} reload={load} />
+      <AnnouncementsEditor siteId={siteId} announcements={announcements} reload={load} />
     </div>
   );
 }
@@ -454,6 +458,64 @@ function TicketsEditor({ siteId, tickets, reload }: { siteId: string; tickets: T
                 {tk.lastActor === 'member' && tk.status === 'open' && <span className="h-2 w-2 flex-none rounded-full bg-amber-500" />}
                 <span className={`flex-none rounded-full px-2 py-0.5 text-[11px] font-semibold ${tk.status === 'open' ? 'bg-green-500/15 text-green-600' : 'bg-muted text-muted-foreground'}`}>{tk.status === 'open' ? t.open : t.closed}</span>
                 <ChevronRight className="h-4 w-4 flex-none text-muted-foreground" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+
+function AnnouncementsEditor({ siteId, announcements, reload }: { siteId: string; announcements: Announcement[] | null; reload: () => void }) {
+  const t = dashDict(useLocale().locale).announcements;
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [pinned, setPinned] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [delBusy, setDelBusy] = useState('');
+
+  const add = async () => {
+    if (!title.trim() && !body.trim()) return;
+    setBusy(true);
+    await post({ action: 'announcement-create', siteId, title, body, pinned });
+    setBusy(false); setTitle(''); setBody(''); setPinned(false); reload();
+  };
+  const del = async (id: string) => { setDelBusy(id); await post({ action: 'announcement-delete', siteId, announcementId: id }); setDelBusy(''); reload(); };
+
+  return (
+    <section>
+      <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Megaphone className="h-4 w-4" /> {t.title}</h3>
+      <p className="mb-3 text-xs text-muted-foreground">{t.desc}</p>
+      <div className="space-y-2 rounded-xl border border-border bg-card p-4">
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.titlePh} className="h-10" />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder={t.bodyPh} rows={3}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+        <div className="flex items-center justify-between">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} className="h-4 w-4 rounded border-border" /> {t.pinned}
+          </label>
+          <Button size="sm" className="gap-1.5" disabled={busy} onClick={add}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t.add}
+          </Button>
+        </div>
+      </div>
+      {!announcements ? (
+        <div className="mt-3"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : announcements.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">{t.empty}</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {announcements.map((a) => (
+            <li key={a.id} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+              {a.pinned && <Megaphone className="h-4 w-4 flex-none text-primary" />}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{a.title || '—'}</p>
+                {a.body && <p className="truncate text-xs text-muted-foreground">{a.body}</p>}
+              </div>
+              <button type="button" onClick={() => del(a.id)} disabled={delBusy === a.id} aria-label={t.delete} className="flex-none rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500">
+                {delBusy === a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               </button>
             </li>
           ))}

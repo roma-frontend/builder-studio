@@ -17,6 +17,7 @@ import {
 } from '@/lib/site-learning';
 import { listDocumentsForAdmin, deleteDocument } from '@/lib/site-documents';
 import { listTicketsForAdmin, getTicketForAdmin, adminReply, setTicketStatus } from '@/lib/site-tickets';
+import { createAnnouncement, listForAdmin as listAnnouncementsForAdmin, deleteAnnouncement } from '@/lib/site-announcements';
 import { getDb, sites } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { getLocale } from '@/lib/i18n';
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
   if (ticketId) {
     return NextResponse.json({ ticket: getTicketForAdmin(siteId, ticketId) });
   }
-  return NextResponse.json({ members: listMembers(siteId), materials: listMaterialsForAdmin(siteId), courses: listCoursesForAdmin(siteId), documents: listDocumentsForAdmin(siteId), tickets: listTicketsForAdmin(siteId) });
+  return NextResponse.json({ members: listMembers(siteId), materials: listMaterialsForAdmin(siteId), courses: listCoursesForAdmin(siteId), documents: listDocumentsForAdmin(siteId), tickets: listTicketsForAdmin(siteId), announcements: listAnnouncementsForAdmin(siteId) });
 }
 
 export async function POST(request: Request) {
@@ -136,6 +137,14 @@ export async function POST(request: Request) {
     case 'ticket-status': {
       const st = str('status') === 'closed' ? 'closed' : 'open';
       setTicketStatus(siteId, str('ticketId'), st);
+      return NextResponse.json({ ok: true });
+    }
+    case 'announcement-create': {
+      const a = createAnnouncement(siteId, user.id, { title: str('title'), body: str('body'), pinned: bool('pinned') });
+      return NextResponse.json({ ok: true, announcement: a });
+    }
+    case 'announcement-delete': {
+      deleteAnnouncement(siteId, str('announcementId'));
       return NextResponse.json({ ok: true });
     }
     case 'set-approval-policy': {

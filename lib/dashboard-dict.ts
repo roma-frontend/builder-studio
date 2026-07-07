@@ -232,6 +232,9 @@ export type DashDict = {
     title: string; desc: string; noTickets: string; open: string; closed: string; reply: string; replyPh: string;
     send: string; close: string; reopen: string; you: string; team: string; back: string;
   };
+  announcements: {
+    title: string; desc: string; titlePh: string; bodyPh: string; pinned: string; add: string; empty: string; delete: string;
+  };
 };
 
 const ru: DashDict = {
@@ -494,6 +497,16 @@ const ru: DashDict = {
     you: 'Вы',
     team: 'Участник',
     back: 'К списку',
+  },
+  announcements: {
+    title: 'Объявления',
+    desc: 'Отправьте объявление участникам — оно появится у них и придёт уведомлением.',
+    titlePh: 'Заголовок',
+    bodyPh: 'Текст объявления…',
+    pinned: 'Закрепить',
+    add: 'Опубликовать',
+    empty: 'Объявлений пока нет.',
+    delete: 'Удалить',
   },
 };
 
@@ -758,6 +771,16 @@ const en: DashDict = {
     team: 'Member',
     back: 'Back to list',
   },
+  announcements: {
+    title: 'Announcements',
+    desc: 'Broadcast an announcement to members — it shows in their cabinet and notifies them.',
+    titlePh: 'Title',
+    bodyPh: 'Announcement text…',
+    pinned: 'Pin',
+    add: 'Publish',
+    empty: 'No announcements yet.',
+    delete: 'Delete',
+  },
 };
 
 const hy: DashDict = {
@@ -1020,6 +1043,16 @@ const hy: DashDict = {
     you: 'Դուք',
     team: 'Մասնակից',
     back: 'Դեպի ցանկ',
+  },
+  announcements: {
+    title: 'Հայտարարություններ',
+    desc: 'Ուղարկեք հայտարարություն մասնակիցներին — այն կհայտնվի կաբինետում և կգա ծանուցումով։',
+    titlePh: 'Վերնագիր',
+    bodyPh: 'Հայտարարության տեքստ…',
+    pinned: 'Ամրացնել',
+    add: 'Հրապարակել',
+    empty: 'Հայտարարություններ դեռ չկան։',
+    delete: 'Ջնջել',
   },
 };
 

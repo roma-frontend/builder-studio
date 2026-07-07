@@ -37,6 +37,7 @@ export type SiteAccountDict = {
     courses: string;
     documents: string;
     support: string;
+    news: string;
     notifications: string;
     security: string;
     activity: string;
@@ -52,6 +53,7 @@ export type SiteAccountDict = {
     title: string; desc: string; empty: string; newSubject: string; newMessage: string; create: string;
     back: string; reply: string; replyPh: string; you: string; team: string; open: string; closed: string; awaiting: string;
   };
+  news: { title: string; desc: string; empty: string; pinned: string };
   // greeting words (by time of day)
   greetNight: string;
   greetMorning: string;
@@ -193,6 +195,7 @@ const ru: SiteAccountDict = {
     courses: 'Обучение',
     documents: 'Файлы',
     support: 'Поддержка',
+    news: 'Объявления',
     notifications: 'Уведомления',
     security: 'Безопасность',
     activity: 'Обращения',
@@ -237,6 +240,12 @@ const ru: SiteAccountDict = {
     open: 'Открыто',
     closed: 'Закрыто',
     awaiting: 'Ждём ответа команды',
+  },
+  news: {
+    title: 'Объявления',
+    desc: 'Новости и объявления от команды.',
+    empty: 'Пока нет объявлений.',
+    pinned: 'Закреплено',
   },
   greetNight: 'Доброй ночи',
   greetMorning: 'Доброе утро',
@@ -369,6 +378,7 @@ const en: SiteAccountDict = {
     courses: 'Learning',
     documents: 'Files',
     support: 'Support',
+    news: 'Announcements',
     notifications: 'Notifications',
     security: 'Security',
     activity: 'Requests',
@@ -413,6 +423,12 @@ const en: SiteAccountDict = {
     open: 'Open',
     closed: 'Closed',
     awaiting: 'Awaiting the team’s reply',
+  },
+  news: {
+    title: 'Announcements',
+    desc: 'News and announcements from the team.',
+    empty: 'No announcements yet.',
+    pinned: 'Pinned',
   },
   greetNight: 'Good night',
   greetMorning: 'Good morning',
@@ -545,6 +561,7 @@ const hy: SiteAccountDict = {
     courses: 'Ուսուցում',
     documents: 'Ֆայլեր',
     support: 'Աջակցություն',
+    news: 'Հայտարարություններ',
     notifications: 'Ծանուցումներ',
     security: 'Անվտանգություն',
     activity: 'Դիմումներ',
@@ -589,6 +606,12 @@ const hy: SiteAccountDict = {
     open: 'Բաց',
     closed: 'Փակված',
     awaiting: 'Սպասում ենք թիմի պատասխանին',
+  },
+  news: {
+    title: 'Հայտարարություններ',
+    desc: 'Նորություններ և հայտարարություններ թիմից։',
+    empty: 'Դեռ հայտարարություններ չկան։',
+    pinned: 'Ամրացված',
   },
   greetNight: 'Բարի գիշեր',
   greetMorning: 'Բարի լույս',

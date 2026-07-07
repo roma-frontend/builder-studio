@@ -206,6 +206,18 @@ CREATE TABLE IF NOT EXISTS site_ticket_messages (
 );
 CREATE INDEX IF NOT EXISTS site_ticket_messages_ticket_idx ON site_ticket_messages (ticket_id);
 
+CREATE TABLE IF NOT EXISTS site_announcements (
+  id TEXT PRIMARY KEY,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT '',
+  body TEXT NOT NULL DEFAULT '',
+  pinned INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS site_announcements_site_idx ON site_announcements (site_id);
+
+
 
 
 
