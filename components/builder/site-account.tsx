@@ -14,11 +14,14 @@ import {
   Eye, EyeOff, Monitor, Smartphone, Trash2, Save, CalendarDays, ShieldCheck, X,
   Store, Menu, ExternalLink, Library, Clock, Ban, LinkIcon, Bell,
   LayoutDashboard, ChevronRight, ChevronLeft, Search, Copy, Wand2, KeyRound,
+  LogIn, UserPlus,
+  GraduationCap, PlayCircle, ArrowLeft, CheckCircle2, Circle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { iconCls, passwordScore, StrengthMeter } from '@/components/auth/auth-ui';
 import { SiteThemeToggle } from '@/components/builder/site-theme-toggle';
+import { SiteUserMenu } from '@/components/builder/site-user-menu';
 import { useLocale } from '@/hooks/use-locale';
 import { BCP47, type Locale } from '@/lib/seo';
 import { siteAccountDict, type SiteAccountDict } from '@/lib/site-account-dict';
@@ -101,6 +104,7 @@ const TABS = [
   { id: 'overview', icon: LayoutDashboard },
   { id: 'profile', icon: User },
   { id: 'materials', icon: Library },
+  { id: 'courses', icon: GraduationCap },
   { id: 'notifications', icon: Bell },
   { id: 'security', icon: Shield },
   { id: 'activity', icon: FileText },
@@ -127,14 +131,15 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
 
   // Persist the desktop collapse preference; a collapsed rail can't drill in.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot hydration from localStorage (unavailable during SSR)
     try { setCollapsed(localStorage.getItem('cwk:site-sidebar-collapsed') === '1'); } catch { /* ignore */ }
   }, []);
-  useEffect(() => { if (collapsed) setSubNav(null); }, [collapsed]);
-  const toggleCollapsed = () => setCollapsed((c) => {
-    const n = !c;
+  const toggleCollapsed = () => {
+    const n = !collapsed;
+    setCollapsed(n);
+    if (n) setSubNav(null); // a collapsed rail has no room for the drill-in panel
     try { localStorage.setItem('cwk:site-sidebar-collapsed', n ? '1' : '0'); } catch { /* ignore */ }
-    return n;
-  });
+  };
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization -- setMe is a stable setter; siteId is the only real dep.
   const refresh = useCallback(() => {
@@ -164,12 +169,46 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
   }
   if (!me) {
     return (
-      <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-4 text-center">
-        <p className="text-muted-foreground">{t.notSignedIn}</p>
-        <div className="flex gap-3">
-          <Link href={`${base}/login`}><Button size="lg">{t.signIn}</Button></Link>
-          <Link href={`${base}/register`}><Button size="lg" variant="outline">{t.register}</Button></Link>
+      <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 text-center">
+        {/* Ambient, theme-aware glow so the empty state never feels flat. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute left-1/2 top-[38%] h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/15 blur-[130px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_115%,transparent,var(--background))]" />
         </div>
+
+        <div className="absolute right-4 top-4 flex items-center gap-2">
+          <LanguageSwitcher />
+          <SiteThemeToggle />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 18, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-sm rounded-3xl border border-border/60 bg-card/70 p-8 shadow-2xl shadow-black/10 backdrop-blur-xl"
+        >
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground shadow-lg shadow-primary/25 ring-1 ring-inset ring-white/10">
+            <Store className="h-7 w-7" />
+          </div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">{brand}</h1>
+          <p className="mx-auto mt-2 max-w-[17rem] text-sm leading-relaxed text-muted-foreground">{t.notSignedIn}</p>
+
+          <div className="mt-7 flex flex-col gap-2.5">
+            <Link href={`${base}/login`} className="block">
+              <Button size="lg" className="group w-full gap-2">
+                <LogIn className="h-4 w-4" />
+                {t.signIn}
+                <ChevronRight className="h-4 w-4 opacity-70 transition-transform group-hover:translate-x-0.5" />
+              </Button>
+            </Link>
+            <Link href={`${base}/register`} className="block">
+              <Button size="lg" variant="outline" className="w-full gap-2">
+                <UserPlus className="h-4 w-4" />
+                {t.register}
+              </Button>
+            </Link>
+          </div>
+        </motion.div>
       </main>
     );
   }
@@ -394,6 +433,16 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
             </Link>
             <SiteThemeToggle siteId={siteId} />
             <LanguageSwitcher />
+            <SiteUserMenu
+              name={me.name}
+              email={me.email}
+              color={color}
+              unread={unread}
+              base={base}
+              onNavigate={openTab}
+              onLogout={logout}
+              loggingOut={loggingOut}
+            />
           </div>
         </header>
 
@@ -413,6 +462,7 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
                   <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm sm:p-6">
                     {tab === 'profile' && <ProfileTab siteId={siteId} me={me} onSaved={setMe} />}
                     {tab === 'materials' && <MaterialsTab siteId={siteId} />}
+                    {tab === 'courses' && <CoursesTab siteId={siteId} />}
                     {tab === 'notifications' && <NotificationsTab siteId={siteId} />}
                     {tab === 'security' && <SecurityTab siteId={siteId} />}
                     {tab === 'activity' && <ActivityTab siteId={siteId} />}
@@ -432,6 +482,7 @@ type Notif = { id: string; type: string; title: string; message: string; read: b
 type Overview = {
   unread: number; notificationsCount: number; recentNotifications: Notif[];
   materialsCount: number; recentMaterials: Material[];
+  coursesCount: number;
   submissionsCount: number; sessionsCount: number;
 };
 
@@ -461,6 +512,7 @@ function OverviewTab({ siteId, me, unread, onNavigate }: { siteId: string; me: M
 
   const stats: { id: TabId; label: string; value: number | null; icon: React.ComponentType<{ className?: string }>; badge?: number }[] = [
     { id: 'materials', label: t.statMaterials, value: ov?.materialsCount ?? null, icon: Library },
+    { id: 'courses', label: t.tabs.courses, value: ov?.coursesCount ?? null, icon: GraduationCap },
     { id: 'notifications', label: t.statNotifications, value: ov?.notificationsCount ?? null, icon: Bell, badge: unread },
     { id: 'activity', label: t.statActivity, value: ov?.submissionsCount ?? null, icon: FileText },
     { id: 'security', label: t.statDevices, value: ov?.sessionsCount ?? null, icon: Monitor },
@@ -769,6 +821,181 @@ function MaterialsTab({ siteId }: { siteId: string }) {
                     <LinkIcon className="h-3.5 w-3.5" /> {t.openLink}
                   </a>
                 )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+type MCourse = { id: string; title: string; description: string; accent: string; lessonCount: number; completedCount: number; createdAt: string | number | Date };
+type MLesson = { id: string; title: string; body: string; videoUrl: string; attachmentUrl: string; completed: boolean };
+type MCourseDetail = { id: string; title: string; description: string; accent: string; lessons: MLesson[] };
+
+function ProgressBar({ done, total, accent }: { done: number; total: number; accent?: string }) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-muted">
+      <motion.div className="h-full rounded-full" style={{ background: accent || 'var(--primary)' }}
+        initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.5, ease: 'easeOut' }} />
+    </div>
+  );
+}
+
+function CoursesTab({ siteId }: { siteId: string }) {
+  const locale = useLocale().locale;
+  const t = siteAccountDict(locale);
+  const tc = t.courses;
+  const [list, setList] = useState<MCourse[] | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<MCourseDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [busy, setBusy] = useState('');
+
+  const loadList = useCallback(() => {
+    fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}&resource=courses`)
+      .then((r) => r.json()).then((d) => setList(d.courses ?? [])).catch(() => setList([]));
+  }, [siteId]);
+  useEffect(() => { loadList(); }, [loadList]);
+
+  const openCourse = (id: string) => {
+    setOpenId(id); setDetail(null); setDetailLoading(true);
+    fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}&resource=course&id=${encodeURIComponent(id)}`)
+      .then((r) => r.json()).then((d) => setDetail(d.course ?? null)).catch(() => setDetail(null)).finally(() => setDetailLoading(false));
+  };
+  const back = () => { setOpenId(null); setDetail(null); loadList(); };
+
+  const toggle = async (lessonId: string, done: boolean) => {
+    setBusy(lessonId);
+    const r = await api('lesson-complete', { siteId, lessonId, done }, t.networkError);
+    setBusy('');
+    if (r.ok) setDetail((d) => d ? { ...d, lessons: d.lessons.map((l) => l.id === lessonId ? { ...l, completed: done } : l) } : d);
+  };
+
+  // ── Course detail view ──
+  if (openId) {
+    const doneCount = detail?.lessons.filter((l) => l.completed).length ?? 0;
+    const total = detail?.lessons.length ?? 0;
+    const allDone = total > 0 && doneCount === total;
+    return (
+      <div>
+        <button onClick={back} className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> {tc.back}
+        </button>
+        {detailLoading || !detail ? (
+          <div className="py-10 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <>
+            <div className="mb-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl text-white" style={{ background: detail.accent || 'var(--primary)' }}>
+                  <GraduationCap className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-semibold tracking-tight">{detail.title || tc.title}</h2>
+                  {detail.description && <p className="mt-0.5 text-sm text-muted-foreground">{detail.description}</p>}
+                </div>
+              </div>
+              <div className="mt-4">
+                <div className="mb-1 flex items-center justify-between text-xs font-medium text-muted-foreground">
+                  <span>{tc.progress}</span>
+                  <span>{doneCount} / {total} {tc.completedOf}</span>
+                </div>
+                <ProgressBar done={doneCount} total={total} accent={detail.accent} />
+              </div>
+              {allDone && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-2.5 text-sm font-medium text-green-600">
+                  <CheckCircle2 className="h-4 w-4" /> {tc.allDone}
+                </div>
+              )}
+            </div>
+            {total === 0 ? (
+              <p className="rounded-xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">{tc.noLessons}</p>
+            ) : (
+              <ol className="space-y-3">
+                {detail.lessons.map((l, i) => (
+                  <li key={l.id} className={`rounded-xl border p-4 transition-colors ${l.completed ? 'border-green-500/30 bg-green-500/5' : 'border-border bg-background/60'}`}>
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 flex-none text-[11px] font-bold tabular-nums text-muted-foreground">{tc.lesson} {i + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold">{l.title || `${tc.lesson} ${i + 1}`}</h3>
+                        {l.body && <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{l.body}</p>}
+                        <div className="mt-2 flex flex-wrap gap-3">
+                          {l.videoUrl && (
+                            <a href={l.videoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+                              <PlayCircle className="h-4 w-4" /> {tc.watchVideo}
+                            </a>
+                          )}
+                          {l.attachmentUrl && (
+                            <a href={l.attachmentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+                              <LinkIcon className="h-4 w-4" /> {tc.openAttachment}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggle(l.id, !l.completed)}
+                        disabled={busy === l.id}
+                        aria-pressed={l.completed}
+                        className={`flex flex-none items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${l.completed ? 'bg-green-500/15 text-green-600 hover:bg-green-500/25' : 'border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                      >
+                        {busy === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : l.completed ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                        <span className="hidden sm:inline">{l.completed ? tc.done : tc.markDone}</span>
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // ── Course list view ──
+  return (
+    <div>
+      <SectionTitle title={tc.title} desc={tc.desc} />
+      {!list ? (
+        <div className="py-6 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : list.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border py-10 text-center">
+          <GraduationCap className="mx-auto h-8 w-8 text-muted-foreground/50" />
+          <p className="mt-2 text-sm text-muted-foreground">{tc.empty}</p>
+        </div>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {list.map((c) => {
+            const pct = c.lessonCount > 0 ? Math.round((c.completedCount / c.lessonCount) * 100) : 0;
+            const complete = c.lessonCount > 0 && c.completedCount === c.lessonCount;
+            return (
+              <li key={c.id}>
+                <button onClick={() => openCourse(c.id)} className="group flex h-full w-full flex-col gap-3 rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
+                  <div className="flex items-center justify-between">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: c.accent || 'var(--primary)' }}>
+                      <GraduationCap className="h-5 w-5" />
+                    </span>
+                    {complete && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold leading-snug">{c.title || tc.title}</h3>
+                    {c.description && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.description}</p>}
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs font-medium text-muted-foreground">
+                      <span>{c.completedCount} / {c.lessonCount} {tc.completedOf}</span>
+                      <span className="tabular-nums">{pct}%</span>
+                    </div>
+                    <ProgressBar done={c.completedCount} total={c.lessonCount} accent={c.accent} />
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                    {tc.open} <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                </button>
               </li>
             );
           })}

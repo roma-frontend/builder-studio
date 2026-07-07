@@ -261,6 +261,82 @@ export const siteMaterials = sqliteTable(
 );
 export type SiteMaterial = typeof siteMaterials.$inferSelect;
 
+// ── Structured learning: courses → lessons → per-member progress ─────────────
+// A course groups ordered lessons; members mark lessons complete and the cabinet
+// shows progress. All rows are siteId-scoped (tenant isolation) like everything
+// else under a site. Drafts (published=false) are hidden from members.
+export const siteCourses = sqliteTable(
+  'site_courses',
+  {
+    id: text('id').primaryKey(),
+    siteId: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    title: text('title').notNull().default(''),
+    description: text('description').notNull().default(''),
+    /** Accent color (hex) for the course card. */
+    accent: text('accent').notNull().default(''),
+    /** Manual sort order (ascending). */
+    position: integer('position').notNull().default(0),
+    published: integer('published', { mode: 'boolean' }).notNull().default(true),
+    createdBy: text('created_by').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [index('site_courses_site_idx').on(t.siteId)],
+);
+export type SiteCourse = typeof siteCourses.$inferSelect;
+
+export const siteLessons = sqliteTable(
+  'site_lessons',
+  {
+    id: text('id').primaryKey(),
+    courseId: text('course_id')
+      .notNull()
+      .references(() => siteCourses.id, { onDelete: 'cascade' }),
+    /** Denormalized for fast siteId scoping. */
+    siteId: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    title: text('title').notNull().default(''),
+    /** Rich text / markdown lesson body. */
+    body: text('body').notNull().default(''),
+    /** Optional embedded video URL (YouTube/Vimeo/mp4/R2). */
+    videoUrl: text('video_url').notNull().default(''),
+    /** Optional attachment/download URL (e.g. an R2 document). */
+    attachmentUrl: text('attachment_url').notNull().default(''),
+    position: integer('position').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [index('site_lessons_course_idx').on(t.courseId), index('site_lessons_site_idx').on(t.siteId)],
+);
+export type SiteLesson = typeof siteLessons.$inferSelect;
+
+// One row per (member, lesson) that has been completed. Absence = not done.
+export const siteLessonProgress = sqliteTable(
+  'site_lesson_progress',
+  {
+    id: text('id').primaryKey(),
+    siteUserId: text('site_user_id')
+      .notNull()
+      .references(() => siteUsers.id, { onDelete: 'cascade' }),
+    lessonId: text('lesson_id')
+      .notNull()
+      .references(() => siteLessons.id, { onDelete: 'cascade' }),
+    siteId: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    completedAt: integer('completed_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    uniqueIndex('site_lesson_progress_uq').on(t.siteUserId, t.lessonId),
+    index('site_lesson_progress_user_idx').on(t.siteUserId),
+  ],
+);
+export type SiteLessonProgress = typeof siteLessonProgress.$inferSelect;
+
+
 // Per-member notifications (join approved/rejected/suspended, new material, …).
 // Scoped by siteId + siteUserId — a member only ever sees their own.
 export const siteNotifications = sqliteTable(

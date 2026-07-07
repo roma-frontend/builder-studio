@@ -5,7 +5,7 @@
 // (platform-authenticated + ownership-checked). Fully siteId-scoped.
 
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Check, X, Ban, Clock, Plus, Trash2, Users, Library, ShieldCheck } from 'lucide-react';
+import { Loader2, Check, X, Ban, Clock, Plus, Trash2, Users, Library, ShieldCheck, GraduationCap, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SITE_MEMBERS_SEEN_EVENT } from '@/components/dashboard/site-members-badge';
@@ -14,6 +14,8 @@ import { dashDict } from '@/lib/dashboard-dict';
 
 type Member = { id: string; email: string; name: string; status: string; rejectionReason: string; createdAt: string | number; approvedAt: string | number | null };
 type Material = { id: string; title: string; body: string; url: string; published: boolean; createdAt: string | number };
+type Course = { id: string; title: string; description: string; accent: string; published: boolean; lessonCount: number; createdAt: string | number };
+type Lesson = { id: string; title: string; body: string; videoUrl: string; attachmentUrl: string; position: number };
 
 const STATUS_CLS: Record<string, string> = {
   pending: 'bg-amber-500/15 text-amber-600',
@@ -31,6 +33,7 @@ export function SiteMembers({ siteId, memberApproval }: { siteId: string; member
   const t = dashDict(useLocale().locale).members;
   const [members, setMembers] = useState<Member[] | null>(null);
   const [materials, setMaterials] = useState<Material[] | null>(null);
+  const [courses, setCourses] = useState<Course[] | null>(null);
   const [approval, setApproval] = useState(memberApproval);
   const [busy, setBusy] = useState('');
 
@@ -40,10 +43,11 @@ export function SiteMembers({ siteId, memberApproval }: { siteId: string; member
       .then((d) => {
         setMembers(d.members ?? []);
         setMaterials(d.materials ?? []);
+        setCourses(d.courses ?? []);
         // Owner opened the members panel → clear the nav badge blink.
         window.dispatchEvent(new CustomEvent(SITE_MEMBERS_SEEN_EVENT));
       })
-      .catch(() => { setMembers([]); setMaterials([]); });
+      .catch(() => { setMembers([]); setMaterials([]); setCourses([]); });
   }, [siteId]);
   useEffect(() => { load(); }, [load]);
 
@@ -132,6 +136,7 @@ export function SiteMembers({ siteId, memberApproval }: { siteId: string; member
       </section>
 
       <MaterialsEditor siteId={siteId} materials={materials} reload={load} />
+      <CoursesEditor siteId={siteId} courses={courses} reload={load} />
     </div>
   );
 }
@@ -180,5 +185,127 @@ function MaterialsEditor({ siteId, materials, reload }: { siteId: string; materi
         </ul>
       )}
     </section>
+  );
+}
+
+
+
+function CoursesEditor({ siteId, courses, reload }: { siteId: string; courses: Course[] | null; reload: () => void }) {
+  const t = dashDict(useLocale().locale).learning;
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [rowBusy, setRowBusy] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const add = async () => {
+    if (!title.trim()) return;
+    setBusy(true);
+    await post({ action: 'course-create', siteId, title, description, published: true });
+    setBusy(false); setTitle(''); setDescription(''); reload();
+  };
+  const togglePublish = async (c: Course) => { setRowBusy(c.id); await post({ action: 'course-update', siteId, courseId: c.id, published: !c.published }); setRowBusy(''); reload(); };
+  const del = async (id: string) => { setRowBusy(id); await post({ action: 'course-delete', siteId, courseId: id }); setRowBusy(''); if (openId === id) setOpenId(null); reload(); };
+
+  return (
+    <section>
+      <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><GraduationCap className="h-4 w-4" /> {t.title}</h3>
+      <p className="mb-3 text-xs text-muted-foreground">{t.desc}</p>
+      <div className="space-y-2 rounded-xl border border-border bg-card p-4">
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.courseTitle} className="h-10" />
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t.courseDesc} rows={2}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+        <Button size="sm" className="gap-1.5" disabled={busy} onClick={add}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t.addCourse}
+        </Button>
+      </div>
+      {!courses ? (
+        <div className="mt-3"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : courses.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">{t.noCourses}</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {courses.map((c) => (
+            <li key={c.id} className="rounded-xl border border-border bg-card">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <button type="button" onClick={() => setOpenId(openId === c.id ? null : c.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                  <ChevronRight className={`h-4 w-4 flex-none text-muted-foreground transition-transform ${openId === c.id ? 'rotate-90' : ''}`} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">{c.title || t.courseTitle}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{c.lessonCount} {t.lessonsN}</span>
+                  </span>
+                </button>
+                <span className={`flex-none rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.published ? 'bg-green-500/15 text-green-600' : 'bg-muted text-muted-foreground'}`}>{c.published ? t.published : t.draft}</span>
+                <Button size="sm" variant="outline" className="flex-none gap-1.5" disabled={rowBusy === c.id} onClick={() => togglePublish(c)}>
+                  {rowBusy === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : c.published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <span className="hidden sm:inline">{c.published ? t.unpublish : t.publish}</span>
+                </Button>
+                <button type="button" onClick={() => del(c.id)} disabled={rowBusy === c.id} aria-label={t.delete} className="flex-none rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              {openId === c.id && <LessonsEditor siteId={siteId} courseId={c.id} reload={reload} />}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function LessonsEditor({ siteId, courseId, reload }: { siteId: string; courseId: string; reload: () => void }) {
+  const t = dashDict(useLocale().locale).learning;
+  const [lessons, setLessons] = useState<Lesson[] | null>(null);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [delBusy, setDelBusy] = useState('');
+
+  const load = useCallback(() => {
+    fetch(`/api/site-members?site=${encodeURIComponent(siteId)}&course=${encodeURIComponent(courseId)}`)
+      .then((r) => r.json()).then((d) => setLessons(d.lessons ?? [])).catch(() => setLessons([]));
+  }, [siteId, courseId]);
+  useEffect(() => { load(); }, [load]);
+
+  const add = async () => {
+    if (!title.trim() && !body.trim()) return;
+    setBusy(true);
+    await post({ action: 'lesson-create', siteId, courseId, title, body, videoUrl, attachmentUrl });
+    setBusy(false); setTitle(''); setBody(''); setVideoUrl(''); setAttachmentUrl(''); load(); reload();
+  };
+  const del = async (id: string) => { setDelBusy(id); await post({ action: 'lesson-delete', siteId, lessonId: id }); setDelBusy(''); load(); reload(); };
+
+  return (
+    <div className="space-y-3 border-t border-border/60 bg-muted/20 p-4">
+      {!lessons ? (
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      ) : lessons.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{t.noLessons}</p>
+      ) : (
+        <ol className="space-y-1.5">
+          {lessons.map((l, i) => (
+            <li key={l.id} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+              <span className="flex-none text-[11px] font-bold tabular-nums text-muted-foreground">{i + 1}</span>
+              <span className="min-w-0 flex-1 truncate text-sm">{l.title || '—'}</span>
+              <button type="button" onClick={() => del(l.id)} disabled={delBusy === l.id} aria-label={t.delete} className="flex-none rounded-lg p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500">
+                {delBusy === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+      <div className="space-y-2 rounded-lg border border-border bg-card p-3">
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.lessonTitle} className="h-9" />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder={t.lessonBody} rows={2}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+        <Input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder={t.lessonVideo} className="h-9" />
+        <Input value={attachmentUrl} onChange={(e) => setAttachmentUrl(e.target.value)} placeholder={t.lessonAttach} className="h-9" />
+        <Button size="sm" variant="outline" className="gap-1.5" disabled={busy} onClick={add}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t.addLesson}
+        </Button>
+      </div>
+    </div>
   );
 }

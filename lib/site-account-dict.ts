@@ -17,6 +17,7 @@ export type SiteAccountDict = {
   openMenu: string;
   noName: string;
   noTitle: string;
+  userMenu: { label: string; signedIn: string; member: string };
   // sidebar (collapsible + drill-in, mirrors the platform dashboard)
   sidebar: {
     groupWorkspace: string;
@@ -33,10 +34,16 @@ export type SiteAccountDict = {
     overview: string;
     profile: string;
     materials: string;
+    courses: string;
     notifications: string;
     security: string;
     activity: string;
     settings: string;
+  };
+  courses: {
+    title: string; desc: string; empty: string; lessonsWord: string; progress: string;
+    completedOf: string; open: string; back: string; markDone: string; markUndone: string;
+    done: string; watchVideo: string; openAttachment: string; noLessons: string; allDone: string; lesson: string;
   };
   // greeting words (by time of day)
   greetNight: string;
@@ -162,6 +169,7 @@ const ru: SiteAccountDict = {
   openMenu: 'Меню',
   noName: 'Без имени',
   noTitle: 'Без названия',
+  userMenu: { label: 'Меню аккаунта', signedIn: 'Вы вошли как', member: 'Участник' },
   sidebar: {
     groupWorkspace: 'Кабинет',
     groupAccount: 'Аккаунт',
@@ -175,10 +183,29 @@ const ru: SiteAccountDict = {
     overview: 'Обзор',
     profile: 'Профиль',
     materials: 'Материалы',
+    courses: 'Обучение',
     notifications: 'Уведомления',
     security: 'Безопасность',
     activity: 'Обращения',
     settings: 'Настройки',
+  },
+  courses: {
+    title: 'Обучение',
+    desc: 'Курсы и уроки от команды. Отмечайте пройденное — прогресс сохраняется.',
+    empty: 'Пока нет курсов.',
+    lessonsWord: 'уроков',
+    progress: 'Прогресс',
+    completedOf: 'пройдено',
+    open: 'Открыть курс',
+    back: 'К курсам',
+    markDone: 'Отметить пройденным',
+    markUndone: 'Снять отметку',
+    done: 'Пройдено',
+    watchVideo: 'Смотреть видео',
+    openAttachment: 'Материал урока',
+    noLessons: 'В этом курсе пока нет уроков.',
+    allDone: 'Курс пройден полностью!',
+    lesson: 'Урок',
   },
   greetNight: 'Доброй ночи',
   greetMorning: 'Доброе утро',
@@ -294,6 +321,7 @@ const en: SiteAccountDict = {
   openMenu: 'Menu',
   noName: 'No name',
   noTitle: 'Untitled',
+  userMenu: { label: 'Account menu', signedIn: 'Signed in as', member: 'Member' },
   sidebar: {
     groupWorkspace: 'Workspace',
     groupAccount: 'Account',
@@ -307,10 +335,29 @@ const en: SiteAccountDict = {
     overview: 'Overview',
     profile: 'Profile',
     materials: 'Materials',
+    courses: 'Learning',
     notifications: 'Notifications',
     security: 'Security',
     activity: 'Requests',
     settings: 'Settings',
+  },
+  courses: {
+    title: 'Learning',
+    desc: 'Courses and lessons from the team. Mark items done — your progress is saved.',
+    empty: 'No courses yet.',
+    lessonsWord: 'lessons',
+    progress: 'Progress',
+    completedOf: 'completed',
+    open: 'Open course',
+    back: 'Back to courses',
+    markDone: 'Mark complete',
+    markUndone: 'Mark incomplete',
+    done: 'Completed',
+    watchVideo: 'Watch video',
+    openAttachment: 'Lesson material',
+    noLessons: 'This course has no lessons yet.',
+    allDone: 'Course fully completed!',
+    lesson: 'Lesson',
   },
   greetNight: 'Good night',
   greetMorning: 'Good morning',
@@ -426,6 +473,7 @@ const hy: SiteAccountDict = {
   openMenu: 'Մենյու',
   noName: 'Առանց անվան',
   noTitle: 'Առանց վերնագրի',
+  userMenu: { label: 'Հաշվի ընտրացանկ', signedIn: 'Մուտք եք գործել որպես', member: 'Անդամ' },
   sidebar: {
     groupWorkspace: 'Կաբինետ',
     groupAccount: 'Հաշիվ',
@@ -439,10 +487,29 @@ const hy: SiteAccountDict = {
     overview: 'Ակնարկ',
     profile: 'Պրոֆիլ',
     materials: 'Նյութեր',
+    courses: 'Ուսուցում',
     notifications: 'Ծանուցումներ',
     security: 'Անվտանգություն',
     activity: 'Դիմումներ',
     settings: 'Կարգավորումներ',
+  },
+  courses: {
+    title: 'Ուսուցում',
+    desc: 'Թիմի դասընթացներն ու դասերը։ Նշեք անցածը — առաջընթացը պահվում է։',
+    empty: 'Դեռ դասընթացներ չկան։',
+    lessonsWord: 'դաս',
+    progress: 'Առաջընթաց',
+    completedOf: 'անցած',
+    open: 'Բացել դասընթացը',
+    back: 'Դեպի դասընթացներ',
+    markDone: 'Նշել որպես անցած',
+    markUndone: 'Հանել նշումը',
+    done: 'Անցած',
+    watchVideo: 'Դիտել տեսանյութը',
+    openAttachment: 'Դասի նյութ',
+    noLessons: 'Այս դասընթացը դեռ դասեր չունի։',
+    allDone: 'Դասընթացն ամբողջությամբ անցված է։',
+    lesson: 'Դաս',
   },
   greetNight: 'Բարի գիշեր',
   greetMorning: 'Բարի լույս',

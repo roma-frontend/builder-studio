@@ -11,6 +11,10 @@ import {
   countPendingMembersForOwner,
   type MemberStatus,
 } from '@/lib/site-membership';
+import {
+  listCoursesForAdmin, createCourse, updateCourse, deleteCourse,
+  listLessonsForAdmin, createLesson, updateLesson, deleteLesson,
+} from '@/lib/site-learning';
 import { getDb, sites } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { getLocale } from '@/lib/i18n';
@@ -39,7 +43,12 @@ export async function GET(request: Request) {
   } catch {
     return NextResponse.json({ error: t.accessDenied }, { status: 403 });
   }
-  return NextResponse.json({ members: listMembers(siteId), materials: listMaterialsForAdmin(siteId) });
+  // Lessons of one course (lazy-loaded by the admin course editor).
+  const courseId = new URL(request.url).searchParams.get('course');
+  if (courseId) {
+    return NextResponse.json({ lessons: listLessonsForAdmin(siteId, courseId) });
+  }
+  return NextResponse.json({ members: listMembers(siteId), materials: listMaterialsForAdmin(siteId), courses: listCoursesForAdmin(siteId) });
 }
 
 export async function POST(request: Request) {
@@ -81,6 +90,31 @@ export async function POST(request: Request) {
     }
     case 'material-delete': {
       deleteMaterial(siteId, str('materialId'));
+      return NextResponse.json({ ok: true });
+    }
+    case 'course-create': {
+      const c = createCourse(siteId, user.id, { title: str('title'), description: str('description'), accent: str('accent'), published: bool('published') });
+      return NextResponse.json({ ok: true, course: c });
+    }
+    case 'course-update': {
+      updateCourse(siteId, str('courseId'), { title: str('title'), description: str('description'), accent: str('accent'), published: bool('published') });
+      return NextResponse.json({ ok: true });
+    }
+    case 'course-delete': {
+      deleteCourse(siteId, str('courseId'));
+      return NextResponse.json({ ok: true });
+    }
+    case 'lesson-create': {
+      const l = createLesson(siteId, str('courseId'), { title: str('title'), body: str('body'), videoUrl: str('videoUrl'), attachmentUrl: str('attachmentUrl') });
+      if (!l) return NextResponse.json({ error: t.badRequest }, { status: 400 });
+      return NextResponse.json({ ok: true, lesson: l });
+    }
+    case 'lesson-update': {
+      updateLesson(siteId, str('lessonId'), { title: str('title'), body: str('body'), videoUrl: str('videoUrl'), attachmentUrl: str('attachmentUrl') });
+      return NextResponse.json({ ok: true });
+    }
+    case 'lesson-delete': {
+      deleteLesson(siteId, str('lessonId'));
       return NextResponse.json({ ok: true });
     }
     case 'set-approval-policy': {

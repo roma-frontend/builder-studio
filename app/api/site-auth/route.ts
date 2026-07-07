@@ -27,6 +27,7 @@ import {
   markNotificationsRead,
 } from '@/lib/site-auth';
 import { listPublishedMaterials } from '@/lib/site-membership';
+import { listPublishedCourses, getCourseForMember, setLessonProgress } from '@/lib/site-learning';
 import {
   createSiteLoginOtp,
   verifySiteLoginOtp,
@@ -87,9 +88,20 @@ export async function GET(request: Request) {
     if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
     return NextResponse.json({ materials: listPublishedMaterials(siteId) });
   }
+  if (resource === 'courses') {
+    if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    return NextResponse.json({ courses: listPublishedCourses(siteId, user.id) });
+  }
+  if (resource === 'course') {
+    if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    const course = getCourseForMember(siteId, user.id, url.searchParams.get('id') ?? '');
+    if (!course) return NextResponse.json({ error: t.unknownResource }, { status: 404 });
+    return NextResponse.json({ course });
+  }
   if (resource === 'overview') {
     // Everything the account home screen needs in one round-trip.
     const materials = user.status === 'approved' ? listPublishedMaterials(siteId) : [];
+    const courses = user.status === 'approved' ? listPublishedCourses(siteId, user.id) : [];
     const notifications = listNotifications(siteId, user.id);
     const submissions = listSiteUserSubmissions(siteId, user.id, user.email);
     const sessions = await listSiteSessions(siteId, user.id);
@@ -99,6 +111,8 @@ export async function GET(request: Request) {
       recentNotifications: notifications.slice(0, 3),
       materialsCount: materials.length,
       recentMaterials: materials.slice(0, 3),
+      coursesCount: courses.length,
+      recentCourses: courses.slice(0, 3),
       submissionsCount: submissions.length,
       sessionsCount: sessions.length,
     });
@@ -372,6 +386,13 @@ export async function POST(request: Request) {
 
   if (action === 'delete-account') {
     await deleteSiteUser(siteId, me.id);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === 'lesson-complete') {
+    if (me.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    const ok = setLessonProgress(siteId, me.id, str('lessonId'), bool('done') ?? true);
+    if (!ok) return NextResponse.json({ error: t.badRequest }, { status: 400 });
     return NextResponse.json({ ok: true });
   }
 

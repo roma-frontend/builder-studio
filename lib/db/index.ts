@@ -128,6 +128,46 @@ CREATE TABLE IF NOT EXISTS site_materials (
 );
 CREATE INDEX IF NOT EXISTS site_materials_site_idx ON site_materials (site_id);
 
+CREATE TABLE IF NOT EXISTS site_courses (
+  id TEXT PRIMARY KEY,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  accent TEXT NOT NULL DEFAULT '',
+  position INTEGER NOT NULL DEFAULT 0,
+  published INTEGER NOT NULL DEFAULT 1,
+  created_by TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS site_courses_site_idx ON site_courses (site_id);
+
+CREATE TABLE IF NOT EXISTS site_lessons (
+  id TEXT PRIMARY KEY,
+  course_id TEXT NOT NULL REFERENCES site_courses(id) ON DELETE CASCADE,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT '',
+  body TEXT NOT NULL DEFAULT '',
+  video_url TEXT NOT NULL DEFAULT '',
+  attachment_url TEXT NOT NULL DEFAULT '',
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS site_lessons_course_idx ON site_lessons (course_id);
+CREATE INDEX IF NOT EXISTS site_lessons_site_idx ON site_lessons (site_id);
+
+CREATE TABLE IF NOT EXISTS site_lesson_progress (
+  id TEXT PRIMARY KEY,
+  site_user_id TEXT NOT NULL REFERENCES site_users(id) ON DELETE CASCADE,
+  lesson_id TEXT NOT NULL REFERENCES site_lessons(id) ON DELETE CASCADE,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  completed_at INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS site_lesson_progress_uq ON site_lesson_progress (site_user_id, lesson_id);
+CREATE INDEX IF NOT EXISTS site_lesson_progress_user_idx ON site_lesson_progress (site_user_id);
+
+
 CREATE TABLE IF NOT EXISTS site_notifications (
   id TEXT PRIMARY KEY,
   site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,

@@ -22,6 +22,7 @@ export type DashDict = {
     trash: string;
   };
   roles: { superadmin: string; admin: string; customer: string };
+  userMenu: { label: string; signedIn: string };
   sidebar: {
     groupWorkspace: string;
     groupStaff: string;
@@ -218,6 +219,12 @@ export type DashDict = {
     approve: string;
     suspend: string;
   };
+  learning: {
+    title: string; desc: string; courseTitle: string; courseDesc: string; addCourse: string;
+    noCourses: string; lessonsN: string; publish: string; unpublish: string; published: string;
+    draft: string; manage: string; lessonTitle: string; lessonBody: string; lessonVideo: string;
+    lessonAttach: string; addLesson: string; noLessons: string; delete: string;
+  };
 };
 
 const ru: DashDict = {
@@ -239,6 +246,7 @@ const ru: DashDict = {
     trash: 'Корзина',
   },
   roles: { superadmin: 'Суперадмин', admin: 'Админ', customer: 'Клиент' },
+  userMenu: { label: 'Меню аккаунта', signedIn: 'Вы вошли как' },
   sidebar: {
     groupWorkspace: 'Рабочее пространство',
     groupStaff: 'Персонал платформы',
@@ -435,6 +443,27 @@ const ru: DashDict = {
     approve: 'Одобрить',
     suspend: 'Приостановить',
   },
+  learning: {
+    title: 'Курсы и обучение',
+    desc: 'Соберите структурированные курсы из уроков. Участники видят их в кабинете и отмечают прогресс.',
+    courseTitle: 'Название курса',
+    courseDesc: 'Описание курса…',
+    addCourse: 'Добавить курс',
+    noCourses: 'Курсов пока нет.',
+    lessonsN: 'уроков',
+    publish: 'Опубликовать',
+    unpublish: 'Снять с публикации',
+    published: 'Опубликован',
+    draft: 'Черновик',
+    manage: 'Уроки',
+    lessonTitle: 'Название урока',
+    lessonBody: 'Содержание урока…',
+    lessonVideo: 'Ссылка на видео (необязательно)',
+    lessonAttach: 'Ссылка на материал (необязательно)',
+    addLesson: 'Добавить урок',
+    noLessons: 'В курсе пока нет уроков.',
+    delete: 'Удалить',
+  },
 };
 
 const en: DashDict = {
@@ -456,6 +485,7 @@ const en: DashDict = {
     trash: 'Trash',
   },
   roles: { superadmin: 'Superadmin', admin: 'Admin', customer: 'Customer' },
+  userMenu: { label: 'Account menu', signedIn: 'Signed in as' },
   sidebar: {
     groupWorkspace: 'Workspace',
     groupStaff: 'Platform staff',
@@ -652,6 +682,27 @@ const en: DashDict = {
     approve: 'Approve',
     suspend: 'Suspend',
   },
+  learning: {
+    title: 'Courses & learning',
+    desc: 'Build structured courses from lessons. Members see them in their cabinet and track progress.',
+    courseTitle: 'Course title',
+    courseDesc: 'Course description…',
+    addCourse: 'Add course',
+    noCourses: 'No courses yet.',
+    lessonsN: 'lessons',
+    publish: 'Publish',
+    unpublish: 'Unpublish',
+    published: 'Published',
+    draft: 'Draft',
+    manage: 'Lessons',
+    lessonTitle: 'Lesson title',
+    lessonBody: 'Lesson content…',
+    lessonVideo: 'Video URL (optional)',
+    lessonAttach: 'Material URL (optional)',
+    addLesson: 'Add lesson',
+    noLessons: 'This course has no lessons yet.',
+    delete: 'Delete',
+  },
 };
 
 const hy: DashDict = {
@@ -673,6 +724,7 @@ const hy: DashDict = {
     trash: 'Աղբարկղ',
   },
   roles: { superadmin: 'Գերադմին', admin: 'Ադմին', customer: 'Հաճախորդ' },
+  userMenu: { label: 'Հաշվի ընտրացանկ', signedIn: 'Մուտք եք գործել որպես' },
   sidebar: {
     groupWorkspace: 'Աշխատանքային տարածք',
     groupStaff: 'Հարթակի անձնակազմ',
@@ -868,6 +920,27 @@ const hy: DashDict = {
     error: 'Սխալ',
     approve: 'Հաստատել',
     suspend: 'Կասեցնել',
+  },
+  learning: {
+    title: 'Դասընթացներ և ուսուցում',
+    desc: 'Կառուցեք կառուցվածքային դասընթացներ դասերից։ Մասնակիցները տեսնում են դրանք կաբինետում և հետևում առաջընթացին։',
+    courseTitle: 'Դասընթացի անվանում',
+    courseDesc: 'Դասընթացի նկարագրություն…',
+    addCourse: 'Ավելացնել դասընթաց',
+    noCourses: 'Դասընթացներ դեռ չկան։',
+    lessonsN: 'դաս',
+    publish: 'Հրապարակել',
+    unpublish: 'Հանել հրապարակումից',
+    published: 'Հրապարակված',
+    draft: 'Սևագիր',
+    manage: 'Դասեր',
+    lessonTitle: 'Դասի անվանում',
+    lessonBody: 'Դասի բովանդակություն…',
+    lessonVideo: 'Տեսանյութի հղում (ըստ ցանկության)',
+    lessonAttach: 'Նյութի հղում (ըստ ցանկության)',
+    addLesson: 'Ավելացնել դաս',
+    noLessons: 'Այս դասընթացը դեռ դասեր չունի։',
+    delete: 'Ջնջել',
   },
 };
 
