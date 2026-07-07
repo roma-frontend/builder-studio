@@ -710,7 +710,7 @@ function BuilderEditor() {
     // is in the DOM before scrolling.
     const raf = requestAnimationFrame(() =>
       requestAnimationFrame(() => {
-        document.querySelector<HTMLElement>(`[data-tree-nid="${CSS.escape(selectedId)}"]`)?.scrollIntoView({ block: 'nearest' });
+        document.querySelector<HTMLElement>(`[data-tree-nid="${CSS.escape(selectedId)}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }),
     );
     return () => cancelAnimationFrame(raf);
