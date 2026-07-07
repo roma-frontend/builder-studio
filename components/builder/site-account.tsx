@@ -402,7 +402,7 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
   };
 
   return (
-    <div className="inset-0 flex overflow-hidden bg-background">
+    <div data-app-shell className="fixed inset-0 flex overflow-hidden bg-background">
       {/* Desktop sidebar */}
       <aside className={`hidden shrink-0 flex-col border-r border-border/60 bg-muted/30 transition-[width] duration-300 lg:flex ${collapsed ? 'w-[4.75rem]' : 'w-64'}`}>
         {renderSidebar(collapsed)}

@@ -85,6 +85,13 @@
        so the reserved gutter collapses to 0 — no effect there. */
     scrollbar-gutter: stable;
   }
+  /* Full-viewport app shells (dashboard, account) are position:fixed and own
+     their internal scroll, so the document never scrolls. Disable the reserved
+     html gutter in that case — otherwise it leaves a dead empty strip at the
+     right edge next to the shell's own scrollbar. */
+  html:has([data-app-shell]) {
+    scrollbar-gutter: auto;
+  }
   body {
     background-color: var(--background);
     color: var(--foreground);

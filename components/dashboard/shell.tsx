@@ -365,7 +365,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
   };
 
   return (
-    <div className="fixed inset-0 flex overflow-hidden bg-background">
+    <div data-app-shell className="fixed inset-0 flex overflow-hidden bg-background">
       <CommandPalette commands={commands} />
       <IdleTimeout onLogout={logout} />
       {isStaff && <ActivityTracker />}      {/* Desktop sidebar */}
