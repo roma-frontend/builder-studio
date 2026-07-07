@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   hashPassword,
   verifyPassword,
+  generatePassword,
   DUMMY_HASH,
   normalizeEmail,
   isStaff,
@@ -9,6 +10,21 @@ import {
   lockRemainingMs,
   rateLimit,
 } from '@/lib/auth';
+
+describe('generatePassword', () => {
+  it('generates a readable grouped password usable as a real credential', () => {
+    const pw = generatePassword();
+    expect(pw).toMatch(/^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$/);
+    // No ambiguous glyphs
+    expect(pw).not.toMatch(/[0O1lI]/);
+    // Round-trips through the hasher
+    expect(verifyPassword(pw, hashPassword(pw))).toBe(true);
+  });
+
+  it('produces unique values', () => {
+    expect(generatePassword()).not.toBe(generatePassword());
+  });
+});
 
 describe('password hashing (scrypt)', () => {
   it('round-trips a correct password', () => {

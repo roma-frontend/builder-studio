@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resetDb } from './helpers';
 import { createUser } from '@/lib/auth';
-import { listTables, tableColumns, getRows, updateRow, deleteRow } from '@/lib/db-admin';
+import { listTables, tableColumns, getRows, updateRow, deleteRow, insertRow, exportTable } from '@/lib/db-admin';
 import { getRawDb } from '@/lib/db';
 
 beforeEach(() => resetDb());
@@ -87,5 +87,62 @@ describe('updateRow / deleteRow', () => {
     const rowid = (getRawDb().prepare('SELECT rowid AS r FROM users').get() as { r: number }).r;
     deleteRow('users', rowid);
     expect((getRawDb().prepare('SELECT count(*) n FROM users').get() as { n: number }).n).toBe(0);
+  });
+});
+
+describe('insertRow', () => {
+  it('inserts a row with given values and returns its rowid', () => {
+    const rowid = insertRow('users', {
+      id: 'u_manual', email: 'manual@x.com', name: 'Manual', password_hash: 'h',
+      role: 'customer', is_active: '1', created_at: String(Date.now()),
+    });
+    expect(Number.isFinite(rowid)).toBe(true);
+    const row = getRawDb().prepare('SELECT email, name FROM users WHERE id = ?').get('u_manual') as { email: string; name: string };
+    expect(row.email).toBe('manual@x.com');
+    expect(row.name).toBe('Manual');
+  });
+
+  it('drops empty values so DEFAULT/nullable columns fill themselves', () => {
+    insertRow('users', {
+      id: 'u_defaults', email: 'def@x.com', password_hash: 'h', created_at: String(Date.now()),
+      name: '', locked_until: '',
+    });
+    const row = getRawDb().prepare("SELECT name, role, locked_until FROM users WHERE id = ?").get('u_defaults') as { name: string; role: string; locked_until: unknown };
+    expect(row.name).toBe(''); // column default
+    expect(row.role).toBe('customer'); // column default kicked in
+    expect(row.locked_until).toBeNull();
+  });
+
+  it('ignores unknown columns and rejects bad tables', () => {
+    // Unknown keys are filtered out; a valid insert still succeeds.
+    const rowid = insertRow('users', {
+      id: 'u_ignore', email: 'ig@x.com', password_hash: 'h', created_at: String(Date.now()),
+      not_a_column: 'x',
+    });
+    expect(Number.isFinite(rowid)).toBe(true);
+    expect(() => insertRow('bad name', { id: 'x' })).toThrow('BAD_TABLE');
+  });
+});
+
+describe('exportTable', () => {
+  it('returns aligned header + rows for every column', () => {
+    createUser('a@x.com', 'pw', 'A');
+    const { header, rows } = exportTable('users');
+    expect(header).toContain('email');
+    expect(rows.length).toBe(1);
+    expect(rows[0].length).toBe(header.length);
+    const emailIdx = header.indexOf('email');
+    expect(rows[0][emailIdx]).toBe('a@x.com');
+  });
+
+  it('honours the free-text q filter', () => {
+    createUser('alice@x.com', 'pw', 'Alice');
+    createUser('bob@x.com', 'pw', 'Bob');
+    const { rows } = exportTable('users', { q: 'bob' });
+    expect(rows.length).toBe(1);
+  });
+
+  it('rejects bad tables', () => {
+    expect(() => exportTable('bad name')).toThrow('BAD_TABLE');
   });
 });
