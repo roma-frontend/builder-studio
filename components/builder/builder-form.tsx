@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Check } from 'lucide-react';
 import { useLocale } from '@/hooks/use-locale';
 import { siteRt } from '@/lib/site-runtime-dict';
+import { Turnstile } from '@/components/turnstile';
 
 // Wraps builder-generated form fields (native <input>/<textarea> with name)
 // and submits them to /api/form. Success/error state is shown inline.
@@ -68,6 +69,11 @@ export function BuilderForm({
         // Anti-spam: real users never see/fill this; bots that auto-fill get dropped.
         <input type="text" name="_hp" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute left-[-9999px] h-0 w-0 opacity-0" />
       )}
+      {/* Cloudflare Turnstile (bot protection). Renders only when
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY is set; injects a hidden
+          `cf-turnstile-response` input that FormData picks up and POSTs, where
+          /api/form verifies it. Absent key → nothing renders, form unchanged. */}
+      <Turnstile className="self-start" />
       <Button type="submit" disabled={status === 'busy'} className="bn-btn gap-2 self-start rounded-full px-6">
         {status === 'busy' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         {submitText}
