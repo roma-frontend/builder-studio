@@ -1,9 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { SiteHeader } from '@/components/site-header';
-import { ThemeStyle } from '@/components/theme-style';
+import { PlatformThemeStyle } from '@/components/platform-theme-style';
 import { ThemeFX } from '@/components/theme-fx';
-import { siteTheme } from '@/lib/site-theme';
 import { LayoutTemplate, ArrowRight, Sparkles } from 'lucide-react';
 import { getLocale } from '@/lib/i18n';
 import { pagesDict } from '@/lib/pages-dict';
@@ -58,7 +57,7 @@ export default async function PresetsIndex() {
 
   return (
     <main className="min-h-dvh">
-      <ThemeStyle theme={siteTheme()} />
+      <PlatformThemeStyle />
       <ThemeFX />
       <SiteHeader initialUser={headerUser} />
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-12 sm:px-10">

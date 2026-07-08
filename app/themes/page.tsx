@@ -4,7 +4,7 @@ import Link from 'next/link';import { SiteFooter } from '@/components/site-foote
 import { THEMES, FONT_VAR, type Theme } from '@/lib/themes';
 import { ThemeStyle } from '@/components/theme-style';
 import { ThemeFX } from '@/components/theme-fx';
-import { activeSiteTheme } from '@/lib/site-theme';
+import { platformThemeResolved } from '@/components/platform-theme-style';
 import { Palette, Check } from 'lucide-react';
 import { getLocale } from '@/lib/i18n';
 import { pagesDict, type PagesDict } from '@/lib/pages-dict';
@@ -121,7 +121,7 @@ function ThemePreview({ theme, active, t }: { theme: Theme; active?: boolean; t:
 }
 
 export default async function ThemesPage() {
-  const active = activeSiteTheme();
+  const active = platformThemeResolved();
   const t = pagesDict(await getLocale()).themes;
   const headerUser = await getHeaderUser();
   return (

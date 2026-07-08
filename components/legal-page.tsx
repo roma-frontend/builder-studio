@@ -1,8 +1,7 @@
 import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
-import { ThemeStyle } from '@/components/theme-style';
+import { PlatformThemeStyle } from '@/components/platform-theme-style';
 import { ThemeFX } from '@/components/theme-fx';
-import { siteTheme } from '@/lib/site-theme';
 import { SITE_NAME, APP_URL } from '@/lib/seo';
 import { Info } from 'lucide-react';
 import type { LegalDoc } from '@/lib/legal-dict';
@@ -36,7 +35,7 @@ export function LegalPage({
 
   return (
     <main className="min-h-dvh">
-      <ThemeStyle theme={siteTheme()} />
+      <PlatformThemeStyle />
       <ThemeFX />
       <SiteHeader />
       <article className="mx-auto max-w-3xl px-6 py-12 sm:px-10 sm:py-16">

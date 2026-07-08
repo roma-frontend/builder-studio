@@ -12,6 +12,7 @@ import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner
 import { PageHeader } from '@/components/dashboard/ui';
 import { OrgOnboarding } from '@/components/dashboard/org-onboarding';
 import { StudioAssistant } from '@/components/assistant/studio-assistant';
+import { PlatformThemeStyle } from '@/components/platform-theme-style';
 import { llmConfigured } from '@/lib/llm';
 
 // Private area — keep it out of search indexes.
@@ -52,6 +53,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <>
+      <PlatformThemeStyle />
       <DashboardShell
         user={{ name: user.name, email: user.email, role: (user.role as Role) ?? 'customer' }}
         banner={impersonating ? <ImpersonationBanner name={user.name || user.email} /> : null}

@@ -1,8 +1,7 @@
 import { SiteHeader } from '@/components/site-header';
 import { WebVitals } from '@/components/web-vitals';
-import { ThemeStyle } from '@/components/theme-style';
+import { PlatformThemeStyle } from '@/components/platform-theme-style';
 import { ThemeFX } from '@/components/theme-fx';
-import { siteTheme } from '@/lib/site-theme';
 import { Gauge } from 'lucide-react';
 import { getLocale } from '@/lib/i18n';
 import { pagesDict } from '@/lib/pages-dict';
@@ -16,7 +15,7 @@ export default async function VitalsPage() {
   const t = pagesDict(await getLocale()).vitals;
   return (
     <main className="min-h-dvh">
-      <ThemeStyle theme={siteTheme()} />
+      <PlatformThemeStyle />
       <ThemeFX />
       <SiteHeader />
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-12 sm:px-10">
