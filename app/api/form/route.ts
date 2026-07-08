@@ -63,15 +63,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // Cloudflare Turnstile (bot protection). No-op unless TURNSTILE_SECRET_KEY is
-  // set; when set, a missing/invalid token is rejected. Token field follows
-  // Cloudflare's naming convention (cf-turnstile-response).
+  // Cloudflare Turnstile (bot protection). Verify-if-present: a token is
+  // validated when supplied, but its absence does NOT block submission — so
+  // forms keep working on pages that don't (yet) render the widget. The
+  // honeypot above remains the baseline guard. Token field follows Cloudflare's
+  // naming convention (cf-turnstile-response).
   const turnstileToken =
     (typeof payload['cf-turnstile-response'] === 'string' && payload['cf-turnstile-response']) ||
     (typeof payload._turnstile === 'string' && payload._turnstile) ||
     '';
   const clientIp = (request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || '').split(',')[0].trim();
-  if (!(await verifyTurnstile(turnstileToken, clientIp || undefined))) {
+  if (turnstileToken && !(await verifyTurnstile(turnstileToken, clientIp || undefined))) {
     return NextResponse.json({ error: t.captchaFailed }, { status: 400 });
   }
   delete payload['cf-turnstile-response'];
