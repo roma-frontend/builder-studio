@@ -18,6 +18,7 @@ import {
   clearSessionCookie,
   getUserByToken,
   requestMeta,
+  getHeaderUser,
   SESSION_COOKIE,
 } from '@/lib/auth';
 import { getDb, sessions, users } from '@/lib/db';
@@ -69,6 +70,14 @@ describe('cookie-backed session helpers', () => {
     await clearSessionCookie();
     expect(store.has(SESSION_COOKIE)).toBe(false);
     expect(getUserByToken(token)).toBeNull();
+  });
+
+  it('getHeaderUser returns the minimal shape for a signed-in user, null otherwise', async () => {
+    expect(await getHeaderUser()).toBeNull();
+    const u = createUser('h@example.com', 'password123', 'Header User');
+    const { token, expiresAt } = createSession(u.id);
+    await setSessionCookie(token, expiresAt);
+    expect(await getHeaderUser()).toEqual({ name: 'Header User', email: 'h@example.com', role: u.role });
   });
 });
 
