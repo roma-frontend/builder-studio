@@ -102,7 +102,7 @@ export function StickyShowcase({
                     key={i}
                     onClick={() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                     className="group relative flex gap-4 text-left"
-                    style={{ opacity: on ? 1 : 0.4, transition: 'opacity 0.4s ease' }}
+                    style={{ opacity: on ? 1 : 0.85, transition: 'opacity 0.4s ease' }}
                   >
                     <span
                       className="mt-1 h-full w-1 shrink-0 rounded-full transition-colors"

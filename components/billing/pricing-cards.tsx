@@ -86,7 +86,7 @@ export function PricingCards({
             <div
               key={plan.id}
               className={cn(
-                'group relative flex flex-col rounded-2xl border bg-card/60 p-6 backdrop-blur transition-all duration-300',
+                'group relative flex flex-col rounded-2xl border bg-card p-6 backdrop-blur transition-all duration-300',
                 'hover:-translate-y-1 hover:shadow-2xl',
                 popular ? 'border-primary/60 shadow-lg md:-translate-y-2' : 'border-border',
               )}
@@ -104,7 +104,7 @@ export function PricingCards({
               )}
 
               <div className="relative">
-                <h3 className="text-lg font-bold" style={{ color: plan.accent }}>
+                <h3 className="text-xl font-bold" style={{ color: plan.accent }}>
                   {plan.name || t.planName[plan.id]}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">{plan.tagline || t.planTagline[plan.id]}</p>
