@@ -47,6 +47,22 @@ const MENU = [
   { href: '/dashboard/account', key: 'account', icon: UserCircle },
 ] as const;
 
+// Mobile menu motion — a springy height reveal whose rows cascade in (and out)
+// with a soft blur for a "wow" open/close. `container` drives the panel height,
+// `list` orchestrates the stagger, `row` animates each item.
+const mobileContainerV = {
+  hidden: { opacity: 0, height: 0, transition: { duration: 0.32, ease: [0.4, 0, 1, 1] as const, when: 'afterChildren' as const } },
+  show: { opacity: 1, height: 'auto', transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const, when: 'beforeChildren' as const } },
+};
+const mobileListV = {
+  hidden: { transition: { staggerChildren: 0.035, staggerDirection: -1 } },
+  show: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+};
+const mobileRowV = {
+  hidden: { opacity: 0, y: -16, filter: 'blur(6px)' },
+  show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { type: 'spring' as const, stiffness: 460, damping: 30 } },
+};
+
 function Avatar({ user, className = 'h-8 w-8 text-sm' }: { user: HeaderUser; className?: string }) {
   return (
     <span className={`flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 font-bold text-primary-foreground shadow-lg shadow-primary/20 ${className}`}>
@@ -252,58 +268,79 @@ export function SiteHeader({ initialUser }: { initialUser?: HeaderUser | null })
             aria-expanded={open}
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card/60 text-foreground"
           >
-            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={open ? 'close' : 'open'}
+                initial={{ opacity: 0, rotate: -90, scale: 0.5 }}
+                animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                exit={{ opacity: 0, rotate: 90, scale: 0.5 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="flex items-center justify-center"
+              >
+                {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </motion.span>
+            </AnimatePresence>
           </button>
         </div>
       </div>
 
       {/* Mobile panel */}
-      {open && (
-        <div className="border-t border-border/60 bg-background/95 backdrop-blur-xl md:hidden">
-          <nav className="mx-auto flex max-w-[var(--container-max)] flex-col gap-1 px-6 py-4">
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`rounded-lg px-3 py-2.5 text-sm font-medium ${
-                  isActive(item.href) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                {t.nav[item.key]}
-              </Link>
-            ))}
-            {user ? (
-              <div className="mt-2 border-t border-border/60 pt-3">
-                <div className="mb-3 flex items-center gap-3 px-1">
-                  <Avatar user={user} className="h-10 w-10 text-base" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{user.name || t.header.noName}</p>
-                    <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Link href="/dashboard" onClick={() => setOpen(false)} className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full gap-1.5"><LayoutDashboard className="h-4 w-4" /> {t.actions.dashboard}</Button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="mobile-panel"
+            variants={mobileContainerV}
+            initial="hidden"
+            animate="show"
+            exit="hidden"
+            className="overflow-hidden border-t border-border/60 bg-background/95 backdrop-blur-xl md:hidden"
+          >
+            <motion.nav variants={mobileListV} className="mx-auto flex max-w-[var(--container-max)] flex-col gap-1 px-6 py-4">
+              {nav.map((item) => (
+                <motion.div key={item.href} variants={mobileRowV}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={`block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                      isActive(item.href) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {t.nav[item.key]}
                   </Link>
-                  <Button variant="ghost" size="sm" onClick={logout} disabled={logoutBusy} className="flex-1 gap-1.5 text-red-500 hover:bg-red-500/10 hover:text-red-500">
-                    {logoutBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} {t.actions.logout}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-2 flex gap-2 border-t border-border/60 pt-3">
-                <Link href="/login" onClick={() => setOpen(false)} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full gap-1.5"><LogIn className="h-4 w-4" /> {t.actions.login}</Button>
-                </Link>
-                <Link href="/register" onClick={() => setOpen(false)} className="flex-1">
-                  <Button size="sm" className="w-full gap-1.5"><Sparkles className="h-4 w-4" /> {t.actions.start}</Button>
-                </Link>
-              </div>
-            )}
-          </nav>
-        </div>
-      )}
+                </motion.div>
+              ))}
+              {user ? (
+                <motion.div variants={mobileRowV} className="mt-2 border-t border-border/60 pt-3">
+                  <div className="mb-3 flex items-center gap-3 px-1">
+                    <Avatar user={user} className="h-10 w-10 text-base" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{user.name || t.header.noName}</p>
+                      <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link href="/dashboard" onClick={() => setOpen(false)} className="flex-1">
+                      <Button variant="outline" size="sm" className="w-full gap-1.5"><LayoutDashboard className="h-4 w-4" /> {t.actions.dashboard}</Button>
+                    </Link>
+                    <Button variant="ghost" size="sm" onClick={logout} disabled={logoutBusy} className="flex-1 gap-1.5 text-red-500 hover:bg-red-500/10 hover:text-red-500">
+                      {logoutBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} {t.actions.logout}
+                    </Button>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div variants={mobileRowV} className="mt-2 flex gap-2 border-t border-border/60 pt-3">
+                  <Link href="/login" onClick={() => setOpen(false)} className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full gap-1.5"><LogIn className="h-4 w-4" /> {t.actions.login}</Button>
+                  </Link>
+                  <Link href="/register" onClick={() => setOpen(false)} className="flex-1">
+                    <Button size="sm" className="w-full gap-1.5"><Sparkles className="h-4 w-4" /> {t.actions.start}</Button>
+                  </Link>
+                </motion.div>
+              )}
+            </motion.nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

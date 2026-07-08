@@ -3,7 +3,7 @@ import mediaData from '@/data/media.json';
 import type { MediaEntry } from '@/lib/media';
 import { presetHrefFromSources } from '@/lib/media';
 import { ThemeStyle } from '@/components/theme-style';
-import { THEMES } from '@/lib/themes';
+import { THEMES, getTheme } from '@/lib/themes';
 import { activeSiteTheme } from '@/lib/site-theme';
 import { ThemeFX } from '@/components/theme-fx';
 import { SiteHeader } from '@/components/site-header';
@@ -96,11 +96,16 @@ async function landingGridEntries(doc: BuilderDoc, locale: Locale): Promise<Medi
 
 export default async function Home() {
   const media = mediaData as MediaEntry[];
-  const theme = activeSiteTheme();
   // Keep / on the localized coded page; only borrow the builder landing's media
   // grid so custom uploads (and their dark variants) show without disabling i18n.
   const landingSite = getLandingSite();
   const landingDoc = landingSite ? parseDoc(landingSite.publishedDoc) : null;
+  // Theme priority: the theme chosen & published for the landing in the Studio
+  // builder (doc.themeId) wins so switching themes there actually re-skins /;
+  // otherwise fall back to the site-wide / auto-derived theme.
+  const theme = landingDoc?.themeId && landingDoc.themeId !== 'auto'
+    ? getTheme(landingDoc.themeId)
+    : activeSiteTheme();
   const locale = await getLocale();
   const gridEntries = landingDoc ? await landingGridEntries(landingDoc, locale) : [];
   const examples = (gridEntries.length ? gridEntries : media).slice(0, 6);
