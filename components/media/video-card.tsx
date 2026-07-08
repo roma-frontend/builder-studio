@@ -28,6 +28,17 @@ export function VideoCard({ entry }: { entry: MediaEntry }) {
               />
             )}
           </div>
+        ) : entry.srcDark ? (
+          // Per-theme video: light clip in light mode, dark clip in dark mode.
+          // The hidden one's LazyVideo stays unmounted until the theme flips.
+          <>
+            <div className="contents dark:hidden">
+              <LazyVideo src={entry.src} srcMp4={entry.srcMp4} poster={entry.poster} ratio={entry.aspectRatio} className="w-full" />
+            </div>
+            <div className="hidden dark:contents">
+              <LazyVideo src={entry.srcDark} poster={entry.posterDark || entry.poster} ratio={entry.aspectRatio} className="w-full" />
+            </div>
+          </>
         ) : (
           <LazyVideo src={entry.src} srcMp4={entry.srcMp4} poster={entry.poster} ratio={entry.aspectRatio} className="w-full" />
         )}

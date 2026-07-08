@@ -1068,27 +1068,21 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
         const fallback = (mediaData as MediaEntry[]).slice(0, count);
         return fallback.length ? <VideoCardGrid entries={fallback} /> : null;
       }
-      const toEntry = (r: { src: string; title: string; subtitle: string; poster: string; srcDark: string; posterDark: string }, i: number, dark: boolean): MediaEntry => ({
-        id: `${node.id}-item-${i}${dark ? '-d' : ''}`,
+      // One entry per row, carrying its optional dark-theme variant. VideoCard
+      // toggles the light/dark image or clip per card (CSS), so a single grid
+      // handles both themes — no duplicated grid, no wrapper element.
+      const entries: MediaEntry[] = parsedRows.map((r, i) => ({
+        id: `${node.id}-item-${i}`,
         title: r.title,
         section: 'card',
-        src: dark ? (r.srcDark || r.src) : (r.src || r.srcDark),
+        src: r.src || r.srcDark,
         subtitle: r.subtitle || undefined,
-        poster: (dark ? (r.posterDark || r.poster) : (r.poster || r.posterDark)) || undefined,
+        poster: r.poster || undefined,
+        srcDark: r.srcDark || undefined,
+        posterDark: r.posterDark || undefined,
         aspectRatio: '16:9',
-      });
-      const lightEntries = parsedRows.map((r, i) => toEntry(r, i, false));
-      if (!parsedRows.some((r) => r.srcDark)) return <VideoCardGrid entries={lightEntries} />;
-      // Per-theme media: light grid in light mode, dark grid in dark mode
-      // (CSS-toggled). The hidden grid's LazyVideos stay unmounted until the
-      // theme actually flips, so nothing is double-loaded.
-      const darkEntries = parsedRows.map((r, i) => toEntry(r, i, true));
-      return (
-        <div>
-          <div className="contents dark:hidden"><VideoCardGrid entries={lightEntries} /></div>
-          <div className="hidden dark:contents"><VideoCardGrid entries={darkEntries} /></div>
-        </div>
-      );
+      }));
+      return <VideoCardGrid entries={entries} />;
     }
 
     case 'landingHero': {

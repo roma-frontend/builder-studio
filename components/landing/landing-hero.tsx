@@ -84,7 +84,7 @@ export function LandingHero({
             </span>
           </motion.div>
 
-          <h1 className="mt-6 font-display text-[clamp(2.6rem,6vw,4.6rem)] font-black leading-[1.02] tracking-tight">
+          <h1 className="mt-6 font-display text-[clamp(2.6rem,6vw,3.6rem)] font-black leading-[1.02] tracking-tight">
             {words.map((w, i) => (
               <span key={i} className="inline-block overflow-hidden pb-[0.08em] align-bottom">
                 <motion.span
