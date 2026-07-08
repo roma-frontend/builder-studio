@@ -1,12 +1,13 @@
 import { LazyVideo } from '@/components/media/lazy-video';
 import { Tilt } from '@/components/fx/tilt';
+import Link from 'next/link';
 import type { MediaEntry } from '@/lib/media';
 
 const IMAGE_SRC = /\.(webp|jpe?g|png|gif|avif|svg)(\?.*)?$/i;
 
 /** A single media tile (product-card style) — video by default, image when the URL looks like one. */
 export function VideoCard({ entry }: { entry: MediaEntry }) {
-  return (
+  const inner = (
     <Tilt>
       <figure className="group overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-xl">
         {IMAGE_SRC.test(entry.src) ? (
@@ -53,6 +54,15 @@ export function VideoCard({ entry }: { entry: MediaEntry }) {
       </figure>
     </Tilt>
   );
+
+  if (entry.href) {
+    return (
+      <Link href={entry.href} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl" aria-label={entry.title}>
+        {inner}
+      </Link>
+    );
+  }
+  return inner;
 }
 
 /** Responsive grid of video cards. */

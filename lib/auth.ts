@@ -130,6 +130,14 @@ export async function getCurrentUser(): Promise<User | null> {
   return token ? getUserByToken(token) : null;
 }
 
+/** Minimal user shape the SiteHeader needs, resolved on the server so the top
+ *  bar renders the correct nav/actions immediately (no client flash). Returns
+ *  null for guests. */
+export async function getHeaderUser(): Promise<{ name: string; email: string; role: Role } | null> {
+  const u = await getCurrentUser();
+  return u ? { name: u.name, email: u.email, role: u.role as Role } : null;
+}
+
 /** Raw session token from the request cookie (needed to stash it during impersonation). */
 export async function getSessionToken(): Promise<string | undefined> {
   const jar = await cookies();

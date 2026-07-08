@@ -22,7 +22,7 @@ export default async function PricingPage() {
 
   return (
     <div className="min-h-dvh">
-      <SiteHeader />
+      <SiteHeader initialUser={me ? { name: me.name, email: me.email, role: me.role as 'customer' | 'admin' | 'superadmin' } : null} />
       <main className="relative overflow-hidden px-4 py-20">
         {/* Ambient background */}
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">

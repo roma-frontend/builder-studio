@@ -1,4 +1,5 @@
 import { SiteHeader } from '@/components/site-header';
+import { getHeaderUser } from '@/lib/auth';
 import Link from 'next/link';import { SiteFooter } from '@/components/site-footer';
 import { THEMES, FONT_VAR, type Theme } from '@/lib/themes';
 import { ThemeStyle } from '@/components/theme-style';
@@ -122,11 +123,12 @@ function ThemePreview({ theme, active, t }: { theme: Theme; active?: boolean; t:
 export default async function ThemesPage() {
   const active = activeSiteTheme();
   const t = pagesDict(await getLocale()).themes;
+  const headerUser = await getHeaderUser();
   return (
     <main className="min-h-dvh">
       <ThemeStyle theme={active} />
       <ThemeFX />
-      <SiteHeader />
+      <SiteHeader initialUser={headerUser} />
       <div className="mx-auto max-w-[var(--container-max)] px-6 py-12 sm:px-10">
         <div className="mb-2 flex items-center gap-2">
           <Palette className="h-6 w-6 text-primary" />

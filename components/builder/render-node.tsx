@@ -15,6 +15,7 @@ import { THEMES } from '@/lib/themes';
 import { VideoCardGrid } from '@/components/media/video-card';
 import mediaData from '@/data/media.json';
 import type { MediaEntry } from '@/lib/media';
+import { presetHrefFromSources } from '@/lib/media';
 import { SiteAuthForm, SiteAccount } from '@/components/builder/site-auth-blocks';
 import { CourseListBlock, DocumentListBlock, MaterialListBlock } from '@/components/builder/site-content-blocks';
 import { siteRt, type SiteRtDict } from '@/lib/site-runtime-dict';
@@ -1081,6 +1082,7 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
         srcDark: r.srcDark || undefined,
         posterDark: r.posterDark || undefined,
         aspectRatio: '16:9',
+        href: presetHrefFromSources(r.src, r.srcDark, r.poster, r.posterDark),
       }));
       return <VideoCardGrid entries={entries} />;
     }

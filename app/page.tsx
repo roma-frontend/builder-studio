@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import mediaData from '@/data/media.json';
 import type { MediaEntry } from '@/lib/media';
+import { presetHrefFromSources } from '@/lib/media';
 import { ThemeStyle } from '@/components/theme-style';
 import { THEMES } from '@/lib/themes';
 import { activeSiteTheme } from '@/lib/site-theme';
@@ -16,6 +17,8 @@ import { ui } from '@/lib/ui-dict';
 import { getLandingSite } from '@/lib/landing-site';
 import { parseDoc } from '@/lib/sites';
 import type { BuilderDoc, BuilderNode } from '@/lib/builder/types';
+import { translateAuto } from '@/lib/auto-translate';
+import type { Locale } from '@/lib/seo';
 import { Button } from '@/components/ui/button';
 import { PricingCards } from '@/components/billing/pricing-cards';
 import { billingDict } from '@/lib/billing-dict';
@@ -52,7 +55,7 @@ export const dynamic = 'force-dynamic';
  * pulls those items (with per-theme dark variants) out of the builder document.
  * Text on / stays dictionary-driven, so publishing edits never breaks i18n.
  */
-function landingGridEntries(doc: BuilderDoc): MediaEntry[] {
+async function landingGridEntries(doc: BuilderDoc, locale: Locale): Promise<MediaEntry[]> {
   let grid: BuilderNode | null = null;
   const walk = (n: BuilderNode) => {
     if (!grid && n.type === 'videoGrid') grid = n;
@@ -61,26 +64,33 @@ function landingGridEntries(doc: BuilderDoc): MediaEntry[] {
   for (const pg of doc.pages) pg.blocks.forEach(walk);
   const items = (grid as BuilderNode | null)?.props?.items;
   if (!items) return [];
-  return items
+  const rows = items
     .split('\n')
     .map((l) => l.trim())
-    .filter(Boolean)
-    .map((l, i): MediaEntry | null => {
+    .filter(Boolean);
+  const entries = await Promise.all(
+    rows.map(async (l, i): Promise<MediaEntry | null> => {
       const [src = '', title = '', subtitle = '', poster = '', srcDark = '', posterDark = ''] = l.split('::').map((s) => s.trim());
       if (!src && !srcDark) return null;
+      const [tTitle, tSubtitle] = await Promise.all([
+        translateAuto(title, locale),
+        subtitle ? translateAuto(subtitle, locale) : Promise.resolve(''),
+      ]);
       return {
         id: `landing-grid-${i}`,
-        title,
+        title: tTitle,
         section: 'card',
         src: src || srcDark,
-        subtitle: subtitle || undefined,
+        subtitle: tSubtitle || undefined,
         poster: poster || undefined,
         srcDark: srcDark || undefined,
         posterDark: posterDark || undefined,
         aspectRatio: '16:9',
+        href: presetHrefFromSources(src, srcDark, poster, posterDark),
       };
-    })
-    .filter((e): e is MediaEntry => e !== null);
+    }),
+  );
+  return entries.filter((e): e is MediaEntry => e !== null);
 }
 
 export default async function Home() {
@@ -90,9 +100,9 @@ export default async function Home() {
   // grid so custom uploads (and their dark variants) show without disabling i18n.
   const landingSite = getLandingSite();
   const landingDoc = landingSite ? parseDoc(landingSite.publishedDoc) : null;
-  const gridEntries = landingDoc ? landingGridEntries(landingDoc) : [];
-  const examples = (gridEntries.length ? gridEntries : media).slice(0, 6);
   const locale = await getLocale();
+  const gridEntries = landingDoc ? await landingGridEntries(landingDoc, locale) : [];
+  const examples = (gridEntries.length ? gridEntries : media).slice(0, 6);
   const L = getLanding(locale);
   const dict = ui(locale);
 
@@ -135,7 +145,8 @@ export default async function Home() {
       <ThemeFX />
       <CursorGlow />
       <ScrollProgress />
-      <SiteHeader />
+      <SiteHeader initialUser={me ? { name: me.name, email: me.email, role: me.role as 'customer' | 'admin' | 'superadmin' } : null} />
+
 
       <LandingHero
         badge={L.hero.badge}

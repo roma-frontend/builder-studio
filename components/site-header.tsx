@@ -33,7 +33,7 @@ const LANDING_NAV = [
 ] as const;
 
 type Role = 'customer' | 'admin' | 'superadmin';
-interface HeaderUser { name: string; email: string; role: Role }
+export interface HeaderUser { name: string; email: string; role: Role }
 
 const ROLE_META: Record<Role, { cls: string; icon: React.ComponentType<{ className?: string }> } | null> = {
   superadmin: { cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400', icon: Crown },
@@ -144,7 +144,7 @@ function UserMenu({ user, onLogout, busy, t }: { user: HeaderUser; onLogout: () 
 }
 
 /** Shared sticky top bar: brand, primary navigation, auth actions, responsive menu. */
-export function SiteHeader() {
+export function SiteHeader({ initialUser }: { initialUser?: HeaderUser | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -153,11 +153,13 @@ export function SiteHeader() {
   const scrollDir = useScrollDirection();
   const isActive = (href: string) => !href.includes('#') && (pathname === href || (href !== '/' && pathname?.startsWith(href)));
 
-  // Session probe: `undefined` = still loading (render a skeleton so the
-  // header doesn't flash «Войти» at signed-in users), `null` = guest.
-  const [user, setUser] = useState<HeaderUser | null | undefined>(undefined);
+  // Session: seed from the server-resolved user when provided (no flash of the
+  // wrong nav/actions for signed-in users). `undefined` = still loading (render
+  // a skeleton), `null` = guest. Only probe the API when not seeded server-side.
+  const [user, setUser] = useState<HeaderUser | null | undefined>(initialUser);
   const [logoutBusy, setLogoutBusy] = useState(false);
   useEffect(() => {
+    if (initialUser !== undefined) return; // already known from the server
     let alive = true;
     fetch('/api/auth/me')
       .then((r) => (r.ok ? r.json() : { user: null }))
@@ -166,7 +168,7 @@ export function SiteHeader() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [initialUser]);
 
   const logout = async () => {
     setLogoutBusy(true);

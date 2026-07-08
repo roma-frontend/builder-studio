@@ -13,6 +13,7 @@ import { SiteBaseProvider, CourseDetail, DocumentDetail, MaterialDetail } from '
 import { SiteAuthClient } from '@/components/builder/site-auth-page';
 import { getLocale } from '@/lib/i18n';
 import { siteRt } from '@/lib/site-runtime-dict';
+import { translateNodeAuto } from '@/lib/auto-translate';
 import type { BuilderDoc, BuilderPage } from '@/lib/builder/types';
 
 export function findPageByPath(doc: BuilderDoc, slug: string[]): BuilderPage | null {
@@ -72,9 +73,11 @@ export function SiteAuthPage({ doc, mode }: { doc: BuilderDoc; mode: 'login' | '
 
 export async function SiteRenderer({ doc, page, edit, platformChrome }: { doc: BuilderDoc; page: BuilderPage; edit?: boolean; platformChrome?: boolean }) {
   const theme = doc.themeId && doc.themeId !== 'auto' ? getTheme(doc.themeId) : DEFAULT_THEME;
-  const t = siteRt(await getLocale());
+  const locale = await getLocale();
+  const t = siteRt(locale);
   const base = doc.base === undefined ? '/site' : doc.base || '';
-  const blocks = page.blocks.map((node) => (
+  const translated = await Promise.all(page.blocks.map((node) => translateNodeAuto(node, locale)));
+  const blocks = translated.map((node) => (
     <RenderNode key={node.id} node={node} t={t} />
   ));
   return (

@@ -418,6 +418,14 @@ CREATE TABLE IF NOT EXISTS plan_overrides (
   updated_by TEXT NOT NULL DEFAULT '',
   updated_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS translations (
+  id TEXT PRIMARY KEY,
+  locale TEXT NOT NULL,
+  source TEXT NOT NULL,
+  translated TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
 `;
 
 type DB = BetterSQLite3Database<typeof schema>;

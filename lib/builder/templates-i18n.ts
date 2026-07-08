@@ -651,6 +651,39 @@ const CONTENT: Record<string, Tr> = {
   // kit sub-pages (about/portfolio/contact in landing style families)
   'Мы создаём продукты, которыми гордимся, и растим команду профессионалов.': { en: 'We build products we are proud of and grow a team of professionals.', hy: 'Մենք ստեղծում ենք արտադրանք, որով հպարտ ենք, և աճեցնում ենք պրոֆեսիոնալների թիմ։' },
 
+  // ── preset hero copy (used as gallery card titles/subtitles) ──
+  // Launch
+  'Продукт, который растёт вместе с командой': { en: 'A product that grows with your team', hy: 'Ապրանք, որ աճում է թիմի հետ' },
+  'Соберите посадочную, подключите тарифы и начните продавать — без разработчиков и дизайнеров.': { en: 'Build a landing page, connect pricing and start selling — no developers or designers needed.', hy: 'Հավաքեք լենդինգ, միացրեք սակագները և սկսեք վաճառել՝ առանց ծրագրավորողների և դիզայներների։' },
+  // Roast
+  'Кофе, ради которого возвращаются': { en: 'Coffee worth coming back for', hy: 'Սուրճ, որի համար վերադառնում են' },
+  'Тёплая редакторская подача: история зерна, меню и атмосфера вашего заведения.': { en: 'Warm editorial storytelling: the bean\u2019s story, the menu and the atmosphere of your place.', hy: 'Ջերմ խմբագրական մատուցում՝ հատիկի պատմությունը, մենյուն և ձեր վայրի մթնոլորտը։' },
+  // Arena (title «Стань сильнее каждый день» already mapped above)
+  'Залы, тренеры и расписание — всё, чтобы начать тренироваться уже сегодня.': { en: 'Gyms, coaches and a schedule — everything to start training today.', hy: 'Դահլիճներ, մարզիչներ և ժամանակացույց — ամեն ինչ՝ այսօր մարզվելը սկսելու համար։' },
+  // Studio
+  'Создаём бренды, которые замечают': { en: 'We build brands that get noticed', hy: 'Ստեղծում ենք բրենդներ, որ նկատում են' },
+  'Портфолио, кейсы и подход команды — чисто, строго, по делу.': { en: 'Portfolio, case studies and the team\u2019s approach — clean, sharp, to the point.', hy: 'Պորտֆոլիո, քեյսեր և թիմի մոտեցում՝ մաքուր, խիստ, ըստ էության։' },
+  // Maison
+  'Вечер, который хочется продлить': { en: 'An evening you\u2019ll want to prolong', hy: 'Երեկո, որ կուզենաս երկարացնել' },
+  'Авторское меню, безупречный сервис и атмосфера, достойная особого случая.': { en: 'A signature menu, impeccable service and an atmosphere worthy of a special occasion.', hy: 'Հեղինակային մենյու, անթերի սպասարկում և առանձնահատուկ առիթին արժանի մթնոլորտ։' },
+  // Pulse
+  'Почувствуй бит': { en: 'Feel the beat', hy: 'Զգա բիթը' },
+  'Лайн-ап, билеты и атмосфера главного события сезона.': { en: 'The line-up, tickets and atmosphere of the season\u2019s main event.', hy: 'Սեզոնի գլխավոր իրադարձության լայն-ափը, տոմսերը և մթնոլորտը։' },
+
+  // ── landing preset-gallery cards (exact card titles + combined captions) ──
+  'Pulse музыка / ивент': { en: 'Pulse — music / event', hy: 'Pulse — երաժշտություն / միջոցառում' },
+  'Maison (люкс / ресторан)': { en: 'Maison (luxury / restaurant)', hy: 'Maison (լյուքս / ռեստորան)' },
+  'Launch (SaaS / стартап)': { en: 'Launch (SaaS / startup)', hy: 'Launch (SaaS / ստարտափ)' },
+  'Arena (спорт / фитнес)': { en: 'Arena (sport / fitness)', hy: 'Arena (սպորտ / ֆիթնես)' },
+  'Roast (кофейня)': { en: 'Roast (coffee shop)', hy: 'Roast (սրճարան)' },
+  'Studio (агентство / портфолио)': { en: 'Studio (agency / portfolio)', hy: 'Studio (գործակալություն / պորտֆոլիո)' },
+  'Почувствуй бит» — Лайн-ап, билеты и атмосфера главного события сезона': { en: 'Feel the beat — The line-up, tickets and atmosphere of the season\u2019s main event', hy: 'Զգա բիթը — Սեզոնի գլխավոր իրադարձության լայն-ափը, տոմսերը և մթնոլորտը' },
+  'Вечер, который хочется продлить» — Авторское меню, безупречный сервис и атмосфера, достойная особого случая.': { en: 'An evening you\u2019ll want to prolong — A signature menu, impeccable service and an atmosphere worthy of a special occasion.', hy: 'Երեկո, որ կուզենաս երկարացնել — Հեղինակային մենյու, անթերի սպասարկում և առանձնահատուկ առիթին արժանի մթնոլորտ։' },
+  'Продукт, который растёт вместе с командой» — Соберите посадочную, подключите тарифы и начните продавать — без разработчиков   и дизайнеров.': { en: 'A product that grows with your team — Build a landing page, connect pricing and start selling — no developers or designers needed.', hy: 'Ապրանք, որ աճում է թիմի հետ — Հավաքեք լենդինգ, միացրեք սակագները և սկսեք վաճառել՝ առանց ծրագրավորողների և դիզայներների։' },
+  'Стань сильнее каждый день» — Залы, тренеры и расписание — всё, чтобы начать тренироваться уже сегодня.': { en: 'Get stronger every day — Gyms, coaches and a schedule — everything to start training today.', hy: 'Դարձիր ավելի ուժեղ ամեն օր — Դահլիճներ, մարզիչներ և ժամանակացույց — ամեն ինչ՝ այսօր մարզվելը սկսելու համար։' },
+  'Кофе, ради которого возвращаются» — Тёплая редакторская подача: история зерна, меню и атмосфера вашего заведения.': { en: 'Coffee worth coming back for — Warm editorial storytelling: the bean\u2019s story, the menu and the atmosphere of your place.', hy: 'Սուրճ, որի համար վերադառնում են — Ջերմ խմբագրական մատուցում՝ հատիկի պատմությունը, մենյուն և ձեր վայրի մթնոլորտը։' },
+  'Создаём бренды, которые замечают» — Портфолио, кейсы и подход команды — чисто, строго, по делу.': { en: 'We build brands that get noticed — Portfolio, case studies and the team\u2019s approach — clean, sharp, to the point.', hy: 'Ստեղծում ենք բրենդներ, որ նկատում են — Պորտֆոլիո, քեյսեր և թիմի մոտեցում՝ մաքուր, խիստ, ըստ էության։' },
+
   // ── stragglers found by coverage diagnostic ──
   'Пользователи': { en: 'Users', hy: 'Օգտատերեր' },
   'Анна П.': { en: 'Anna P.', hy: 'Աննա Պ.' },
@@ -807,7 +840,7 @@ function atom(s: string, locale: Locale): string {
 }
 
 /** Numeric / symbol-only values we must never translate (stats, prices already mapped). */
-const NUMERIC = /^[\d\s.,%+★$₽֏/–—-]+$/;
+export const NUMERIC = /^[\d\s.,%+★$₽֏/–—-]+$/;
 
 /**
  * Translate a content string, handling the composite formats used by the
@@ -830,7 +863,7 @@ export function trc(s: string, locale: Locale): string {
 }
 
 // Props whose values are human-readable content and should be translated.
-const TEXT_PROPS = new Set([
+export const TEXT_PROPS = new Set([
   'text', 'alt', 'label', 'placeholder', 'submitText', 'successMsg', 'quote',
   'role', 'author', 'plan', 'cta', 'period', 'price', 'features', 'items', 'tabs', 'links', 'value',
 ]);
