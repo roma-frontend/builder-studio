@@ -8,22 +8,37 @@ import { useRef, type ReactNode } from 'react';
  */
 export function Magnetic({ children, pull = 0.25 }: { children: ReactNode; pull?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
+  const rect = useRef<DOMRect | null>(null);
+  const raf = useRef(0);
+  const x = useRef(0);
+  const y = useRef(0);
 
+  const onEnter = () => {
+    rect.current = ref.current?.getBoundingClientRect() ?? null;
+  };
+  const apply = () => {
+    raf.current = 0;
+    if (ref.current) ref.current.style.transform = `translate(${x.current.toFixed(1)}px, ${y.current.toFixed(1)}px)`;
+  };
   const onMove = (e: React.MouseEvent) => {
-    const el = ref.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const x = e.clientX - (r.left + r.width / 2);
-    const y = e.clientY - (r.top + r.height / 2);
-    el.style.transform = `translate(${(x * pull).toFixed(1)}px, ${(y * pull).toFixed(1)}px)`;
+    const r = rect.current ?? ref.current?.getBoundingClientRect();
+    if (!r) return;
+    x.current = (e.clientX - (r.left + r.width / 2)) * pull;
+    y.current = (e.clientY - (r.top + r.height / 2)) * pull;
+    if (!raf.current) raf.current = requestAnimationFrame(apply);
   };
   const reset = () => {
+    if (raf.current) {
+      cancelAnimationFrame(raf.current);
+      raf.current = 0;
+    }
     if (ref.current) ref.current.style.transform = '';
   };
 
   return (
     <span
       ref={ref}
+      onMouseEnter={onEnter}
       onMouseMove={onMove}
       onMouseLeave={reset}
       style={{ display: 'inline-block', transition: 'transform 0.2s ease-out', willChange: 'transform' }}

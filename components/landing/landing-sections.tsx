@@ -94,7 +94,7 @@ export function MarqueeBand({ words, label }: { words: string[]; label: string }
 /** Live stats with count-up. */
 export function StatsBand({ title, subtitle, items }: { title: string; subtitle: string; items: { value: string; label: string }[] }) {
   return (
-    <section className="mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10 sm:py-20">
+    <section className="cv-section mx-auto max-w-[var(--container-max)] px-6 py-16 sm:px-10 sm:py-20">
       <MotionReveal className="mb-10 text-center">
         <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{title}</h2>
         <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{subtitle}</p>
@@ -131,7 +131,7 @@ export function BentoFeatures({
   // Spans give the grid a designed, asymmetric rhythm on large screens.
   const spans = ['lg:col-span-2 lg:row-span-2', '', '', '', 'lg:col-span-2', ''];
   return (
-    <section id="features" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
+    <section id="features" className="cv-section mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
       <MotionReveal className="mb-12 text-center">
         <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{title}</h2>
         <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{subtitle}</p>
@@ -193,7 +193,7 @@ export function Testimonials({
     </div>
   );
   return (
-    <section className="mx-auto max-w-[var(--container-max)] overflow-hidden px-0 py-16 sm:py-20">
+    <section className="cv-section mx-auto max-w-[var(--container-max)] overflow-hidden px-0 py-16 sm:py-20">
       <MotionReveal className="mb-10 px-6 text-center sm:px-10">
         <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{title}</h2>
         <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{subtitle}</p>
@@ -218,7 +218,7 @@ export function Faq({
 }) {
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <section className="mx-auto max-w-3xl px-6 py-16 sm:px-10 sm:py-20">
+    <section className="cv-section mx-auto max-w-3xl px-6 py-16 sm:px-10 sm:py-20">
       <MotionReveal className="mb-10 text-center">
         <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{title}</h2>
         <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{subtitle}</p>

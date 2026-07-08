@@ -137,7 +137,7 @@ export default async function Home() {
       <StatsBand title={extra.stats.title} subtitle={extra.stats.subtitle} items={extra.stats.items} />
 
       {/* Themes gallery teaser */}
-      <section id="themes" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
+      <section id="themes" className="cv-section mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{L.themesTeaser.title}</h2>
@@ -191,7 +191,7 @@ export default async function Home() {
 
       {/* Made on the platform — real example from demo content */}
       {examples.length > 0 && (
-        <section id="examples" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
+        <section id="examples" className="cv-section mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
           <MotionReveal className="mb-12 text-center">
             <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               <Video className="h-3.5 w-3.5 text-primary" /> {dict.examples.badge}
@@ -209,7 +209,7 @@ export default async function Home() {
       <Testimonials title={extra.testimonials.title} subtitle={extra.testimonials.subtitle} items={extra.testimonials.items} />
 
       {/* Pricing */}
-      <section id="pricing" className="mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
+      <section id="pricing" className="cv-section mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
         <MotionReveal className="mb-12 text-center">
           <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-primary" /> {B.pricing.title}
@@ -224,7 +224,7 @@ export default async function Home() {
       <Faq title={extra.faq.title} subtitle={extra.faq.subtitle} items={extra.faq.items} />
 
       {/* Final CTA */}
-      <section className="mx-auto max-w-[var(--container-max)] px-6 py-20 sm:px-10">
+      <section className="cv-section mx-auto max-w-[var(--container-max)] px-6 py-20 sm:px-10">
         <MotionReveal>
           <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-card/60 p-10 text-center backdrop-blur sm:p-16">
             <Beams className="opacity-60" />

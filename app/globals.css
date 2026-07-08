@@ -150,6 +150,13 @@
   .theme-fx-glow { animation: none; }
 }
 
+/* ── Off-screen render skipping (long-page scroll perf) ──────────────
+   content-visibility:auto lets the browser skip layout+paint of a section
+   until it nears the viewport. `contain-intrinsic-size: auto <h>` remembers
+   each section's real height after its first render, so the scrollbar and
+   anchor targets stay put on every later pass (no layout shift). */
+.cv-section { content-visibility: auto; contain-intrinsic-size: auto 700px; }
+
 /* ── Marquee ─────────────────────────────────────────────────────── */
 .marquee-row {
   animation: marqueeScroll 26s linear infinite;

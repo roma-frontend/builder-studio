@@ -8,22 +8,40 @@ import { useRef, type ReactNode } from 'react';
  */
 export function Tilt({ children, className, max = 8 }: { children: ReactNode; className?: string; max?: number }) {
   const ref = useRef<HTMLDivElement>(null);
+  const rect = useRef<DOMRect | null>(null);
+  const raf = useRef(0);
+  const px = useRef(0);
+  const py = useRef(0);
 
-  const onMove = (e: React.MouseEvent) => {
+  // Read layout once when the pointer enters — never on every move.
+  const onEnter = () => {
+    rect.current = ref.current?.getBoundingClientRect() ?? null;
+  };
+  const apply = () => {
+    raf.current = 0;
     const el = ref.current;
     if (!el) return;
-    const r = el.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - 0.5;
-    const py = (e.clientY - r.top) / r.height - 0.5;
-    el.style.transform = `perspective(800px) rotateX(${(-py * max).toFixed(2)}deg) rotateY(${(px * max).toFixed(2)}deg) scale(1.02)`;
+    el.style.transform = `perspective(800px) rotateX(${(-py.current * max).toFixed(2)}deg) rotateY(${(px.current * max).toFixed(2)}deg) scale(1.02)`;
+  };
+  const onMove = (e: React.MouseEvent) => {
+    const r = rect.current ?? ref.current?.getBoundingClientRect();
+    if (!r) return;
+    px.current = (e.clientX - r.left) / r.width - 0.5;
+    py.current = (e.clientY - r.top) / r.height - 0.5;
+    if (!raf.current) raf.current = requestAnimationFrame(apply);
   };
   const reset = () => {
+    if (raf.current) {
+      cancelAnimationFrame(raf.current);
+      raf.current = 0;
+    }
     if (ref.current) ref.current.style.transform = '';
   };
 
   return (
     <div
       ref={ref}
+      onMouseEnter={onEnter}
       onMouseMove={onMove}
       onMouseLeave={reset}
       className={className}

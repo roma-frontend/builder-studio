@@ -14,18 +14,30 @@ export function Spotlight({ size = 420, strength = 30 }: { size?: number; streng
     const el = ref.current;
     const parent = el?.parentElement;
     if (!el || !parent) return;
-    const onMove = (e: MouseEvent) => {
+    let raf = 0;
+    let cx = 0;
+    let cy = 0;
+    // Write the CSS vars at most once per frame (raw mousemove can fire 120+/s
+    // on high-refresh mice; repainting the big radial that often is what janks).
+    const apply = () => {
+      raf = 0;
       const r = parent.getBoundingClientRect();
-      el.style.setProperty('--x', `${e.clientX - r.left}px`);
-      el.style.setProperty('--y', `${e.clientY - r.top}px`);
+      el.style.setProperty('--x', `${cx - r.left}px`);
+      el.style.setProperty('--y', `${cy - r.top}px`);
+    };
+    const onMove = (e: MouseEvent) => {
+      cx = e.clientX;
+      cy = e.clientY;
       el.style.opacity = '1';
+      if (!raf) raf = requestAnimationFrame(apply);
     };
     const onLeave = () => {
       el.style.opacity = '0';
     };
-    parent.addEventListener('mousemove', onMove);
+    parent.addEventListener('mousemove', onMove, { passive: true });
     parent.addEventListener('mouseleave', onLeave);
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       parent.removeEventListener('mousemove', onMove);
       parent.removeEventListener('mouseleave', onLeave);
     };

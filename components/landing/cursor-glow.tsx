@@ -24,6 +24,22 @@ export function CursorGlow() {
     let raf = 0;
     let visible = false;
 
+    const tick = () => {
+      gx += (mx - gx) * 0.12;
+      gy += (my - gy) * 0.12;
+      if (glow.current) glow.current.style.transform = `translate(${gx}px, ${gy}px) translate(-50%, -50%)`;
+      // Stop once the glow has caught the pointer; the next move restarts it, so
+      // the main thread stays fully idle while the cursor is still.
+      if (Math.abs(mx - gx) > 0.4 || Math.abs(my - gy) > 0.4) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        raf = 0;
+      }
+    };
+    const kick = () => {
+      if (!raf && !document.hidden) raf = requestAnimationFrame(tick);
+    };
+
     const onMove = (e: MouseEvent) => {
       mx = e.clientX;
       my = e.clientY;
@@ -33,6 +49,7 @@ export function CursorGlow() {
         if (glow.current) glow.current.style.opacity = '1';
       }
       if (dot.current) dot.current.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -50%)`;
+      kick();
     };
     const onLeave = () => {
       visible = false;
@@ -45,23 +62,27 @@ export function CursorGlow() {
       const interactive = t.closest('a, button, [role="button"], input, select, textarea, label');
       if (dot.current) dot.current.style.setProperty('--dot-scale', interactive ? '2.4' : '1');
     };
-
-    const tick = () => {
-      gx += (mx - gx) * 0.12;
-      gy += (my - gy) * 0.12;
-      if (glow.current) glow.current.style.transform = `translate(${gx}px, ${gy}px) translate(-50%, -50%)`;
-      raf = requestAnimationFrame(tick);
+    const onVis = () => {
+      if (document.hidden) {
+        if (raf) {
+          cancelAnimationFrame(raf);
+          raf = 0;
+        }
+      } else {
+        kick();
+      }
     };
-    raf = requestAnimationFrame(tick);
 
     window.addEventListener('mousemove', onMove, { passive: true });
     window.addEventListener('mouseover', onOver, { passive: true });
     document.addEventListener('mouseleave', onLeave);
+    document.addEventListener('visibilitychange', onVis);
     return () => {
-      cancelAnimationFrame(raf);
+      if (raf) cancelAnimationFrame(raf);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseover', onOver);
       document.removeEventListener('mouseleave', onLeave);
+      document.removeEventListener('visibilitychange', onVis);
     };
   }, []);
 

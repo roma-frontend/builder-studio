@@ -117,8 +117,21 @@ export function WebglGradient({ className }: { className?: string }) {
     };
     applyColors();
 
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let raf = 0;
+    let running = false;
+    let elapsed = 0; // ms of *animated* time (excludes paused spans → no jump on resume)
+    let last = 0;
+    let onScreen = true;
+
+    const draw = () => {
+      gl.uniform1f(uT, elapsed / 1000);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    };
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // Cap DPR at 1.5: the field is soft/blurred, so extra device pixels are
+      // wasted fill-rate (≈44% fewer fragment ops than 2× on retina displays).
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const w = Math.floor(canvas.clientWidth * dpr);
       const h = Math.floor(canvas.clientHeight * dpr);
       if (canvas.width !== w || canvas.height !== h) {
@@ -127,34 +140,55 @@ export function WebglGradient({ className }: { className?: string }) {
       }
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(uRes, canvas.width, canvas.height);
+      if (!running) draw(); // keep the paused/static frame correct after a resize
     };
+    const frame = (now: number) => {
+      elapsed += now - last;
+      last = now;
+      draw();
+      raf = requestAnimationFrame(frame);
+    };
+    const play = () => {
+      if (running || reduced) return;
+      running = true;
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    };
+    const pause = () => {
+      running = false;
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    };
+    // Only burn GPU while the hero canvas is on-screen AND the tab is visible.
+    const sync = () => (onScreen && !document.hidden ? play() : pause());
+
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
+    const io = new IntersectionObserver((entries) => {
+      onScreen = entries.some((e) => e.isIntersecting);
+      sync();
+    });
+    io.observe(canvas);
+    const onVis = () => sync();
+    document.addEventListener('visibilitychange', onVis);
 
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let raf = 0;
-    const start = performance.now();
-    const draw = (now: number) => {
-      gl.uniform1f(uT, (now - start) / 1000);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      raf = requestAnimationFrame(draw);
-    };
-    if (reduced) {
-      gl.uniform1f(uT, 0);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-    } else {
-      raf = requestAnimationFrame(draw);
-    }
+    if (reduced) draw(); // one static frame, no loop
+    else play();
 
-    // Re-tint when the theme (class/attribute) changes.
-    const mo = new MutationObserver(() => applyColors());
+    // Re-tint when the theme (class/attribute) changes (redraw if currently paused).
+    const mo = new MutationObserver(() => {
+      applyColors();
+      if (!running) draw();
+    });
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] });
 
     return () => {
-      cancelAnimationFrame(raf);
+      pause();
       ro.disconnect();
+      io.disconnect();
       mo.disconnect();
+      document.removeEventListener('visibilitychange', onVis);
       gl.deleteProgram(prog);
       gl.deleteShader(vs);
       gl.deleteShader(fs);
