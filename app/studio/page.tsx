@@ -38,6 +38,17 @@ const clampPaneWidth = (w: number) =>
 
 type Status = 'idle' | 'running' | 'done' | 'error';
 type BatchItem = PlanItem & { state: 'pending' | 'running' | 'done' | 'error'; error?: string };
+type StudioContext = {
+  role: string;
+  superadmin: boolean;
+  mode: 'platform' | 'tenant';
+  tenant: { id: string; slug: string; name: string } | null;
+  canGenerate: boolean;
+  video: { limit: number | null; used: number; remaining: number | null };
+};
+// Tabs a tenant org-admin may use (asset generation + admin-panel theme). The
+// platform-only tabs (landing/content/composition/config) stay superadmin-only.
+const TENANT_TABS: StudioTab[] = ['generate', 'images', 'theme'];
 type LogLine = { line: string; stream: 'stdout' | 'stderr' };
 type GenBody = { prompt: string; title: string; section: Section; aspect: string; style?: string; negative?: string };
 
@@ -110,7 +121,28 @@ export default function StudioPage() {
   const [brief, setBrief] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [tab, setTab] = useState<StudioTab>('landing');
+  const [tab, setTab] = useState<StudioTab>('generate');
+  // Role/tenancy context — decides which tabs show and what the preview targets.
+  const [ctx, setCtx] = useState<StudioContext | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/studio/context')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d) setCtx(d as StudioContext); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const isTenant = ctx ? ctx.mode === 'tenant' : false;
+  const visibleTabs: StudioTab[] = isTenant ? TENANT_TABS : STUDIO_TAB_IDS.slice();
+  // Tenant admins preview their OWN site (read-only); superadmin previews '/'.
+  // Null until context loads so the iframe never flashes the platform landing
+  // before switching to the tenant site.
+  const previewSrc = !ctx ? null : isTenant && ctx.tenant ? `/s/${ctx.tenant.slug}` : '/';
+  // If the active tab isn't available in the current mode, snap to the first.
+  useEffect(() => {
+    if (ctx && !visibleTabs.includes(tab)) setTab(visibleTabs[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx]);
   const [device, setDevice] = useState<Device>('full');
   const [paneWidth, setPaneWidth] = useState(704); // px width of the right preview pane
   // Below xl the tools panel and the preview don't fit side by side — the
@@ -261,7 +293,10 @@ export default function StudioPage() {
     setThemeBusy(true);
     setThemeMsg('');
     try {
-      const res = await fetch('/api/set-theme', {
+      // Tenant admins theme their ADMIN PANEL (org dashboard + members' area),
+      // not the platform landing — different endpoint, no platform write.
+      const endpoint = isTenant ? '/api/studio/dashboard-theme' : '/api/set-theme';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ theme: siteTheme }),
@@ -274,6 +309,15 @@ export default function StudioPage() {
       setThemeBusy(false);
     }
   };
+
+  // In tenant mode, load the current admin-panel theme so the selector reflects it.
+  useEffect(() => {
+    if (!isTenant) return;
+    fetch('/api/studio/dashboard-theme')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.theme) setSiteTheme(d.theme); })
+      .catch(() => {});
+  }, [isTenant]);
 
   // Page builder — ordered block composition
   const savedLayout = (siteConfig as { layout?: string[] | null }).layout;
@@ -615,10 +659,12 @@ export default function StudioPage() {
           </span>
           <span className="text-sm text-muted-foreground">{t.tabs[tab]}</span>
         </motion.header>
-        {/* Tab bar */}
+        {/* Tab bar (rendered only once role context is known, so the full set
+            never flashes before collapsing to the tenant subset). */}
+        {ctx && (
         <div className="sticky top-0 z-20 -mx-5 mb-2 border-b border-border/60 bg-background/85 px-5 pb-px backdrop-blur-md">
           <div className="flex flex-wrap gap-1">
-            {STUDIO_TAB_IDS.map((id) => {
+            {visibleTabs.map((id) => {
               const Icon = TAB_ICON[id];
               const active = tab === id;
               return (
@@ -634,6 +680,7 @@ export default function StudioPage() {
             })}
           </div>
         </div>
+        )}
         {/* Landing editor */}
         {tab === 'landing' && (
         <motion.section {...fade} className="space-y-4">
@@ -1254,7 +1301,7 @@ export default function StudioPage() {
               })}
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-1">
-              <Link href="/" target="_blank" className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">{t.open}</Link>
+              <Link href={previewSrc ?? '/'} target="_blank" className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">{t.open}</Link>
               <button onClick={() => setPreviewKey((k) => k + 1)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted" title={t.refresh} aria-label={t.refresh}>
                 <RotateCcw className="h-3.5 w-3.5" /> <span className="hidden @xl:inline">{t.refresh}</span>
               </button>
@@ -1262,7 +1309,13 @@ export default function StudioPage() {
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-2 @lg:p-4">
             <div className="mx-auto h-full transition-[width] duration-300" style={{ width: DEVICE[device] }}>
-              <iframe key={previewKey} src="/" title={t.previewTitle} className={cn('h-full w-full rounded-xl border border-border bg-background shadow-2xl', isResizing && 'pointer-events-none')} />
+              {previewSrc ? (
+                <iframe key={previewKey} src={previewSrc} title={t.previewTitle} className={cn('h-full w-full rounded-xl border border-border bg-background shadow-2xl', isResizing && 'pointer-events-none')} />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center rounded-xl border border-border bg-background">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/60" />
+                </div>
+              )}
             </div>
           </div>
         </div>

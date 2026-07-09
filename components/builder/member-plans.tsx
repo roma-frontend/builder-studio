@@ -125,7 +125,15 @@ export function MemberPlans({ siteId }: { siteId: string }) {
       </div>
       <p className="mt-1 text-sm text-muted-foreground">{t.subtitle}</p>
       {note && <p className="mt-2 text-sm text-muted-foreground">{note}</p>}
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div
+        className={`mt-5 grid gap-4 ${
+          data.plans.length === 1
+            ? 'sm:grid-cols-1'
+            : data.plans.length === 2
+              ? 'sm:grid-cols-2'
+              : 'sm:grid-cols-2 lg:grid-cols-3'
+        }`}
+      >
         {data.plans.map((p) => (
           <div key={p.id} className="flex flex-col rounded-2xl border border-border bg-background/60 p-5">
             <h3 className="font-semibold">{p.name}</h3>

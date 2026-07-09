@@ -13,6 +13,8 @@ import { PageHeader } from '@/components/dashboard/ui';
 import { OrgOnboarding } from '@/components/dashboard/org-onboarding';
 import { StudioAssistant } from '@/components/assistant/studio-assistant';
 import { PlatformThemeStyle } from '@/components/platform-theme-style';
+import { ThemeStyle } from '@/components/theme-style';
+import { getTheme } from '@/lib/themes';
 import { llmConfigured } from '@/lib/llm';
 import { getUserEntitlements } from '@/lib/billing/entitlements';
 import { getActiveSubscription, getLatestSubscription } from '@/lib/billing/subscriptions';
@@ -45,7 +47,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Access gate: you can't just enter the dashboard — a superadmin must let you
   // in. Until you own an organization (a superadmin approved your create/join
   // request), every dashboard section shows the onboarding instead of content.
-  const hasOrg = listSitesForUser(user.id).length > 0;
+  const ownedSites = listSitesForUser(user.id);
+  const hasOrg = ownedSites.length > 0;
+  // Org-wide admin-panel theme: a non-superadmin owner can re-skin their whole
+  // dashboard (and their members' account area) from the Studio. '' / 'auto' =
+  // inherit the platform theme. Superadmin always sees the platform theme.
+  const orgDashRaw = isSuperadmin(user) ? '' : (ownedSites[0]?.dashboardTheme ?? '');
+  const orgDashTheme = orgDashRaw && orgDashRaw !== 'auto' ? orgDashRaw : '';
   const gated = !isSuperadmin(user) && !hasOrg;
   // Billing gate: an org owner (admin) whose subscription isn't active can't use
   // the dashboard until they (re)subscribe — the whole org turns on with the
@@ -80,7 +88,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <>
-      <PlatformThemeStyle />
+      {orgDashTheme ? <ThemeStyle theme={getTheme(orgDashTheme)} /> : <PlatformThemeStyle />}
       <DashboardShell
         user={{ name: user.name, email: user.email, role: (user.role as Role) ?? 'customer', handle }}
         banner={impersonating ? <ImpersonationBanner name={user.name || user.email} /> : null}

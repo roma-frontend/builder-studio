@@ -438,6 +438,14 @@ CREATE TABLE IF NOT EXISTS platform_settings (
   updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS media_usage (
+  user_id TEXT NOT NULL,
+  period TEXT NOT NULL,
+  video_count INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, period)
+);
+
 -- Studio Assistant chat history (per platform user).
 CREATE TABLE IF NOT EXISTS assistant_conversations (
   id TEXT PRIMARY KEY,
@@ -617,6 +625,8 @@ function createDb(): DB {
   addColumn('site_users', 'rejection_reason', `rejection_reason TEXT NOT NULL DEFAULT ''`);
   // Site end-user color-scheme preference (follows the account, not the browser).
   addColumn('site_users', 'theme', `theme TEXT NOT NULL DEFAULT ''`);
+  // Org-wide admin-panel theme (dashboard of owner + members' account area).
+  addColumn('sites', 'dashboard_theme', `dashboard_theme TEXT NOT NULL DEFAULT ''`);
   globalForDb.__cwkSqlite = sqlite;
   return drizzle(sqlite, { schema });
 }

@@ -57,15 +57,21 @@ export async function SiteResourcePage({ doc, resource, id }: { doc: BuilderDoc;
 /** Beautiful, non-editable login / register / account page — same construction
  *  as the platform auth (glass Shell), themed with the tenant's theme and wired
  *  to the isolated per-site auth. Standalone (no site chrome). */
-export function SiteAuthPage({ doc, mode }: { doc: BuilderDoc; mode: 'login' | 'register' | 'account' | 'reset' }) {
+export function SiteAuthPage({ doc, mode, dashboardTheme }: { doc: BuilderDoc; mode: 'login' | 'register' | 'account' | 'reset'; dashboardTheme?: string }) {
   const theme = doc.themeId && doc.themeId !== 'auto' ? getTheme(doc.themeId) : DEFAULT_THEME;
   const base = doc.base === undefined ? '/site' : doc.base || '';
+  // Org-wide admin-panel theme (set by the owner in the Studio). Members see it
+  // in their account cabinet — the mirror of the owner's dashboard. Empty/'auto'
+  // falls back to the neutral platform palette.
+  const orgTheme = dashboardTheme && dashboardTheme !== 'auto' ? getTheme(dashboardTheme) : null;
   return (
     <>
-      {/* The account cabinet mirrors the platform admin/superadmin dashboards:
-          it uses the neutral platform palette (globals.css) rather than the
-          tenant's brand theme. Login/register/reset stay on-brand. */}
-      {mode !== 'account' && <ThemeStyle theme={theme} />}
+      {/* The account cabinet mirrors the platform admin/superadmin dashboards.
+          It uses the org's admin-panel theme when the owner set one, else the
+          neutral platform palette. Login/register/reset stay on the brand theme. */}
+      {mode === 'account'
+        ? orgTheme && <ThemeStyle theme={orgTheme} />
+        : <ThemeStyle theme={theme} />}
       <SiteAuthProvider siteId={doc.siteId ?? ''}>
         <SiteAuthClient siteId={doc.siteId ?? ''} base={base} brand={doc.brand} mode={mode} />
       </SiteAuthProvider>

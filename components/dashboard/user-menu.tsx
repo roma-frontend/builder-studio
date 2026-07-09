@@ -106,6 +106,7 @@ export function UserMenu({ user, gated, keys, onLogout }: {
       label: t.sidebar.groupWorkspace, icon: LayoutList, amber: false,
       items: ([
         { key: 'sites', href: '/dashboard/sites', icon: Globe, label: t.nav.sites },
+        { key: 'studio', href: '/studio', icon: Film, label: t.nav.studio },
         { key: 'submissions', href: '/dashboard/submissions', icon: Inbox, label: t.nav.submissions },
         { key: 'account', href: '/dashboard/account', icon: UserCircle, label: t.nav.account },
       ] as SubItem[]).filter((i) => has(i.key)),
@@ -127,7 +128,6 @@ export function UserMenu({ user, gated, keys, onLogout }: {
         { key: 'activity', href: '/dashboard/activity', icon: Activity, label: t.nav.activity },
         { key: 'trash', href: '/dashboard/trash', icon: Trash2, label: t.nav.trash },
         { key: 'control', href: '/dashboard/control', icon: Crown, label: t.nav.control },
-        { key: 'studio', href: '/studio', icon: Film, label: t.nav.studio },
       ] as SubItem[]).filter((i) => has(i.key)),
     },
   };

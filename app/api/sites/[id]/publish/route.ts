@@ -47,9 +47,14 @@ export async function POST(_req: Request, { params }: Params) {
   }
   const gate = enforceFeature(user, 'sites.publish', t.forbidden);
   if (gate) return gate;
+  // Notify the superadmin only on the FIRST publish (draft → live). `site` was
+  // loaded before publishSite() runs, so publishedDoc still reflects the
+  // pre-publish state: empty means the site has never gone live before. This
+  // stops the Telegram bot from firing on every re-publish click.
+  const firstPublish = !site.publishedDoc;
   publishSite(site);
   if (site.slug === LANDING_SLUG) await syncLandingTheme(doc.themeId);
-  else notifySitePublished({ name: site.name, slug: site.slug, ownerEmail: user.email });
+  else if (firstPublish) notifySitePublished({ name: site.name, slug: site.slug, ownerEmail: user.email });
   return NextResponse.json({ ok: true, publishedAt: new Date().toISOString() });
 }
 

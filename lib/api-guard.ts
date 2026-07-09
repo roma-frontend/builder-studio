@@ -5,7 +5,7 @@
 
 import 'server-only';
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isStaff } from '@/lib/auth';
+import { getCurrentUser, isStaff, isSuperadmin } from '@/lib/auth';
 import type { User } from '@/lib/db';
 
 export function unauthorized(): NextResponse {
@@ -25,4 +25,14 @@ export async function requireUser(): Promise<User | null> {
 export async function requireStaff(): Promise<User | null> {
   const user = await getCurrentUser();
   return user && isStaff(user) ? user : null;
+}
+
+/**
+ * Superadmin ONLY, or null. Used for platform-owned config (the platform's own
+ * marketing landing/theme/layout/content and import) — an org 'admin' must
+ * never edit the platform site, only their own tenant sites via the builder.
+ */
+export async function requireSuperadmin(): Promise<User | null> {
+  const user = await getCurrentUser();
+  return user && isSuperadmin(user) ? user : null;
 }

@@ -36,6 +36,7 @@ interface NavItem { href: string; key: NavKey; icon: React.ComponentType<{ class
 const NAV: NavItem[] = [
   { href: '/dashboard', key: 'overview', icon: LayoutDashboard },
   { href: '/dashboard/sites', key: 'sites', icon: Globe },
+  { href: '/studio', key: 'studio', icon: Film },
   { href: '/dashboard/members', key: 'members', icon: UsersRound, notSuper: true },
   { href: '/dashboard/join', key: 'organization', icon: Building2 },
   { href: '/dashboard/submissions', key: 'submissions', icon: Inbox },
@@ -55,7 +56,6 @@ const NAV: NavItem[] = [
   { href: '/dashboard/control', key: 'control', icon: Crown, super: true },
   { href: '/dashboard/notifications', key: 'notifications', icon: Bell, super: true },
   { href: '/dashboard/billing-admin', key: 'billingAdmin', icon: CreditCard, super: true },
-  { href: '/studio', key: 'studio', icon: Film, super: true },
 ];
 
 // Sidebar sections (hr-project-style grouped nav). Every NAV item falls into

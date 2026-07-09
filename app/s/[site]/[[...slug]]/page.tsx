@@ -74,7 +74,7 @@ export default async function TenantSitePage({ params, searchParams }: Props) {
   const parts = slug ?? [];
   // Reserved built-in auth pages — not editable in the builder.
   if (parts.length === 1 && AUTH_PATHS.has(parts[0])) {
-    return <SiteAuthPage doc={resolved.doc} mode={parts[0] as 'login' | 'register' | 'account' | 'reset'} />;
+    return <SiteAuthPage doc={resolved.doc} mode={parts[0] as 'login' | 'register' | 'account' | 'reset'} dashboardTheme={resolved.site.dashboardTheme} />;
   }
   // Reserved member-content detail pages: /<resource>/<id> (gated to members).
   if (parts.length === 2 && RESOURCE_PATHS.has(parts[0])) {

@@ -208,6 +208,7 @@ export function getOrCreateLandingSite(): Site | null {
     publishedDoc: null, // draft only — / stays the coded landing until the
     publishedAt: null,  // editor explicitly hits "Опубликовать" (no accidental flips)
     memberApproval: true,
+    dashboardTheme: '',
     createdAt: now,
     updatedAt: now,
   };

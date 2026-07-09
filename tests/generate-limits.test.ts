@@ -44,7 +44,7 @@ beforeEach(() => {
 describe('POST /api/generate rate limit', () => {
   it('rejects anonymous callers before touching the limiter', async () => {
     const res = await generateRoute(post({ prompt: 'x' }));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
   });
 
   it('returns 429 after 5 runs within the window (staff user)', async () => {

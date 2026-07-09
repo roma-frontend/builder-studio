@@ -20,6 +20,7 @@ export type ApiErrorsDict = {
   tooManyAttempts: string;
   tooManyAttemptsDot: string;
   tooManyGenerations: string;
+  videoQuotaReached: string;
   tooManyRequests: string;
   // sites / resources
   siteNotFound: string;
@@ -149,6 +150,7 @@ const ru: ApiErrorsDict = {
   tooManyAttempts: '\u0421\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e \u043f\u043e\u043f\u044b\u0442\u043e\u043a, \u043f\u043e\u0434\u043e\u0436\u0434\u0438\u0442\u0435 \u043d\u0435\u043c\u043d\u043e\u0433\u043e',
   tooManyAttemptsDot: '\u0421\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e \u043f\u043e\u043f\u044b\u0442\u043e\u043a, \u043f\u043e\u0434\u043e\u0436\u0434\u0438\u0442\u0435 \u043d\u0435\u043c\u043d\u043e\u0433\u043e.',
   tooManyGenerations: '\u0421\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e \u0433\u0435\u043d\u0435\u0440\u0430\u0446\u0438\u0439 \u043f\u043e\u0434\u0440\u044f\u0434, \u043f\u043e\u0434\u043e\u0436\u0434\u0438\u0442\u0435 \u043d\u0435\u043c\u043d\u043e\u0433\u043e.',
+  videoQuotaReached: 'Достигнут месячный лимит генерации видео для вашего плана. Обновите план, чтобы продолжить.',
   tooManyRequests: '\u0421\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e \u0437\u0430\u043f\u0440\u043e\u0441\u043e\u0432 \u043f\u043e\u0434\u0440\u044f\u0434, \u043f\u043e\u0434\u043e\u0436\u0434\u0438\u0442\u0435 \u043d\u0435\u043c\u043d\u043e\u0433\u043e.',
   siteNotFound: '\u0421\u0430\u0439\u0442 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d',
   siteNotFoundDot: '\u0421\u0430\u0439\u0442 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d.',
@@ -253,6 +255,7 @@ const en: ApiErrorsDict = {
   tooManyAttempts: 'Too many attempts, please wait a moment',
   tooManyAttemptsDot: 'Too many attempts, please wait a moment.',
   tooManyGenerations: 'Too many generations in a row, please wait a moment.',
+  videoQuotaReached: 'Monthly video generation limit for your plan reached. Upgrade to keep generating.',
   tooManyRequests: 'Too many requests in a row, please wait a moment.',
   siteNotFound: 'Site not found',
   siteNotFoundDot: 'Site not found.',
@@ -357,6 +360,7 @@ const hy: ApiErrorsDict = {
   tooManyAttempts: '\u0549\u0561\u0583\u0561\u0566\u0561\u0576\u0581 \u0577\u0561\u057f \u0583\u0578\u0580\u0571\u0565\u0580, \u0574\u056b \u0583\u0578\u0584\u0580 \u057d\u057a\u0561\u057d\u0565\u0584',
   tooManyAttemptsDot: '\u0549\u0561\u0583\u0561\u0566\u0561\u0576\u0581 \u0577\u0561\u057f \u0583\u0578\u0580\u0571\u0565\u0580, \u0574\u056b \u0583\u0578\u0584\u0580 \u057d\u057a\u0561\u057d\u0565\u0584\u0589',
   tooManyGenerations: '\u0549\u0561\u0583\u0561\u0566\u0561\u0576\u0581 \u0577\u0561\u057f \u0563\u0565\u0576\u0565\u0580\u0561\u0581\u056b\u0561\u0576\u0565\u0580 \u0561\u0576\u0568\u0576\u0564\u0574\u0565\u057b, \u0574\u056b \u0583\u0578\u0584\u0580 \u057d\u057a\u0561\u057d\u0565\u0584\u0589',
+  videoQuotaReached: 'Հասել եք ձեր փաթեթի ամսական վիդեո գեներացիայի սահմանաչափին։ Թարմացրեք փաթեթը շարունակելու համար։',
   tooManyRequests: '\u0549\u0561\u0583\u0561\u0566\u0561\u0576\u0581 \u0577\u0561\u057f \u0570\u0561\u0580\u0581\u0578\u0582\u0574\u0576\u0565\u0580 \u0561\u0576\u0568\u0576\u0564\u0574\u0565\u057b, \u0574\u056b \u0583\u0578\u0584\u0580 \u057d\u057a\u0561\u057d\u0565\u0584\u0589',
   siteNotFound: '\u053f\u0561\u0575\u0584\u0568 \u0579\u056b \u0563\u057f\u0576\u057e\u0565\u056c',
   siteNotFoundDot: '\u053f\u0561\u0575\u0584\u0568 \u0579\u056b \u0563\u057f\u0576\u057e\u0565\u056c\u0589',

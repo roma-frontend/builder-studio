@@ -17,7 +17,7 @@ export interface Entitlements {
   unlimited: boolean;
   features: Set<FeatureKey>;
   has: (feature: FeatureKey) => boolean;
-  limits: { sites: number | null; assistantDaily: number | null };
+  limits: { sites: number | null; assistantDaily: number | null; videoMonthly: number | null };
 }
 
 function build(planId: PlanId | null, unlimited: boolean): Entitlements {
@@ -28,12 +28,14 @@ function build(planId: PlanId | null, unlimited: boolean): Entitlements {
   const sites = unlimited ? null : plan ? plan.sites : 1;
   // Free floor gets NO assistant (0). Unlimited (staff/Studio) = null.
   const assistantDaily = unlimited ? null : plan ? plan.assistantDaily : 0;
+  // Free floor gets NO AI video (0). Superadmin (unlimited) = null.
+  const videoMonthly = unlimited ? null : plan ? plan.videoMonthly : 0;
   return {
     planId,
     unlimited,
     features,
     has: (f) => unlimited || features.has(f),
-    limits: { sites, assistantDaily },
+    limits: { sites, assistantDaily, videoMonthly },
   };
 }
 
@@ -52,7 +54,7 @@ export interface EntitlementsDTO {
   planId: PlanId | null;
   unlimited: boolean;
   features: FeatureKey[];
-  limits: { sites: number | null; assistantDaily: number | null };
+  limits: { sites: number | null; assistantDaily: number | null; videoMonthly: number | null };
 }
 
 export function toDTO(e: Entitlements): EntitlementsDTO {

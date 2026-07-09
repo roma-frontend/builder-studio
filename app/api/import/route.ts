@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { requireStaff, forbidden } from '@/lib/api-guard';
+import { requireSuperadmin, forbidden } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 
@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 // the actual video files under public/ — those must be present already.
 // LOCAL/dev use only.
 export async function POST(request: Request) {
-  if (!(await requireStaff())) return forbidden();
+  if (!(await requireSuperadmin())) return forbidden();
   let bundle: { site?: unknown; media?: unknown };
   try {
     bundle = await request.json();

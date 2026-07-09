@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { requireStaff, forbidden } from '@/lib/api-guard';
+import { requireSuperadmin, forbidden } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 
@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 const VALID_BLOCKS = new Set(['hero', 'split', 'cards', 'mosaic', 'sticky', 'background', 'beams', 'marquee']);
 
 export async function POST(request: Request) {
-  if (!(await requireStaff())) return forbidden();
+  if (!(await requireSuperadmin())) return forbidden();
   let layout: string[] | null = null;
   try {
     const body = await request.json();

@@ -80,6 +80,9 @@ export const sites = sqliteTable(
     /** Membership policy: when true, new end-user registrations start 'pending'
      *  and require admin approval before they can access member-only content. */
     memberApproval: integer('member_approval', { mode: 'boolean' }).notNull().default(true),
+    /** Org-wide admin-panel theme id (dashboard of the owner + members' account
+     *  area). Empty = inherit the platform theme. */
+    dashboardTheme: text('dashboard_theme').notNull().default(''),
     publishedAt: integer('published_at', { mode: 'timestamp_ms' }),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
@@ -792,6 +795,18 @@ export const platformSettings = sqliteTable('platform_settings', {
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 });
 export type PlatformSetting = typeof platformSettings.$inferSelect;
+
+// Per-user monthly AI VIDEO generation counter (MUAPI spends real credits, so
+// each plan caps videos/month — see lib/billing/plans.ts videoMonthly). One row
+// per (userId, 'YYYY-MM'); images are free (Pollinations) and never counted.
+export const mediaUsage = sqliteTable('media_usage', {
+  userId: text('user_id').notNull(),
+  /** Billing-agnostic calendar month, 'YYYY-MM' (UTC). */
+  period: text('period').notNull(),
+  videoCount: integer('video_count').notNull().default(0),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.period] })]);
+export type MediaUsage = typeof mediaUsage.$inferSelect;
 
 // ─────────────────────────────────────────────────────────────────────────
 // Tenant commerce (per-organization): an org admin builds a CATALOG of member

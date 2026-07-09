@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server';
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { requireStaff, forbidden } from '@/lib/api-guard';
-import { rateLimit } from '@/lib/auth';
+import { requireUser, unauthorized } from '@/lib/api-guard';
+import { rateLimit, isSuperadmin } from '@/lib/auth';
+import { enforceFeature } from '@/lib/billing/enforce';
+import { videoQuota, recordVideoGenerated } from '@/lib/media-usage';
+import { listVideosForUser, addVideoForUser, removeVideoForUser, detachFromPlatformMedia } from '@/lib/video-gallery';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
+import type { MediaEntry } from '@/lib/media';
 
 export const runtime = 'nodejs';
 // This route shells out to the media pipeline (ffmpeg + optional muapi.ai call
@@ -59,10 +63,14 @@ function argsFrom(body: GenerateBody): string[] {
 }
 
 export async function POST(request: Request) {
-  // Spawns the media pipeline and spends the server's MUAPI credits — staff only.
-  const user = await requireStaff();
-  if (!user) return forbidden();
+  // Spawns the media pipeline and spends the server's MUAPI credits. Gated by
+  // the paid 'ai.generate' feature (superadmin is unrestricted). Video output is
+  // additionally capped per plan (videoMonthly) — see lib/media-usage.
+  const user = await requireUser();
+  if (!user) return unauthorized();
   const t = apiErrors(await getLocale());
+  const gate = enforceFeature(user, 'ai.generate', t.forbidden);
+  if (gate) return gate;
   // Each run is a long ffmpeg/muapi job — cap runs per user, not per IP.
   if (!rateLimit(`generate:${user.id}`, 5)) {
     return NextResponse.json({ error: t.tooManyGenerations }, { status: 429 });
@@ -76,6 +84,23 @@ export async function POST(request: Request) {
 
   if (!body.prompt?.trim() && !body.from?.trim()) {
     return NextResponse.json({ error: 'Provide a "prompt" (to generate) or "from" (local file).' }, { status: 400 });
+  }
+
+  // Monthly video quota applies only to AI generation (prompt → MUAPI), not to
+  // importing a local file (--from), which spends no credits.
+  const isAiVideo = Boolean(body.prompt?.trim()) && !body.from?.trim();
+  if (isAiVideo) {
+    const quota = videoQuota(user);
+    if (!quota.allowed) {
+      return NextResponse.json(
+        {
+          error: t.videoQuotaReached,
+          quota: { limit: quota.limit, used: quota.used, remaining: quota.remaining },
+          upgrade: '/pricing',
+        },
+        { status: 403 },
+      );
+    }
   }
 
   const root = process.cwd();
@@ -157,7 +182,32 @@ export async function POST(request: Request) {
           /* ignore */
         }
 
+        // Tenant isolation: a non-superadmin's clip must NOT become a section on
+        // the platform landing. Move it out of data/media.json into the user's
+        // private gallery (data/videos.json) and return the detached entry.
+        if (entry && !isSuperadmin(user)) {
+          const id = (entry as { id?: string }).id;
+          if (id) {
+            try {
+              const detached = (await detachFromPlatformMedia(id)) ?? (entry as MediaEntry);
+              await addVideoForUser(user.id, detached);
+              entry = detached;
+            } catch {
+              /* keep the raw entry if the move fails */
+            }
+          }
+        }
+
         send({ type: 'done', entry });
+        // Count a successful AI video against the user's monthly quota (local
+        // --from imports spend no MUAPI credits, so they are not counted).
+        if (isAiVideo) {
+          try {
+            recordVideoGenerated(user.id);
+          } catch {
+            /* usage tracking must never break a successful generation */
+          }
+        }
         close();
       });
 
@@ -176,4 +226,26 @@ export async function POST(request: Request) {
       Connection: 'keep-alive',
     },
   });
+}
+
+// Private per-user gallery of generated video assets (tenant isolation). The
+// superadmin's platform clips live in data/media.json (the landing), so their
+// gallery here is only what they generated in tenant context — normally empty.
+export async function GET() {
+  const user = await requireUser();
+  if (!user) return unauthorized();
+  return NextResponse.json({ entries: await listVideosForUser(user.id) });
+}
+
+export async function DELETE(request: Request) {
+  const user = await requireUser();
+  if (!user) return unauthorized();
+  let id = '';
+  try {
+    id = String(((await request.json()) as { id?: string }).id ?? '');
+  } catch { /* handled below */ }
+  if (!id) return NextResponse.json({ error: 'Provide an "id".' }, { status: 400 });
+  const removed = await removeVideoForUser(user.id, id);
+  if (!removed) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json({ ok: true });
 }

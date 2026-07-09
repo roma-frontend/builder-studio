@@ -5,8 +5,10 @@ import { mkdir, readFile, writeFile, unlink, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
-import { requireStaff, forbidden } from '@/lib/api-guard';
+import { requireUser, unauthorized } from '@/lib/api-guard';
 import { rateLimit } from '@/lib/auth';
+import { isSuperadmin } from '@/lib/auth';
+import { enforceFeature } from '@/lib/billing/enforce';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
 import { STYLE_PRESETS, type StyleId } from '@/lib/prompt-composer';
@@ -42,6 +44,8 @@ export interface ImageEntry {
   src: string;
   seed: number;
   createdAt: string;
+  /** Platform user who generated it. Absent = legacy/platform-owned (superadmin). */
+  ownerId?: string;
 }
 
 async function readEntries(): Promise<ImageEntry[]> {
@@ -51,6 +55,15 @@ async function readEntries(): Promise<ImageEntry[]> {
   } catch {
     return [];
   }
+}
+
+/**
+ * Tenant isolation: an org 'admin' only ever sees/deletes THEIR OWN generated
+ * images (ownerId === user.id). The superadmin runs the platform and sees
+ * everything (including legacy entries with no ownerId).
+ */
+function canSee(entry: ImageEntry, user: { id: string; role?: string }): boolean {
+  return isSuperadmin(user) || entry.ownerId === user.id;
 }
 
 const writeEntries = (entries: ImageEntry[]) =>
@@ -144,8 +157,10 @@ async function saveOptimized(buf: Buffer, base: string): Promise<string> {
 }
 
 export async function GET() {
-  if (!(await requireStaff())) return forbidden();
-  return NextResponse.json({ entries: await readEntries() });
+  const user = await requireUser();
+  if (!user) return unauthorized();
+  const entries = await readEntries();
+  return NextResponse.json({ entries: entries.filter((e) => canSee(e, user)) });
 }
 
 interface GenerateImageBody {
@@ -157,9 +172,11 @@ interface GenerateImageBody {
 }
 
 export async function POST(request: Request) {
-  const user = await requireStaff();
-  if (!user) return forbidden();
+  const user = await requireUser();
+  if (!user) return unauthorized();
   const t = apiErrors(await getLocale());
+  const gate = enforceFeature(user, 'ai.generate', t.forbidden);
+  if (gate) return gate;
   if (!rateLimit(`generate-image:${user.id}`, 10)) {
     return NextResponse.json({ error: t.tooManyGenerations }, { status: 429 });
   }
@@ -198,6 +215,7 @@ export async function POST(request: Request) {
         src,
         seed,
         createdAt: new Date().toISOString(),
+        ownerId: user.id,
       });
     } catch (e) {
       error = e instanceof Error ? e.message : 'Generation failed';
@@ -216,7 +234,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!(await requireStaff())) return forbidden();
+  const user = await requireUser();
+  if (!user) return unauthorized();
   let id = '';
   try {
     id = String(((await request.json()) as { id?: string }).id ?? '');
@@ -226,6 +245,8 @@ export async function DELETE(request: Request) {
   const entries = await readEntries();
   const entry = entries.find((e) => e.id === id);
   if (!entry) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  // Isolation: you can only delete an image you own (superadmin may delete any).
+  if (!canSee(entry, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   // entry.src is either a local /media/generated/images/<file> path or an R2
   // public URL (<R2_PUBLIC_BASE>/generated/images/<file>) written by this route.

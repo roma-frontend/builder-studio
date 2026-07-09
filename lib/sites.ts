@@ -87,6 +87,7 @@ export function createSite(userId: string, name: string, locale: Locale = DEFAUL
     draftDoc: JSON.stringify(doc),
     publishedDoc: null,
     memberApproval: true,
+    dashboardTheme: '',
     publishedAt: null,
     createdAt: now,
     updatedAt: now,
