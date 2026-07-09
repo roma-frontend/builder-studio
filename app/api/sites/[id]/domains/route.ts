@@ -104,6 +104,17 @@ export async function PATCH(request: Request, { params }: Params) {
   const expectedCnames = expectedDomainTargets();
   let verified = false;
   const details: string[] = [];
+
+  if (!domain.verified && domain.provisioningStatus !== 'provisioning') {
+    const provisioned = await provisionCustomDomain(domain.hostname);
+    setDomainProvisioning(domain.id, {
+      provisioningProvider: provisioned.provider,
+      provisioningStatus: provisioned.status,
+      provisioningError: provisioned.error ?? '',
+    });
+    details.push(`Provisioning: ${provisioned.status}`);
+  }
+
   try {
     const cnames = await dns.resolveCname(domain.hostname).catch(() => [] as string[]);
     details.push(cnames.length ? `CNAME: ${cnames.join(', ')}` : t.dnsCnameNone);

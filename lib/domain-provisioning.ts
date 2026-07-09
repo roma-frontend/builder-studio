@@ -95,17 +95,19 @@ async function addFlyCertificate(hostname: string): Promise<void> {
   if (!appId) throw new Error('FLY_APP_NAME is not configured.');
 
   const data = await flyGraphql<{
-    addCertificate?: { errors?: { message?: string }[] };
+    addCertificate?: { errors?: string | string[] | null };
   }>(
     `mutation AddCertificate($appId: ID!, $hostname: String!) {
       addCertificate(appId: $appId, hostname: $hostname) {
-        errors { message }
+        certificate { hostname }
+        errors
       }
     }`,
     { appId, hostname },
   );
-  const errors = data.addCertificate?.errors?.map((e) => e.message).filter(Boolean);
-  if (errors?.length) throw new Error(errors.join('; '));
+  const errors = data.addCertificate?.errors;
+  const msg = Array.isArray(errors) ? errors.filter(Boolean).join('; ') : errors;
+  if (msg) throw new Error(msg);
 }
 
 /**

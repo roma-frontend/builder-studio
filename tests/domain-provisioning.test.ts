@@ -44,7 +44,7 @@ describe('domain provisioning', () => {
       if (url.includes('/zones?name=example.com')) return json({ success: true, result: [{ id: 'zone_1', name: 'example.com' }] });
       if (url.includes('/dns_records?name=client.example.com')) return json({ success: true, result: [] });
       if (url.includes('/dns_records') && init?.method === 'POST') return json({ success: true, result: { id: 'rec_1' } });
-      if (url === 'https://api.fly.io/graphql') return json({ data: { addCertificate: { errors: [] } } });
+      if (url === 'https://api.fly.io/graphql') return json({ data: { addCertificate: { errors: null } } });
       return json({ success: false, errors: [{ message: `unexpected ${url}` }] }, 500);
     }));
 
@@ -79,7 +79,7 @@ describe('domain provisioning', () => {
         return json({ success: true, result: [{ id: 'rec_1', type: 'CNAME' }] });
       }
       if (url.includes('/dns_records/rec_1') && init?.method === 'PUT') return json({ success: true, result: { id: 'rec_1' } });
-      if (url === 'https://api.fly.io/graphql') return json({ data: { addCertificate: { errors: [] } } });
+      if (url === 'https://api.fly.io/graphql') return json({ data: { addCertificate: { errors: null } } });
       return json({ success: false, errors: [{ message: `unexpected ${url}` }] }, 500);
     }));
 
@@ -113,7 +113,7 @@ describe('domain provisioning', () => {
   it('returns failed when Fly reports certificate errors', async () => {
     process.env.FLY_API_TOKEN = 'fly_test';
     process.env.FLY_APP_NAME = 'builder-studio';
-    vi.stubGlobal('fetch', vi.fn(async () => json({ data: { addCertificate: { errors: [{ message: 'hostname is invalid' }] } } })));
+    vi.stubGlobal('fetch', vi.fn(async () => json({ data: { addCertificate: { errors: 'hostname is invalid' } } })));
 
     const { provisionCustomDomain } = await import('@/lib/domain-provisioning');
     const result = await provisionCustomDomain('bad.example.com');
