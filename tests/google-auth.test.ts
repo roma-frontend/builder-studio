@@ -4,6 +4,9 @@ import {
   isSuperadminEmail,
   buildGoogleAuthUrl,
   getGoogleRedirectUri,
+  getSiteGoogleRedirectUri,
+  getGoogleConfig,
+  exchangeGoogleCode,
   loginOrCreateGoogleUser,
   type GoogleProfile,
 } from '@/lib/google-auth';
@@ -50,6 +53,34 @@ describe('buildGoogleAuthUrl / redirect uri', () => {
     delete process.env.GOOGLE_REDIRECT_URI;
     process.env.NEXT_PUBLIC_APP_HOST = 'studio.acme.com';
     expect(getGoogleRedirectUri()).toBe('https://studio.acme.com/api/auth/google/callback');
+  });
+
+  it('derives the tenant callback uri from the app host', () => {
+    process.env.NEXT_PUBLIC_APP_HOST = 'studio.acme.com';
+    expect(getSiteGoogleRedirectUri()).toBe('https://studio.acme.com/api/site-auth/google/callback');
+  });
+});
+
+describe('getGoogleConfig', () => {
+  it('is configured only with both id and secret', () => {
+    delete process.env.GOOGLE_CLIENT_ID; delete process.env.AUTH_GOOGLE_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET; delete process.env.AUTH_GOOGLE_SECRET;
+    expect(getGoogleConfig().configured).toBe(false);
+    process.env.GOOGLE_CLIENT_ID = 'cid';
+    process.env.GOOGLE_CLIENT_SECRET = 'secret';
+    const cfg = getGoogleConfig();
+    expect(cfg.configured).toBe(true);
+    expect(cfg.clientId).toBe('cid');
+  });
+});
+
+describe('exchangeGoogleCode', () => {
+  it('fails fast when Google is not configured (no network call)', async () => {
+    delete process.env.GOOGLE_CLIENT_ID; delete process.env.AUTH_GOOGLE_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET; delete process.env.AUTH_GOOGLE_SECRET;
+    const res = await exchangeGoogleCode('any-code', 'https://app.example.com/cb');
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toBe('not_configured');
   });
 });
 

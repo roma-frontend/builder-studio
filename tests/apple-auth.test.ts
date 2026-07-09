@@ -3,8 +3,11 @@ import { generateKeyPairSync } from 'node:crypto';
 import { resetDb } from './helpers';
 import {
   getAppleConfig,
+  getAppleRedirectUri,
+  getSiteAppleRedirectUri,
   makeAppleClientSecret,
   buildAppleAuthUrl,
+  exchangeAppleCode,
   loginOrCreateAppleUser,
   type AppleProfile,
 } from '@/lib/apple-auth';
@@ -33,6 +36,30 @@ describe('getAppleConfig', () => {
   it('is unconfigured without all four values', () => {
     delete process.env.APPLE_CLIENT_ID;
     expect(getAppleConfig().configured).toBe(false);
+  });
+});
+
+describe('apple redirect uris', () => {
+  it('prefers an explicit APPLE_REDIRECT_URI, else derives from the app host', () => {
+    process.env.APPLE_REDIRECT_URI = 'https://x.example.com/cb';
+    expect(getAppleRedirectUri()).toBe('https://x.example.com/cb');
+    delete process.env.APPLE_REDIRECT_URI;
+    process.env.NEXT_PUBLIC_APP_HOST = 'studio.acme.com';
+    expect(getAppleRedirectUri()).toBe('https://studio.acme.com/api/auth/apple/callback');
+  });
+
+  it('derives the tenant callback uri from the app host', () => {
+    process.env.NEXT_PUBLIC_APP_HOST = 'studio.acme.com';
+    expect(getSiteAppleRedirectUri()).toBe('https://studio.acme.com/api/site-auth/apple/callback');
+  });
+});
+
+describe('exchangeAppleCode', () => {
+  it('fails fast when Apple is not configured (no network call)', async () => {
+    delete process.env.APPLE_CLIENT_ID;
+    const res = await exchangeAppleCode('any-code', 'https://app.example.com/cb');
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toBe('not_configured');
   });
 });
 
