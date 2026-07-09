@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { randomBytes } from 'node:crypto';
 import { getAppleConfig, buildAppleAuthUrl } from '@/lib/apple-auth';
+import { platformBase } from '@/lib/google-auth';
 
 export const runtime = 'nodejs';
 
@@ -15,7 +16,7 @@ export const APPLE_STATE_COOKIE = 'cwk_a_oauth';
  */
 export async function GET(request: Request) {
   if (!getAppleConfig().configured) {
-    return NextResponse.redirect(new URL('/login?error=apple_not_configured', request.url));
+    return NextResponse.redirect(new URL('/login?error=apple_not_configured', platformBase()));
   }
   const url = new URL(request.url);
   const nextParam = url.searchParams.get('next');

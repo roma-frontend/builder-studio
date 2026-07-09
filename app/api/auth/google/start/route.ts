@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { randomBytes } from 'node:crypto';
-import { getGoogleConfig, buildGoogleAuthUrl } from '@/lib/google-auth';
+import { getGoogleConfig, buildGoogleAuthUrl, platformBase } from '@/lib/google-auth';
 
 export const runtime = 'nodejs';
 
@@ -16,7 +16,7 @@ export const GOOGLE_STATE_COOKIE = 'cwk_g_oauth';
  */
 export async function GET(request: Request) {
   if (!getGoogleConfig().configured) {
-    return NextResponse.redirect(new URL('/login?error=google_not_configured', request.url));
+    return NextResponse.redirect(new URL('/login?error=google_not_configured', platformBase()));
   }
 
   const url = new URL(request.url);

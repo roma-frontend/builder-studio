@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { getDb, sites } from '@/lib/db';
 import { getAppleConfig, buildAppleAuthUrl, getSiteAppleRedirectUri } from '@/lib/apple-auth';
+import { platformBase } from '@/lib/google-auth';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
   const siteId = (url.searchParams.get('site') || '').trim();
   const nextParam = (url.searchParams.get('next') || '').trim();
 
-  const fail = (code: string) => NextResponse.redirect(new URL(`/login?error=${code}`, request.url));
+  const fail = (code: string) => NextResponse.redirect(new URL(`/login?error=${code}`, platformBase()));
 
   if (!getAppleConfig().configured) return fail('apple_not_configured');
   if (!siteId) return fail('apple_bad_request');

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { getDb, sites } from '@/lib/db';
-import { exchangeGoogleCode, getSiteGoogleRedirectUri } from '@/lib/google-auth';
+import { exchangeGoogleCode, getSiteGoogleRedirectUri, platformBase } from '@/lib/google-auth';
 import { loginOrCreateSiteGoogleUser } from '@/lib/site-google-auth';
 import { createSiteOauthHandoff } from '@/lib/site-auth-codes';
 import { notifyOwnerOfPendingMember } from '@/lib/site-membership';
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
         return NextResponse.redirect(u.toString());
       } catch { /* fall through */ }
     }
-    return NextResponse.redirect(new URL(`/login?error=${code}`, request.url));
+    return NextResponse.redirect(new URL(`/login?error=${code}`, platformBase()));
   };
 
   if (oauthError) return failTo('google_cancelled');

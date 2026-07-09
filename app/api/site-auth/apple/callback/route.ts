@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { getDb, sites } from '@/lib/db';
 import { exchangeAppleCode, getSiteAppleRedirectUri } from '@/lib/apple-auth';
+import { platformBase } from '@/lib/google-auth';
 import { loginOrCreateSiteAppleUser } from '@/lib/site-apple-auth';
 import { createSiteOauthHandoff } from '@/lib/site-auth-codes';
 import { notifyOwnerOfPendingMember } from '@/lib/site-membership';
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     if (next) {
       try { const u = new URL(next); u.searchParams.set('error', c); return NextResponse.redirect(u.toString(), 303); } catch { /* fall through */ }
     }
-    return NextResponse.redirect(new URL(`/login?error=${c}`, request.url), 303);
+    return NextResponse.redirect(new URL(`/login?error=${c}`, platformBase()), 303);
   };
 
   if (oauthError) return failTo('apple_cancelled');
