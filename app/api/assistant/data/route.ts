@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser, unauthorized } from '@/lib/api-guard';
 import { assistantDataForRole, type AssistantDataKey, type AssistantRole } from '@/lib/assistant-routes';
+import { getUserEntitlements } from '@/lib/billing/entitlements';
 import { listSitesForUser } from '@/lib/sites';
 import { listUsers, listAllSites } from '@/lib/admin';
 import type { Locale } from '@/lib/seo';
@@ -50,6 +51,11 @@ export async function POST(request: Request) {
   const locale: Locale = body.lang === 'en' || body.lang === 'hy' ? body.lang : 'ru';
   const t = H[locale];
   const type = body.type as AssistantDataKey;
+
+  // Plan gate: live DATA fetching is an agentic capability (Studio only).
+  if (!getUserEntitlements(user).has('assistant.actions')) {
+    return NextResponse.json({ error: 'forbidden', feature: 'assistant.actions', upgrade: '/pricing' }, { status: 403 });
+  }
 
   // Role gate: reject any data set not allowed for this role.
   if (!type || !assistantDataForRole(role).includes(type)) {

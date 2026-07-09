@@ -16,6 +16,7 @@ import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/comp
 import { cn } from '@/lib/utils';
 import { EMAIL_RE, iconCls, passwordScore, StrengthMeter, Stepper, Shell, Brand } from '@/components/auth/auth-ui';
 import { SiteAccount } from '@/components/builder/site-account';
+import { SiteSocialButtons } from '@/components/builder/site-social-buttons';
 import { useLocale } from '@/hooks/use-locale';
 import { authDict } from '@/lib/auth-dict';
 import { siteRt } from '@/lib/site-runtime-dict';
@@ -76,6 +77,33 @@ function LoginForm({ siteId, base, brand }: Omit<Props, 'mode'>) {
     const id = setInterval(() => setCooldown((s) => s - 1), 1000);
     return () => clearInterval(id);
   }, [cooldown]);
+
+  // Google cross-host handoff: the platform callback returns here with a
+  // one-time `g_handoff` token — trade it for a session cookie on this host.
+  useEffect(() => {
+    let alive = true;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get('error');
+      if (err && (err.startsWith('google_') || err.startsWith('apple_'))) setError(t.google.failed);
+      const token = params.get('g_handoff');
+      if (!token) return;
+      setBusy(true);
+      void siteAuth('google-exchange', { siteId, token }, t.networkError).then((r) => {
+        if (!alive) return;
+        // Clean the token out of the URL either way.
+        const clean = new URL(window.location.href);
+        clean.searchParams.delete('g_handoff');
+        clean.searchParams.delete('error');
+        window.history.replaceState(null, '', clean.toString());
+        if (r.ok) { window.location.assign(`${base}/account`); return; }
+        setError(r.error || t.google.failed);
+        setBusy(false);
+      });
+    } catch { /* no window */ }
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const goAccount = () => {
     router.push(`${base}/account`);
@@ -167,6 +195,7 @@ function LoginForm({ siteId, base, brand }: Omit<Props, 'mode'>) {
             <p className="mt-5 text-center text-sm text-muted-foreground">
               {t.noAccount} <Link href={`${base}/register`} className="font-medium text-primary hover:underline">{t.register}</Link>
             </p>
+            <SiteSocialButtons siteId={siteId} />
           </motion.div>
         ) : (
           <motion.div key="otp" initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }} transition={{ duration: 0.22, ease: 'easeOut' }}>

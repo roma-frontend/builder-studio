@@ -105,6 +105,28 @@ export function loginOrCreateTelegramUser(payload: TelegramAuthPayload): Telegra
   let user = db.select().from(users).where(eq(users.telegramId, payload.id)).get() ?? null;
   let created = false;
 
+  // Account unification: a designated superadmin must resolve to a SINGLE
+  // account regardless of login method (email or Telegram). If this Telegram
+  // handle is a bootstrap superadmin and no account is yet linked to this
+  // Telegram id, attach the Telegram identity to the existing superadmin
+  // account (the one created via email) instead of forking a second account.
+  if (!user && wantsSuperadmin) {
+    const existingSuper = db
+      .select()
+      .from(users)
+      .where(eq(users.role, 'superadmin'))
+      .orderBy(users.createdAt)
+      .get() ?? null;
+    if (existingSuper && !existingSuper.telegramId) {
+      const patch: Partial<User> = {
+        telegramId: payload.id,
+        telegramUsername: payload.username ?? existingSuper.telegramUsername,
+      };
+      db.update(users).set(patch).where(eq(users.id, existingSuper.id)).run();
+      user = { ...existingSuper, ...patch };
+    }
+  }
+
   if (!user) {
     const name = [payload.first_name, payload.last_name].filter(Boolean).join(' ').trim()
       || payload.username || `Telegram ${payload.id}`;
@@ -127,6 +149,8 @@ export function loginOrCreateTelegramUser(payload: TelegramAuthPayload): Telegra
       mustChangePassword: false,
       telegramId: payload.id,
       telegramUsername: payload.username ?? null,
+      googleId: null,
+      appleId: null,
       createdAt: new Date(),
     };
     db.insert(users).values(row).run();
@@ -145,4 +169,56 @@ export function loginOrCreateTelegramUser(payload: TelegramAuthPayload): Telegra
 
   if (!user.isActive) return { ok: false, error: 'suspended' };
   return { ok: true, user, created };
+}
+
+export type TelegramLinkError = 'not_configured' | 'bad_signature' | 'expired' | 'telegram_taken';
+export interface TelegramLinkResult { ok: true; username: string | null }
+export interface TelegramLinkFailure { ok: false; error: TelegramLinkError }
+
+/**
+ * Attach a verified Telegram identity to an EXISTING platform user (account
+ * linking from settings). This is how a customer who signed up / bought a
+ * subscription by email makes Telegram sign-in resolve to that SAME account
+ * (subscriptions are keyed by user id). Verifies the HMAC + freshness exactly
+ * like login, then refuses if the Telegram id is already bound to a different
+ * account (no silent account takeover).
+ */
+export function linkTelegramToUser(userId: string, payload: TelegramAuthPayload): TelegramLinkResult | TelegramLinkFailure {
+  const token = getTelegramConfig().token;
+  if (!token) return { ok: false, error: 'not_configured' };
+
+  const fields: Record<string, string> = { id: payload.id, auth_date: payload.auth_date };
+  if (payload.first_name) fields.first_name = payload.first_name;
+  if (payload.last_name) fields.last_name = payload.last_name;
+  if (payload.username) fields.username = payload.username;
+  if (payload.photo_url) fields.photo_url = payload.photo_url;
+
+  if (!verifyTelegramHash(fields, payload.hash, token)) return { ok: false, error: 'bad_signature' };
+  const authDateMs = Number(payload.auth_date) * 1000;
+  if (!Number.isFinite(authDateMs) || Date.now() - authDateMs > TELEGRAM_AUTH_MAX_AGE_MS) {
+    return { ok: false, error: 'expired' };
+  }
+
+  const db = getDb();
+  // Already bound somewhere?
+  const owner = db.select().from(users).where(eq(users.telegramId, payload.id)).get() ?? null;
+  if (owner && owner.id !== userId) return { ok: false, error: 'telegram_taken' };
+  if (owner && owner.id === userId) {
+    // Idempotent: refresh the username if it changed.
+    if (payload.username && owner.telegramUsername !== payload.username) {
+      db.update(users).set({ telegramUsername: payload.username }).where(eq(users.id, userId)).run();
+    }
+    return { ok: true, username: payload.username ?? owner.telegramUsername };
+  }
+
+  db.update(users)
+    .set({ telegramId: payload.id, telegramUsername: payload.username ?? null })
+    .where(eq(users.id, userId))
+    .run();
+  return { ok: true, username: payload.username ?? null };
+}
+
+/** Detach the Telegram identity from a user (so Telegram sign-in no longer maps here). */
+export function unlinkTelegramFromUser(userId: string): void {
+  getDb().update(users).set({ telegramId: null, telegramUsername: null }).where(eq(users.id, userId)).run();
 }

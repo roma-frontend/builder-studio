@@ -192,6 +192,8 @@ export function createUser(email: string, password: string, name: string): User 
     mustChangePassword: false,
     telegramId: null,
     telegramUsername: null,
+    googleId: null,
+    appleId: null,
     createdAt: new Date(),
   };
   db.insert(users).values(user).run();

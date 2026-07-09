@@ -26,7 +26,7 @@ import { dashDict } from '@/lib/dashboard-dict';
 import { LanguageSwitcher } from '../language-switcher';
 
 export type Role = 'customer' | 'admin' | 'superadmin';
-export interface ShellUser { name: string; email: string; role: Role }
+export interface ShellUser { name: string; email: string; role: Role; handle?: string }
 
 type NavKey = 'overview' | 'sites' | 'organization' | 'submissions' | 'account' | 'users' | 'allSites' | 'audit' | 'organizations' | 'database' | 'access' | 'activity' | 'control' | 'studio' | 'trash' | 'billing' | 'billingAdmin' | 'notifications';
 interface NavItem { href: string; key: NavKey; icon: React.ComponentType<{ className?: string }>; staff?: boolean; super?: boolean }
@@ -349,7 +349,9 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{user.name || t.noName}</p>
-                  <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                  {(user.handle ?? user.email) && (
+                    <p className="truncate text-xs text-muted-foreground">{user.handle ?? user.email}</p>
+                  )}
                 </div>
               </div>
               <div className="mb-2 px-2">

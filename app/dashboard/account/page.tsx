@@ -5,6 +5,7 @@ import { statsForUser } from '@/lib/sites';
 import { PageHeader } from '@/components/dashboard/ui';
 import { LogoutButton } from '@/components/dashboard/logout-button';
 import { TwoFactor } from '@/components/dashboard/two-factor';
+import { TelegramLink } from '@/components/dashboard/telegram-link';
 import { getLocale } from '@/lib/i18n';
 import { dashDict } from '@/lib/dashboard-dict';
 import { BCP47 } from '@/lib/seo';
@@ -75,6 +76,7 @@ export default async function AccountPage() {
       </div>
 
       <TwoFactor />
+      <TelegramLink />
     </>
   );
 }

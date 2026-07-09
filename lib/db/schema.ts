@@ -30,11 +30,17 @@ export const users = sqliteTable(
     telegramId: text('telegram_id'),
     /** Telegram @username (without '@'); kept fresh on each Telegram login. */
     telegramUsername: text('telegram_username'),
+    /** Google account id (the OpenID `sub`) when the account was linked via Google login. */
+    googleId: text('google_id'),
+    /** Apple account id (the OIDC `sub`) when the account was linked via Apple login. */
+    appleId: text('apple_id'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [
     uniqueIndex('users_email_idx').on(t.email),
     uniqueIndex('users_telegram_id_idx').on(t.telegramId),
+    uniqueIndex('users_google_id_idx').on(t.googleId),
+    uniqueIndex('users_apple_id_idx').on(t.appleId),
   ],
 );
 
@@ -183,8 +189,22 @@ export const siteUsers = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
     lastLoginAt: integer('last_login_at', { mode: 'timestamp_ms' }),
+    /** Google account id (OpenID `sub`) when this member linked Google login. */
+    googleId: text('google_id'),
+    /** Apple account id (OIDC `sub`) when this member linked Apple login. */
+    appleId: text('apple_id'),
+    /** Telegram numeric account id when this member linked Telegram login. */
+    telegramId: text('telegram_id'),
+    /** Telegram @username (without '@') captured at sign-in, refreshed each login. */
+    telegramUsername: text('telegram_username'),
   },
-  (t) => [uniqueIndex('site_users_site_email_idx').on(t.siteId, t.email), index('site_users_site_idx').on(t.siteId)],
+  (t) => [
+    uniqueIndex('site_users_site_email_idx').on(t.siteId, t.email),
+    index('site_users_site_idx').on(t.siteId),
+    uniqueIndex('site_users_site_google_idx').on(t.siteId, t.googleId),
+    uniqueIndex('site_users_site_apple_idx').on(t.siteId, t.appleId),
+    uniqueIndex('site_users_site_telegram_idx').on(t.siteId, t.telegramId),
+  ],
 );
 
 export const siteSessions = sqliteTable(

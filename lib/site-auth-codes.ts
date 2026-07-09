@@ -150,3 +150,47 @@ export function consumeSitePasswordReset(token: string): { siteUserId: string; s
   getDb().update(siteAuthCodes).set({ consumedAt: new Date() }).where(eq(siteAuthCodes.id, row.id)).run();
   return { siteUserId: row.siteUserId, siteId: row.siteId };
 }
+
+// ── OAuth handoff (cross-host: Google callback → tenant host) ────────────────
+// The Google callback runs on the PLATFORM host (single registered redirect
+// URI) but the tenant session cookie must be set on the TENANT host. We bridge
+// the two with a very short-lived, single-use token: the callback mints it,
+// redirects to the tenant page with it, and the tenant host exchanges it for a
+// session. Only the sha256 hash is stored; TTL is 2 minutes.
+const OAUTH_HANDOFF_TTL_MS = 2 * 60 * 1000;
+
+/** Mint a one-time OAuth handoff token for an already-authenticated member. */
+export function createSiteOauthHandoff(user: { id: string; email: string; siteId: string }): { token: string } {
+  cleanupSiteAuthCodes();
+  invalidateFor(user.id, 'oauth_handoff');
+  const token = randomBytes(32).toString('base64url');
+  getDb()
+    .insert(siteAuthCodes)
+    .values({
+      id: newId('soah'),
+      siteUserId: user.id,
+      siteId: user.siteId,
+      email: user.email,
+      purpose: 'oauth_handoff',
+      codeHash: sha256(token),
+      attempts: 0,
+      expiresAt: new Date(Date.now() + OAUTH_HANDOFF_TTL_MS),
+      consumedAt: null,
+      createdAt: new Date(),
+    })
+    .run();
+  return { token };
+}
+
+/** Burn an OAuth handoff token, returning its site user id + site id, or null. */
+export function consumeSiteOauthHandoff(token: string): { siteUserId: string; siteId: string } | null {
+  if (!token) return null;
+  const row = getDb()
+    .select()
+    .from(siteAuthCodes)
+    .where(and(eq(siteAuthCodes.codeHash, sha256(token)), eq(siteAuthCodes.purpose, 'oauth_handoff')))
+    .get();
+  if (!row || row.consumedAt || row.expiresAt.getTime() < Date.now()) return null;
+  getDb().update(siteAuthCodes).set({ consumedAt: new Date() }).where(eq(siteAuthCodes.id, row.id)).run();
+  return { siteUserId: row.siteUserId, siteId: row.siteId };
+}

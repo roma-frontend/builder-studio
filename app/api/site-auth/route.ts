@@ -38,6 +38,7 @@ import {
   siteChallengeUser,
   createSitePasswordReset,
   consumeSitePasswordReset,
+  consumeSiteOauthHandoff,
   maskEmail,
   OTP_TTL_MIN,
   RESET_TTL_MIN,
@@ -307,6 +308,24 @@ export async function POST(request: Request) {
     recordAudit({ id: user.id, email: user.email }, 'site.otp_resent', siteId, `ip=${ip} provider=${sent.provider}`);
     return NextResponse.json({ ok: true, challenge: challengeId, email: maskEmail(user.email) });
   }
+  if (action === 'google-exchange') {
+    if (!rateLimit(`site-google-exchange:${ip}`, 20)) {
+      return NextResponse.json({ error: t.tooManyAttempts }, { status: 429 });
+    }
+    // Trade the one-time handoff token (minted by the platform-host Google
+    // callback) for a session cookie on THIS (tenant) host.
+    const handoff = consumeSiteOauthHandoff(str('token'));
+    if (!handoff || handoff.siteId !== siteId) {
+      return NextResponse.json({ error: t.loginSessionExpired }, { status: 401 });
+    }
+    const user = getSiteUserById(siteId, handoff.siteUserId);
+    if (!user) return NextResponse.json({ error: t.loginSessionExpired }, { status: 401 });
+    await createSiteSession(user.id, siteId, siteRequestMeta(request));
+    recordAudit({ id: user.id, email: user.email }, 'site.login', siteId, `ip=${ip} google`);
+    return NextResponse.json({ ok: true, user: pub(user) });
+  }
+
+
 
   if (action === 'forgot') {
     if (!rateLimit(`site-forgot:${ip}`, 5)) {

@@ -452,6 +452,14 @@ CREATE TABLE IF NOT EXISTS assistant_messages (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS assistant_messages_conv_idx ON assistant_messages (conversation_id, created_at);
+
+-- Per-day assistant message usage (drives the Pro daily quota).
+CREATE TABLE IF NOT EXISTS assistant_usage (
+  user_id TEXT NOT NULL,
+  day TEXT NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, day)
+);
 `;
 
 type DB = BetterSQLite3Database<typeof schema>;
@@ -483,6 +491,20 @@ function createDb(): DB {
   addColumn('users', 'telegram_id', `telegram_id TEXT`);
   addColumn('users', 'telegram_username', `telegram_username TEXT`);
   sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_telegram_id_idx ON users (telegram_id) WHERE telegram_id IS NOT NULL');
+  // Google login link (added after the initial users release).
+  addColumn('users', 'google_id', `google_id TEXT`);
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_google_id_idx ON users (google_id) WHERE google_id IS NOT NULL');
+  // Apple login link (added after the initial users release).
+  addColumn('users', 'apple_id', `apple_id TEXT`);
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_apple_id_idx ON users (apple_id) WHERE apple_id IS NOT NULL');
+  // Google login link for tenant end-users (unique per site).
+  addColumn('site_users', 'google_id', `google_id TEXT`);
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS site_users_site_google_idx ON site_users (site_id, google_id) WHERE google_id IS NOT NULL');
+  addColumn('site_users', 'apple_id', `apple_id TEXT`);
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS site_users_site_apple_idx ON site_users (site_id, apple_id) WHERE apple_id IS NOT NULL');
+  addColumn('site_users', 'telegram_id', `telegram_id TEXT`);
+  addColumn('site_users', 'telegram_username', `telegram_username TEXT`);
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS site_users_site_telegram_idx ON site_users (site_id, telegram_id) WHERE telegram_id IS NOT NULL');
   addColumn('site_users', 'failed_attempts', `failed_attempts INTEGER NOT NULL DEFAULT 0`);
   addColumn('site_users', 'locked_until', `locked_until INTEGER`);
   addColumn('sessions', 'last_active_at', `last_active_at INTEGER`);

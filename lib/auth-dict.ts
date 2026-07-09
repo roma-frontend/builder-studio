@@ -61,6 +61,30 @@ export type AuthDict = {
     badSignature: string;
     expired: string;
     suspended: string;
+    cancelled: string;
+    failed: string;
+    continueHint: string;
+    badRequest: string;
+  };
+  // Google login
+  google: {
+    login: string;
+    connecting: string;
+    notConfigured: string;
+    cancelled: string;
+    failed: string;
+    noEmail: string;
+    unverified: string;
+    suspended: string;
+  };
+  // Apple login
+  apple: {
+    login: string;
+    notConfigured: string;
+    cancelled: string;
+    failed: string;
+    noEmail: string;
+    suspended: string;
   };
 };
 
@@ -115,6 +139,28 @@ const ru: AuthDict = {
     notConfigured: 'Вход через Telegram не настроен.',
     badSignature: 'Проверка Telegram не пройдена.',
     expired: 'Срок авторизации Telegram истёк, попробуйте снова.',
+    suspended: 'Пользователь заблокирован.',
+    cancelled: 'Вход через Telegram отменён.',
+    failed: 'Не удалось войти через Telegram.',
+    continueHint: 'Продолжите вход на защищённой странице платформы.',
+    badRequest: 'Некорректная ссылка входа.',
+  },
+  google: {
+    login: 'Войти через Google',
+    connecting: 'Подключение…',
+    notConfigured: 'Вход через Google не настроен.',
+    cancelled: 'Вход через Google отменён.',
+    failed: 'Не удалось войти через Google, попробуйте снова.',
+    noEmail: 'Google не предоставил email.',
+    unverified: 'Email в Google не подтверждён.',
+    suspended: 'Пользователь заблокирован.',
+  },
+  apple: {
+    login: 'Войти через Apple',
+    notConfigured: 'Вход через Apple не настроен.',
+    cancelled: 'Вход через Apple отменён.',
+    failed: 'Не удалось войти через Apple, попробуйте снова.',
+    noEmail: 'Apple не предоставил email.',
     suspended: 'Пользователь заблокирован.',
   },
 };
@@ -171,6 +217,28 @@ const en: AuthDict = {
     badSignature: 'Telegram verification failed.',
     expired: 'Telegram authorization expired, please try again.',
     suspended: 'This user is blocked.',
+    cancelled: 'Telegram sign-in was cancelled.',
+    failed: 'Telegram sign-in failed.',
+    continueHint: 'Continue signing in on the secure platform page.',
+    badRequest: 'Invalid sign-in link.',
+  },
+  google: {
+    login: 'Sign in with Google',
+    connecting: 'Connecting…',
+    notConfigured: 'Google sign-in is not configured.',
+    cancelled: 'Google sign-in was cancelled.',
+    failed: 'Could not sign in with Google, please try again.',
+    noEmail: 'Google did not provide an email.',
+    unverified: 'Your Google email is not verified.',
+    suspended: 'This user is blocked.',
+  },
+  apple: {
+    login: 'Sign in with Apple',
+    notConfigured: 'Apple sign-in is not configured.',
+    cancelled: 'Apple sign-in was cancelled.',
+    failed: 'Could not sign in with Apple, please try again.',
+    noEmail: 'Apple did not provide an email.',
+    suspended: 'This user is blocked.',
   },
 };
 
@@ -225,6 +293,28 @@ const hy: AuthDict = {
     notConfigured: 'Telegram-ով մուտքը կարգավորված չէ։',
     badSignature: 'Telegram-ի ստուգումը ձախողվեց։',
     expired: 'Telegram-ի վավերացման ժամկետը լրացել է, փորձեք կրկին։',
+    suspended: 'Օգտատերն արգելափակված է։',
+    cancelled: 'Telegram-ով մուտքը չեղարկվեց։',
+    failed: 'Telegram-ով մուտքը ձախողվեց։',
+    continueHint: 'Շարունակեք մուտքը հարթակի ապահով էջում։',
+    badRequest: 'Մուտքի սխալ հղում։',
+  },
+  google: {
+    login: 'Մուտք Google-ով',
+    connecting: 'Միանում…',
+    notConfigured: 'Google-ով մուտքը կարգավորված չէ։',
+    cancelled: 'Google-ով մուտքը չեղարկվեց։',
+    failed: 'Չհաջողվեց մուտք գործել Google-ով, փորձեք կրկին։',
+    noEmail: 'Google-ը չտրամադրեց էլ. փոստ։',
+    unverified: 'Ձեր Google էլ. փոստը հաստատված չէ։',
+    suspended: 'Օգտատերն արգելափակված է։',
+  },
+  apple: {
+    login: 'Մուտք Apple-ով',
+    notConfigured: 'Apple-ով մուտքը կարգավորված չէ։',
+    cancelled: 'Apple-ով մուտքը չեղարկվեց։',
+    failed: 'Չհաջողվեց մուտք գործել Apple-ով, փորձեք կրկին։',
+    noEmail: 'Apple-ը չտրամադրեց էլ. փոստ։',
     suspended: 'Օգտատերն արգելափակված է։',
   },
 };

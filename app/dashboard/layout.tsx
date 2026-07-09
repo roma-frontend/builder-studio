@@ -14,6 +14,7 @@ import { OrgOnboarding } from '@/components/dashboard/org-onboarding';
 import { StudioAssistant } from '@/components/assistant/studio-assistant';
 import { PlatformThemeStyle } from '@/components/platform-theme-style';
 import { llmConfigured } from '@/lib/llm';
+import { getUserEntitlements } from '@/lib/billing/entitlements';
 
 // Private area — keep it out of search indexes.
 export async function generateMetadata() {
@@ -51,11 +52,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const disabled = disabledCapabilitiesFor(user.role);
   const dashT = dashDict(await getLocale());
 
+  // Telegram sign-ins have a synthetic tg_<id>@telegram.local email — show the
+  // @username instead (or nothing) rather than that long placeholder.
+  const isTgEmail = /@telegram\.local$/i.test(user.email);
+  const handle = user.telegramUsername
+    ? `@${user.telegramUsername}`
+    : isTgEmail ? '' : user.email;
+
   return (
     <>
       <PlatformThemeStyle />
       <DashboardShell
-        user={{ name: user.name, email: user.email, role: (user.role as Role) ?? 'customer' }}
+        user={{ name: user.name, email: user.email, role: (user.role as Role) ?? 'customer', handle }}
         banner={impersonating ? <ImpersonationBanner name={user.name || user.email} /> : null}
         gated={gated}
         orgRequests={orgRequests}
@@ -73,9 +81,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
           children
         )}
       </DashboardShell>
-      {/* Floating AI guide — only for users with dashboard access and when an
-          LLM (e.g. Groq) is configured. Role-gated capabilities inside. */}
-      {!gated && llmConfigured() && (
+      {/* Floating AI guide — only for users with dashboard access, an assistant
+          entitlement (Pro/Studio) and when an LLM (e.g. Groq) is configured.
+          Role- and plan-gated capabilities inside. */}
+      {!gated && llmConfigured() && getUserEntitlements(user).has('assistant.use') && (
         <StudioAssistant role={(user.role as Role) ?? 'customer'} />
       )}
     </>

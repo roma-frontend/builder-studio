@@ -86,6 +86,10 @@ export function createSiteUser(
     createdAt: now,
     updatedAt: now,
     lastLoginAt: now,
+    googleId: null,
+    appleId: null,
+    telegramId: null,
+    telegramUsername: null,
   };
   getDb().insert(siteUsers).values(user).run();
   return user;

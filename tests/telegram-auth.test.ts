@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createHash, createHmac } from 'node:crypto';
 import { resetDb } from './helpers';
-import { verifyTelegramHash, isSuperadminTelegram, loginOrCreateTelegramUser } from '@/lib/telegram-auth';
+import { verifyTelegramHash, isSuperadminTelegram, loginOrCreateTelegramUser, linkTelegramToUser, unlinkTelegramFromUser } from '@/lib/telegram-auth';
 import { getDb, users } from '@/lib/db';
+import { eq } from 'drizzle-orm';
 
 const BOT_TOKEN = '123456:TEST-TOKEN';
 const OLD_ENV = { ...process.env };
@@ -80,6 +81,27 @@ describe('loginOrCreateTelegramUser', () => {
     expect(count).toBe(1);
   });
 
+  it('links a superadmin Telegram handle to the existing (email) superadmin — one account', async () => {
+    const { createUser } = await import('@/lib/auth');
+    const emailSuper = createUser('owner@example.com', 'pw-123456', 'Owner'); // first account → superadmin
+    expect(emailSuper.role).toBe('superadmin');
+    process.env.SUPERADMIN_TELEGRAM = 'owner';
+
+    const fields = { id: '9009', auth_date: freshAuthDate(), username: 'owner', first_name: 'Owner' };
+    const res = loginOrCreateTelegramUser({ ...fields, hash: sign(fields) } as never);
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.created).toBe(false); // linked, not created
+      expect(res.user.id).toBe(emailSuper.id); // same account
+      expect(res.user.email).toBe('owner@example.com'); // real email preserved
+      expect(res.user.telegramId).toBe('9009');
+      expect(res.user.role).toBe('superadmin');
+    }
+    // Exactly one superadmin account exists.
+    const supers = getDb().select().from(users).all().filter((u) => u.role === 'superadmin');
+    expect(supers.length).toBe(1);
+  });
+
   it('rejects a bad signature', () => {
     const fields = { id: '3003', auth_date: freshAuthDate() };
     const res = loginOrCreateTelegramUser({ ...fields, hash: 'deadbeef' } as never);
@@ -101,5 +123,54 @@ describe('loginOrCreateTelegramUser', () => {
     const res = loginOrCreateTelegramUser({ ...fields, hash: sign(fields) } as never);
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.error).toBe('not_configured');
+  });
+});
+
+describe('linkTelegramToUser / unlinkTelegramFromUser', () => {
+  const freshAuthDate = () => String(Math.floor(Date.now() / 1000));
+
+  it('links a verified Telegram identity to an existing email account (same account → subscription recognized)', async () => {
+    const { createUser } = await import('@/lib/auth');
+    const emailUser = createUser('buyer@example.com', 'pw-123456', 'Buyer'); // e.g. bought a subscription
+    const fields = { id: '7001', auth_date: freshAuthDate(), username: 'buyer_tg' };
+    const link = linkTelegramToUser(emailUser.id, { ...fields, hash: sign(fields) } as never);
+    expect(link.ok).toBe(true);
+    if (link.ok) expect(link.username).toBe('buyer_tg');
+
+    // A subsequent Telegram login now resolves to the SAME account (no new user).
+    const login = loginOrCreateTelegramUser({ ...fields, hash: sign(fields) } as never);
+    expect(login.ok).toBe(true);
+    if (login.ok) {
+      expect(login.created).toBe(false);
+      expect(login.user.id).toBe(emailUser.id);
+      expect(login.user.email).toBe('buyer@example.com');
+    }
+    const count = getDb().select().from(users).all().length;
+    expect(count).toBe(1); // exactly one account
+  });
+
+  it('refuses to steal a Telegram id already bound to another account', async () => {
+    const { createUser } = await import('@/lib/auth');
+    const a = createUser('a@example.com', 'pw-123456', 'A'); // owner of the telegram id
+    const fields = { id: '7002', auth_date: freshAuthDate(), username: 'x' };
+    expect(linkTelegramToUser(a.id, { ...fields, hash: sign(fields) } as never).ok).toBe(true);
+
+    const b = createUser('b@example.com', 'pw-123456', 'B');
+    const res = linkTelegramToUser(b.id, { ...fields, hash: sign(fields) } as never);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toBe('telegram_taken');
+  });
+
+  it('rejects a bad signature and unlinks cleanly', async () => {
+    const { createUser } = await import('@/lib/auth');
+    const u = createUser('c@example.com', 'pw-123456', 'C');
+    const fields = { id: '7003', auth_date: freshAuthDate() };
+    expect(linkTelegramToUser(u.id, { ...fields, hash: 'bad' } as never).ok).toBe(false);
+
+    // Link then unlink.
+    linkTelegramToUser(u.id, { ...fields, hash: sign(fields) } as never);
+    unlinkTelegramFromUser(u.id);
+    const row = getDb().select().from(users).where(eq(users.id, u.id)).get();
+    expect(row?.telegramId ?? null).toBeNull();
   });
 });

@@ -41,16 +41,37 @@ platform control and billing admin. Be careful suggesting destructive actions �
 always confirm intent first.`,
 };
 
-export function buildAssistantPrompt(locale: Locale, role: AssistantRole = 'customer', userName?: string): string {
+export function buildAssistantPrompt(locale: Locale, role: AssistantRole = 'customer', userName?: string, allowActions = true): string {
   const who = userName ? `The user's name is ${userName}. ` : '';
   const routes = assistantRoutesForRole(role);
-  const dataKeys = assistantDataForRole(role);
+  // Agentic DATA fetching is a Studio-only capability (assistant.actions). When
+  // it's off (e.g. Pro plan) we drop the data keys AND the SHOWING DATA section
+  // so the model never emits a <DATA> tag the app would refuse to serve.
+  const dataKeys = allowActions ? assistantDataForRole(role) : [];
   const DATA_LABELS: Record<string, string> = {
     'my-sites': "the user's own sites",
     users: 'all platform users (name, email, role, site count, status)',
     'all-sites': 'all sites on the platform with their owners',
   };
   const dataList = dataKeys.map((k) => `${k} — ${DATA_LABELS[k]}`).join('; ');
+  const dataSection = allowActions
+    ? `
+SHOWING DATA:
+- When the user wants to SEE / LIST / SHOW actual records, do NOT just link
+  them — write ONE short intro sentence, then emit exactly one tag
+  <DATA>key</DATA> so the app fetches the records and renders a nice table.
+- Allowed data keys for this role: ${dataList || 'none'}.
+- Use DATA (not NAVIGATE) for "show/list" requests.
+- CRITICAL: you do NOT have the actual records. NEVER write names, emails,
+  users, sites or ANY table rows yourself — anything you invent is fake and
+  wrong. Output ONLY the intro sentence + <DATA>key</DATA>; the app fills the
+  real table. Never include a markdown table of your own.`
+    : `
+SHOWING DATA:
+- You CANNOT fetch or display live records on this plan. If the user asks to
+  see/list their sites or other data, guide them to the relevant page instead
+  (use a backticked path or a <NAVIGATE> tag). NEVER emit a <DATA> tag and
+  NEVER invent table rows.`;
   return `You are "Studio Assistant" — the built-in AI guide for Builder Studio, a
 no-code website builder whose sections are driven by AI-generated cinematic
 video. ${who}You help users build, style and publish sites.
@@ -80,17 +101,7 @@ NAVIGATION:
 - Do NOT navigate for general questions — just answer.
 - Whenever you mention an in-app path in the text, wrap it in backticks
   (e.g. \`/dashboard\`) so the UI turns it into a clickable link.
-
-SHOWING DATA:
-- When the user wants to SEE / LIST / SHOW actual records, do NOT just link
-  them — write ONE short intro sentence, then emit exactly one tag
-  <DATA>key</DATA> so the app fetches the records and renders a nice table.
-- Allowed data keys for this role: ${dataList || 'none'}.
-- Use DATA (not NAVIGATE) for "show/list" requests.
-- CRITICAL: you do NOT have the actual records. NEVER write names, emails,
-  users, sites or ANY table rows yourself — anything you invent is fake and
-  wrong. Output ONLY the intro sentence + <DATA>key</DATA>; the app fills the
-  real table. Never include a markdown table of your own.
+${dataSection}
 
 FOLLOW-UPS:
 - Optionally end with <SUGGEST>chip 1|chip 2|chip 3</SUGGEST> — up to three very

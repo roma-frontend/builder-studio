@@ -6,9 +6,18 @@ import { apiErrors } from '@/lib/api-errors-dict';
 import { isLocale, type Locale } from '@/lib/seo';
 import { llmConfig, llmConfigured } from '@/lib/llm';
 import { buildAssistantPrompt, type AssistantRole } from '@/lib/assistant-prompt';
-import { addMessage, ownsConversation } from '@/lib/assistant-store';
+import { addMessage, ownsConversation, assistantUsageToday, bumpAssistantUsage } from '@/lib/assistant-store';
+import { getUserEntitlements } from '@/lib/billing/entitlements';
 
 export const runtime = 'nodejs';
+
+// Localized upsell copy for the plan gate / daily quota (kept inline — small
+// and specific to this route, mirrors the auth routes' inline dict pattern).
+const GATE = {
+  ru: { locked: 'AI-ассистент доступен на планах Pro и Studio. Оформите подписку, чтобы им пользоваться.', quota: 'Дневной лимит сообщений исчерпан. Перейдите на Studio для безлимитного доступа.' },
+  en: { locked: 'The AI assistant is available on the Pro and Studio plans. Upgrade to use it.', quota: 'You have reached today’s message limit. Upgrade to Studio for unlimited access.' },
+  hy: { locked: 'AI օգնականը հասանելի է Pro և Studio պլաններում։ Բաժանորդագրվեք՝ օգտագործելու համար։', quota: 'Այսօրվա հաղորդագրությունների սահմանը սպառված է։ Անցեք Studio՝ անսահմանափակ հասանելիության համար։' },
+} as const;
 
 // Studio Assistant chat. Auth-gated (costly API) + rate-limited. Streams the
 // model's reply as plain text using the OpenAI-compatible endpoint from lib/llm
@@ -19,8 +28,26 @@ export async function POST(request: Request) {
   if (!user) return unauthorized();
 
   const t = apiErrors(await getLocale());
+  const gLocale: Locale = await getLocale();
+  const g = GATE[gLocale] ?? GATE.en;
+
+  // Plan gate: the assistant is a paid capability (Pro + Studio).
+  const ent = getUserEntitlements(user);
+  if (!ent.has('assistant.use')) {
+    return NextResponse.json({ error: g.locked, feature: 'assistant.use', upgrade: '/pricing' }, { status: 403 });
+  }
+
   if (!rateLimit(`assistant:${user.id}`, 30)) {
     return NextResponse.json({ error: t.tooManyRequests }, { status: 429 });
+  }
+
+  // Daily quota (Pro = capped, Studio/staff = unlimited via null limit).
+  const dailyLimit = ent.limits.assistantDaily;
+  if (dailyLimit != null && assistantUsageToday(user.id) >= dailyLimit) {
+    return NextResponse.json(
+      { error: g.quota, feature: 'assistant.use', upgrade: '/pricing', limit: dailyLimit },
+      { status: 429 },
+    );
   }
 
   if (!llmConfigured()) {
@@ -47,8 +74,14 @@ export async function POST(request: Request) {
   const locale: Locale = isLocale(body.lang) ? body.lang : await getLocale();
   const role: AssistantRole =
     user.role === 'superadmin' || user.role === 'admin' ? user.role : 'customer';
-  const system = buildAssistantPrompt(locale, role, user.name || undefined);
+  // Agentic actions (live DATA fetch) are Studio-only.
+  const allowActions = ent.has('assistant.actions');
+  const system = buildAssistantPrompt(locale, role, user.name || undefined, allowActions);
   const { url, key, model } = llmConfig();
+
+  // Count this message against the daily quota (no-op for unlimited plans, but
+  // cheap and keeps a usage record for all users).
+  bumpAssistantUsage(user.id);
 
   // Persist the newest user message now (if it belongs to the user's chat).
   const convId = typeof body.conversationId === 'string' ? body.conversationId : '';

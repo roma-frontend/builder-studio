@@ -20,6 +20,9 @@ export type FeatureKey =
   | 'sites.customDomain'
   // AI / media (server-enforced in the generation APIs)
   | 'ai.generate'
+  // AI assistant (server-enforced in the assistant APIs)
+  | 'assistant.use'      // access the Studio Assistant at all (Pro + Studio)
+  | 'assistant.actions'  // agentic: fetch DATA / act on the app (Studio only)
   // Builder (enforced in the visual editor + entitlements gate)
   | 'builder.advancedCss'
   | 'builder.animation'
@@ -32,6 +35,8 @@ export const ALL_FEATURES: FeatureKey[] = [
   'sites.publish',
   'sites.customDomain',
   'ai.generate',
+  'assistant.use',
+  'assistant.actions',
   'builder.advancedCss',
   'builder.animation',
   'builder.hoverStates',
@@ -53,7 +58,7 @@ export interface Plan {
   /** Free-trial length in days (0 = none). Charged only after it ends. */
   trialDays: number;
   /** Hard limits (null = unlimited). */
-  limits: { sites: number | null };
+  limits: { sites: number | null; assistantDaily: number | null };
   /** Granted capabilities (subset of ALL_FEATURES). */
   features: FeatureKey[];
   /** Marketing accent (drives the pricing-card gradient/glow). */
@@ -68,7 +73,7 @@ export const PLANS: Record<PlanId, Plan> = {
     price: { month: 900, year: 9000 },
     currency: 'usd',
     trialDays: 3, // 3-day free trial, then billing starts
-    limits: { sites: 1 },
+    limits: { sites: 1, assistantDaily: 0 }, // no AI assistant on Starter
     features: ['sites.publish'],
     accent: '#64748b',
   },
@@ -78,8 +83,8 @@ export const PLANS: Record<PlanId, Plan> = {
     price: { month: 2900, year: 29000 },
     currency: 'usd',
     trialDays: 0,
-    limits: { sites: 5 },
-    features: ['sites.publish', 'sites.customDomain', 'ai.generate'],
+    limits: { sites: 5, assistantDaily: 50 }, // assistant capped at 50 msgs/day
+    features: ['sites.publish', 'sites.customDomain', 'ai.generate', 'assistant.use'],
     accent: '#6366f1',
     popular: true,
   },
@@ -89,8 +94,8 @@ export const PLANS: Record<PlanId, Plan> = {
     price: { month: 7900, year: 79000 },
     currency: 'usd',
     trialDays: 0,
-    limits: { sites: null },
-    // Studio unlocks EVERYTHING (all advanced builder capabilities live here).
+    limits: { sites: null, assistantDaily: null }, // unlimited assistant
+    // Studio unlocks EVERYTHING (all advanced builder + agentic assistant).
     features: [...ALL_FEATURES],
     accent: '#a855f7',
   },
@@ -158,6 +163,7 @@ export interface PlanDTO {
   popular: boolean;
   features: FeatureKey[];
   sites: number | null; // null = unlimited
+  assistantDaily: number | null; // null = unlimited, 0 = no assistant
   /** Optional presentation overrides (fall back to the i18n dict when unset). */
   name?: string;
   tagline?: string;
@@ -175,6 +181,7 @@ export function planToDTO(p: Plan): PlanDTO {
     popular: !!p.popular,
     features: [...p.features],
     sites: p.limits.sites,
+    assistantDaily: p.limits.assistantDaily,
   };
 }
 

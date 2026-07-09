@@ -17,7 +17,7 @@ import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/comp
 import { EMAIL_RE, iconCls, passwordScore, StrengthMeter, Stepper, Shell, Brand } from '@/components/auth/auth-ui';
 import { useLocale } from '@/hooks/use-locale';
 import { authDict } from '@/lib/auth-dict';
-import { TelegramLoginButton } from '@/components/auth/telegram-login-button';
+import { SocialAuthButtons } from '@/components/auth/social-auth-buttons';
 
 function useAuthSubmit(mode: 'login' | 'register') {
   const router = useRouter();
@@ -202,7 +202,7 @@ function LoginForm() {
               </Button>
             </form>
 
-            <TelegramLoginButton />
+            <SocialAuthButtons />
 
             <p className="mt-5 text-center text-sm text-muted-foreground">
               {t.noAccount}{' '}
@@ -452,7 +452,7 @@ function RegisterWizard() {
           </Link>
         </p>
       )}
-      {step === 0 && <TelegramLoginButton />}
+      {step === 0 && <SocialAuthButtons />}
     </Shell>
   );
 }

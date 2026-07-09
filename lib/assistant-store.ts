@@ -91,3 +91,29 @@ export function deleteConversation(userId: string, id: string): boolean {
     .run(id, userId);
   return res.changes > 0;
 }
+
+// ── Daily usage quota (Pro plan cap; Studio/staff = unlimited) ───────────────
+
+/** UTC day key (YYYY-MM-DD) used to bucket per-day assistant usage. */
+export function usageDayKey(now: Date = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}
+
+/** Messages the user has sent to the assistant today (UTC). */
+export function assistantUsageToday(userId: string, now: Date = new Date()): number {
+  const row = getRawDb()
+    .prepare('SELECT count FROM assistant_usage WHERE user_id = ? AND day = ?')
+    .get(userId, usageDayKey(now)) as { count: number } | undefined;
+  return row?.count ?? 0;
+}
+
+/** Record one assistant message for today; returns the new running total. */
+export function bumpAssistantUsage(userId: string, now: Date = new Date()): number {
+  const db = getRawDb();
+  const day = usageDayKey(now);
+  db.prepare(
+    `INSERT INTO assistant_usage (user_id, day, count) VALUES (?, ?, 1)
+     ON CONFLICT(user_id, day) DO UPDATE SET count = count + 1`,
+  ).run(userId, day);
+  return assistantUsageToday(userId, now);
+}

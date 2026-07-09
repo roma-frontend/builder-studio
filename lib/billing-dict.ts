@@ -131,6 +131,8 @@ const ru: BillingDict = {
   feature: {
     'sites.publish': 'Публикация сайта',
     'sites.customDomain': 'Свой домен',
+    'assistant.use': 'AI-ассистент (50 сообщений/день)',
+    'assistant.actions': 'AI-агент: данные и действия',
     'builder.advancedCss': 'Продвинутые CSS-свойства',
     'builder.animation': 'Движок анимаций',
     'builder.hoverStates': 'Hover-состояния',
@@ -261,6 +263,8 @@ const en: BillingDict = {
   feature: {
     'sites.publish': 'Publish your site',
     'sites.customDomain': 'Custom domain',
+    'assistant.use': 'AI assistant (50 messages/day)',
+    'assistant.actions': 'AI agent: live data & actions',
     'builder.advancedCss': 'Advanced CSS properties',
     'builder.animation': 'Animation engine',
     'builder.hoverStates': 'Hover states',
@@ -391,6 +395,8 @@ const hy: BillingDict = {
   feature: {
     'sites.publish': 'Կայքի հրապարակում',
     'sites.customDomain': 'Սեփական դոմեն',
+    'assistant.use': 'AI օգնական (50 հաղորդագրություն/օր)',
+    'assistant.actions': 'AI գործակալ՝ տվյալներ և գործողություններ',
     'builder.advancedCss': 'Առաջադեմ CSS հատկություններ',
     'builder.animation': 'Անիմացիայի շարժիչ',
     'builder.hoverStates': 'Hover վիճակներ',

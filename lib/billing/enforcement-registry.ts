@@ -9,6 +9,8 @@ export const FEATURE_ENFORCEMENT: Record<FeatureKey, string> = {
   'sites.publish': 'app/api/sites/[id]/publish/route.ts — POST blocked without the feature',
   'sites.customDomain': 'app/api/sites/[id]/domains/route.ts — POST blocked without the feature',
   'ai.generate': 'app/api/generate-page/route.ts — POST blocked for non-staff without the feature',
+  'assistant.use': 'app/api/assistant/route.ts — POST blocked (403) without the feature; daily quota enforced via limits.assistantDaily',
+  'assistant.actions': 'app/api/assistant/data/route.ts — agentic DATA fetch blocked (403) without the feature; the prompt omits DATA for non-holders',
   'builder.advancedCss': 'app/studio/builder/page.tsx — advanced style groups gated by builderUnlocked',
   'builder.animation': 'app/studio/builder/page.tsx — animation engine gated by builderUnlocked',
   'builder.hoverStates': 'app/studio/builder/page.tsx — hover-state props gated by builderUnlocked',

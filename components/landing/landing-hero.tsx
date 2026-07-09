@@ -10,8 +10,6 @@ import { Magnetic } from '@/components/fx/magnetic';
 import { WebglGradient } from '@/components/landing/webgl-gradient';
 import { LazyVideo } from '@/components/media/lazy-video';
 
-const EASE = [0.22, 1, 0.36, 1] as const;
-
 export interface HeroSwatch {
   id: string;
   label: string;
@@ -51,15 +49,6 @@ export function LandingHero({
   const words = title.split(' ');
   const accentFrom = Math.max(0, words.length - 2); // last two words get the gradient
 
-  const container = {
-    hidden: {},
-    show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
-  };
-  const rise = {
-    hidden: { y: reduced ? 0 : 24, opacity: 0 },
-    show: { y: 0, opacity: 1, transition: { duration: 0.7, ease: EASE } },
-  };
-
   return (
     <section ref={ref} className="relative overflow-hidden">
       {/* Layered animated background */}
@@ -79,33 +68,29 @@ export function LandingHero({
       <Spotlight size={560} strength={26} />
 
       <div className="mx-auto grid max-w-[var(--container-max)] items-center gap-12 px-6 py-24 sm:px-10 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
-        {/* Copy column */}
-        <motion.div variants={container} initial="hidden" animate="show">
-          <motion.div variants={rise}>
+        {/* Copy column — CSS entrance (painted + animated on first frame, no
+            hydration wait, so there's no flash of the empty themed background). */}
+        <div>
+          <div className="hero-rise" style={{ animationDelay: '0ms' }}>
             <span className="b-shimmer inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground backdrop-blur">
               <Sparkles className="h-3.5 w-3.5 text-primary" /> {badge}
             </span>
-          </motion.div>
+          </div>
 
-          <h1 className="mt-6 font-display text-[clamp(2.6rem,6vw,3.6rem)] font-black leading-[1.02] tracking-tight">
+          <h1 className="hero-rise mt-6 font-display text-[clamp(2.6rem,6vw,3.6rem)] font-black leading-[1.02] tracking-tight" style={{ animationDelay: '80ms' }}>
             {words.map((w, i) => (
-              <span key={i} className="inline-block overflow-hidden pb-[0.08em] align-bottom">
-                <motion.span
-                  variants={rise}
-                  className={`inline-block ${i >= accentFrom ? 'b-gradient-text' : ''}`}
-                >
-                  {w}
-                  {i < words.length - 1 ? '\u00a0' : ''}
-                </motion.span>
+              <span key={i} className={`inline-block ${i >= accentFrom ? 'b-gradient-text' : ''}`}>
+                {w}
+                {i < words.length - 1 ? '\u00a0' : ''}
               </span>
             ))}
           </h1>
 
-          <motion.p variants={rise} className="mt-6 max-w-xl text-pretty text-lg text-muted-foreground">
+          <p className="hero-rise mt-6 max-w-xl text-pretty text-lg text-muted-foreground" style={{ animationDelay: '160ms' }}>
             {subtitle}
-          </motion.p>
+          </p>
 
-          <motion.div variants={rise} className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="hero-rise mt-8 flex flex-wrap items-center gap-3" style={{ animationDelay: '240ms' }}>
             <Magnetic>
               <Link href={primary.href}>
                 <Button size="lg" className="b-shimmer gap-2 shadow-xl shadow-primary/25">
@@ -118,25 +103,21 @@ export function LandingHero({
                 {secondary.label} <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
-          </motion.div>
+          </div>
 
-          <motion.ul variants={rise} className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+          <ul className="hero-rise mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground" style={{ animationDelay: '320ms' }}>
             {microItems.map((m) => (
               <li key={m} className="flex items-center gap-1.5">
                 <Check className="h-4 w-4 text-primary" /> {m}
               </li>
             ))}
-          </motion.ul>
-        </motion.div>
+          </ul>
+        </div>
 
-        {/* Floating glass browser mock */}
-        <motion.div
-          className="relative mx-auto w-full max-w-md"
-          style={{ y: yMock, rotate }}
-          initial={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.9, ease: EASE, delay: 0.2 }}
-        >
+        {/* Floating glass browser mock — CSS entrance on an outer wrapper; the
+            inner layer keeps the framer-motion scroll parallax. */}
+        <div className="hero-pop relative mx-auto w-full max-w-md">
+          <motion.div className="relative" style={{ y: yMock, rotate }}>
           <motion.div
             animate={reduced ? undefined : { y: [0, -10, 0] }}
             transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
@@ -198,7 +179,8 @@ export function LandingHero({
           >
             <span className="h-2 w-2 rounded-full bg-emerald-500" /> {previewLabels.publish}
           </motion.div>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
     </section>
   );
