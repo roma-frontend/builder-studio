@@ -4,6 +4,8 @@ import { getDb, newId, orgRequests, siteUsers, sites, users, type OrgRequest, ty
 import { createSite } from '@/lib/sites';
 import { LANDING_SLUG } from '@/lib/landing-site';
 import { publishNotify } from '@/lib/realtime';
+import { upsertSubscription, hasAnySubscription } from '@/lib/billing/subscriptions';
+import { PLANS } from '@/lib/billing/plans';
 
 // Platform-level organization requests (ported from hr-project). A logged-in
 // platform user requests to CREATE a new org (tenant site) or JOIN an existing
@@ -160,6 +162,26 @@ export function approveOrgRequest(superadminId: string, requestId: string): { si
     // Promote a plain customer to admin (they now run an organization).
     const owner = db.select().from(users).where(eq(users.id, req.requesterId)).get();
     if (owner && owner.role === 'customer') db.update(users).set({ role: 'admin' }).where(eq(users.id, owner.id)).run();
+    // Kick off the Starter free trial (3 days) so a brand-new org is live
+    // immediately; when it ends the owner hits the paywall until they subscribe.
+    // Only for a first-time org owner who has no subscription history yet.
+    if (!hasAnySubscription(req.requesterId)) {
+      const starter = PLANS.starter;
+      const now = new Date();
+      const trialEnd = new Date(now.getTime() + Math.max(1, starter.trialDays) * 864e5);
+      upsertSubscription({
+        userId: req.requesterId,
+        planId: 'starter',
+        interval: 'month',
+        status: 'trialing',
+        provider: 'manual',
+        amount: starter.price.month,
+        currency: starter.currency,
+        currentPeriodStart: now,
+        currentPeriodEnd: trialEnd,
+        cancelAtPeriodEnd: false,
+      });
+    }
     siteId = site.id;
   } else {
     if (!req.targetSiteId) throw new Error('ORG_NOT_FOUND');

@@ -60,6 +60,39 @@ export function subdomainUrl(slug: string, path = ''): string {
   return `${PROTOCOL}://${slug}.${host}${suffix}${p}`;
 }
 
+// Managed-platform hostnames that ONLY route their exact app host — you cannot
+// serve `<slug>.<app>.fly.dev` there (no wildcard routing/cert). On these we
+// must fall back to the path form `/s/<slug>`. Real subdomains require your own
+// apex domain with a wildcard DNS record + wildcard TLS.
+const PLATFORM_SUFFIXES = ['.fly.dev', '.vercel.app', '.onrender.com', '.netlify.app', '.pages.dev', '.herokuapp.com', '.railway.app', '.deno.dev', '.workers.dev', '.web.app', '.firebaseapp.com'];
+
+/**
+ * Whether tenant sites can be served on real subdomains (`<slug>.host`).
+ * Opt-in override: NEXT_PUBLIC_TENANT_SUBDOMAINS=1. Otherwise auto: false on
+ * localhost and managed-platform hosts (fly.dev/vercel.app/…), true on a custom
+ * apex domain where you've set up wildcard DNS + TLS.
+ */
+export function subdomainsSupported(): boolean {
+  const flag = (process.env.NEXT_PUBLIC_TENANT_SUBDOMAINS || '').toLowerCase();
+  if (flag === '1' || flag === 'true') return true;
+  if (flag === '0' || flag === 'false') return false;
+  if (IS_LOCAL) return false;
+  const hostname = APP_HOST.split(':')[0];
+  if (PLATFORM_SUFFIXES.some((s) => hostname.endsWith(s))) return false;
+  return true; // custom apex domain
+}
+
+/**
+ * The public URL of a tenant site — a real subdomain when available, otherwise
+ * the always-working `/s/<slug>` path on the app host. Use this everywhere a
+ * shareable/live address is shown so it never renders a non-routable host.
+ */
+export function siteUrl(slug: string, path = ''): string {
+  if (subdomainsSupported()) return subdomainUrl(slug, path);
+  const p = path && path !== '/' ? (path.startsWith('/') ? path : `/${path}`) : '';
+  return `${APP_URL}/s/${slug}${p}`;
+}
+
 // ── Contact addresses ───────────────────────────────────────────────────────
 // Single source of truth for the public contact addresses (info@ / support@ /
 // sales@). They are DERIVED from the connected domain, so nothing here needs

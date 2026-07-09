@@ -40,7 +40,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { studioDict } from '@/lib/studio-dict';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 
-type Field = { k: string; label: string; kind?: 'text' | 'textarea'; opts?: string[] };
+type Field = { k: string; label: string; kind?: 'text' | 'textarea'; opts?: string[]; dynamic?: 'plans' };
 
 const FIELDS: Record<NodeType, Field[]> = {
   section: [
@@ -172,6 +172,7 @@ const FIELDS: Record<NodeType, Field[]> = {
     { k: 'features', label: 'Фичи (по строкам)', kind: 'textarea' },
     { k: 'cta', label: 'Текст кнопки' },
     { k: 'href', label: 'Ссылка кнопки' },
+    { k: 'planId', label: 'Связать с планом (реальная оплата)', dynamic: 'plans' },
     { k: 'featured', label: 'Выделить', opts: ['false', 'true'] },
   ],
   testimonial: [
@@ -228,9 +229,14 @@ const FIELDS: Record<NodeType, Field[]> = {
     { k: 'title', label: 'Заголовок' },
     { k: 'columns', label: 'Колонок', opts: ['1', '2', '3', '4'] },
   ],
+  memberPlans: [
+    { k: 'title', label: 'Заголовок' },
+    { k: 'columns', label: 'Колонок', opts: ['1', '2', '3', '4'] },
+    { k: 'ctaHref', label: 'Ссылка кнопки (необязательно)' },
+  ],
 };
 
-const PALETTE: NodeType[] = ['section', 'stack', 'row', 'grid', 'card', 'heading', 'text', 'list', 'counter', 'button', 'image', 'video', 'input', 'textarea', 'form', 'pricing', 'testimonial', 'socials', 'faq', 'tabs', 'divider', 'spacer', 'themeGallery', 'videoGrid', 'landingHero', 'authLogin', 'authRegister', 'authAccount', 'courseList', 'documentList', 'materialList'];
+const PALETTE: NodeType[] = ['section', 'stack', 'row', 'grid', 'card', 'heading', 'text', 'list', 'counter', 'button', 'image', 'video', 'input', 'textarea', 'form', 'pricing', 'testimonial', 'socials', 'faq', 'tabs', 'divider', 'spacer', 'themeGallery', 'videoGrid', 'landingHero', 'authLogin', 'authRegister', 'authAccount', 'courseList', 'documentList', 'materialList', 'memberPlans'];
 
 // videoGrid manual items: one "URL::Title::Caption::Poster" line per card.
 type GridItem = { src: string; title: string; subtitle: string; poster: string; srcDark: string; posterDark: string };
@@ -714,6 +720,23 @@ function BuilderEditor() {
       .catch(() => setMsg(tr('Не удалось загрузить сайт.')));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tr is locale-derived; re-running on locale change isn't needed here
   }, [siteId, router]);
+
+  // The org's member-plan catalog — powers the pricing block's "link to plan"
+  // picker so a landing pricing card can drive a real Stripe subscription.
+  const [orgPlans, setOrgPlans] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!siteId) return;
+    let alive = true;
+    fetch(`/api/site-members?site=${encodeURIComponent(siteId)}`)
+      .then((r) => (r.ok ? r.json() : { plans: [] }))
+      .then((d) => {
+        if (alive && Array.isArray(d.plans)) {
+          setOrgPlans((d.plans as { id: string; name: string }[]).map((p) => ({ id: p.id, name: p.name })));
+        }
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [siteId]);
 
   // ---- undo / redo history ----
   // Imperative ref-based history: the doc-watcher effect records each change.
@@ -1975,7 +1998,15 @@ function BuilderEditor() {
                         <button onClick={() => patch(selected.id, { [key]: '' })} title={tr('Своё значение для этого экрана — сбросить')} className="ml-auto h-2 w-2 rounded-full bg-primary" aria-label={tr('Сбросить это переопределение')} />
                       ) : null}
                     </label>
-                    {f.opts ? (
+                    {f.dynamic === 'plans' ? (
+                      <Select value={selected.props[f.k] || '__none'} onValueChange={(v) => patch(selected.id, { [f.k]: v === '__none' ? '' : v })}>
+                        <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">{tr('— без оплаты —')}</SelectItem>
+                          {orgPlans.map((pl) => <SelectItem key={pl.id} value={pl.id}>{pl.name || pl.id}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : f.opts ? (
                       <Select value={cur ?? f.opts[0]} onValueChange={(v) => patch(selected.id, { [key]: v })}>
                         <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                         <SelectContent>{f.opts.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>

@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { getDb, sites, siteSessions, siteUsers, type SiteUser } from '@/lib/db';
 import { notifyOwnerOfPendingMember } from '@/lib/site-membership';
+import { verifySiteInvite } from '@/lib/site-invite';
+import { listActivePlans } from '@/lib/site-plans';
+import { createMemberCheckout, confirmMemberCheckout, latestMemberSubscription, hasActiveMemberSubscription } from '@/lib/member-subscription';
 import { DUMMY_HASH, findUserByEmail, hashPassword, rateLimit, verifyPassword } from '@/lib/auth';
 import {
   createSiteUser,
@@ -27,6 +30,7 @@ import {
   markNotificationsRead,
 } from '@/lib/site-auth';
 import { listPublishedMaterials } from '@/lib/site-membership';
+import { siteBillingActive } from '@/lib/billing/org-access';
 import { listPublishedCourses, getCourseForMember, setLessonProgress } from '@/lib/site-learning';
 import { listPublishedDocuments } from '@/lib/site-documents';
 import { listMemberTickets, getMemberTicket, createTicket, memberReply } from '@/lib/site-tickets';
@@ -45,7 +49,7 @@ import {
 } from '@/lib/site-auth-codes';
 import { loginOtpEnabled, sendEmail } from '@/lib/email';
 import { renderLoginOtpEmail, renderPasswordResetEmail } from '@/lib/email-templates';
-import { subdomainUrl } from '@/lib/seo';
+import { subdomainUrl, siteUrl } from '@/lib/seo';
 import { recordAudit } from '@/lib/audit';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
@@ -82,50 +86,69 @@ export async function GET(request: Request) {
   const siteId = url.searchParams.get('site') ?? '';
   const resource = url.searchParams.get('resource') ?? 'profile';
   if (!siteId) return NextResponse.json({ user: null });
+  const orgActive = siteBillingActive(siteId);
   const user = await getSiteUser(siteId);
-  if (resource === 'profile') return NextResponse.json({ user: user ? pub(user) : null });
+  if (resource === 'profile') return NextResponse.json({ user: user ? pub(user) : null, orgActive });
+  // Public marketing data: the org's active plans (shown on the landing). No
+  // auth required — these are advertised prices, not member content.
+  if (resource === 'public-plans') return NextResponse.json({ plans: listActivePlans(siteId) });
   if (!user) return NextResponse.json({ error: t.unauthorized }, { status: 401 });
+  // Member CONTENT is gated: the caller must be an APPROVED member, the ORG
+  // must have an active subscription (owner's plan), AND — when the org sells
+  // member plans — the member must hold an active plan subscription of their own.
+  const orgSellsPlans = listActivePlans(siteId).length > 0;
+  const memberPaid = !orgSellsPlans || hasActiveMemberSubscription(siteId, user.id);
+  const memberBlock = user.status !== 'approved'
+    ? NextResponse.json({ error: t.membersOnly }, { status: 403 })
+    : !orgActive
+      ? NextResponse.json({ error: t.orgInactive, code: 'org_inactive' }, { status: 403 })
+      : !memberPaid
+        ? NextResponse.json({ error: t.membersOnly, code: 'subscription_required' }, { status: 402 })
+        : null;
   if (resource === 'sessions') return NextResponse.json({ sessions: await listSiteSessions(siteId, user.id) });
   if (resource === 'submissions') return NextResponse.json({ submissions: listSiteUserSubmissions(siteId, user.id, user.email) });
   if (resource === 'notifications') return NextResponse.json({ notifications: listNotifications(siteId, user.id), unread: countUnreadNotifications(siteId, user.id) });
   if (resource === 'materials') {
     // Org-isolation: only APPROVED members of THIS site can read its materials.
-    if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    if (memberBlock) return memberBlock;
     return NextResponse.json({ materials: listPublishedMaterials(siteId) });
   }
   if (resource === 'courses') {
-    if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    if (memberBlock) return memberBlock;
     return NextResponse.json({ courses: listPublishedCourses(siteId, user.id) });
   }
   if (resource === 'documents') {
-    if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    if (memberBlock) return memberBlock;
     return NextResponse.json({ documents: listPublishedDocuments(siteId) });
   }
   if (resource === 'tickets') {
-    if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    if (memberBlock) return memberBlock;
     return NextResponse.json({ tickets: listMemberTickets(siteId, user.id) });
   }
   if (resource === 'announcements') {
-    if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    if (memberBlock) return memberBlock;
     return NextResponse.json({ announcements: listAnnouncements(siteId) });
   }
   if (resource === 'ticket') {
-    if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    if (memberBlock) return memberBlock;
     const ticket = getMemberTicket(siteId, user.id, url.searchParams.get('id') ?? '');
     if (!ticket) return NextResponse.json({ error: t.unknownResource }, { status: 404 });
     return NextResponse.json({ ticket });
   }
   if (resource === 'course') {
-    if (user.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    if (memberBlock) return memberBlock;
     const course = getCourseForMember(siteId, user.id, url.searchParams.get('id') ?? '');
     if (!course) return NextResponse.json({ error: t.unknownResource }, { status: 404 });
     return NextResponse.json({ course });
   }
   if (resource === 'overview') {
-    // Everything the account home screen needs in one round-trip.
-    const materials = user.status === 'approved' ? listPublishedMaterials(siteId) : [];
-    const courses = user.status === 'approved' ? listPublishedCourses(siteId, user.id) : [];
-    const documents = user.status === 'approved' ? listPublishedDocuments(siteId) : [];
+    // Everything the account home screen needs in one round-trip. Member content
+    // requires an approved member, an active org subscription (owner's plan),
+    // and — if the org sells member plans — an active paid member subscription.
+    const canContent = user.status === 'approved' && orgActive && memberPaid;
+    const materials = canContent ? listPublishedMaterials(siteId) : [];
+    const courses = canContent ? listPublishedCourses(siteId, user.id) : [];
+    const documents = canContent ? listPublishedDocuments(siteId) : [];
     const notifications = listNotifications(siteId, user.id);
     const submissions = listSiteUserSubmissions(siteId, user.id, user.email);
     const sessions = await listSiteSessions(siteId, user.id);
@@ -140,6 +163,14 @@ export async function GET(request: Request) {
       documentsCount: documents.length,
       submissionsCount: submissions.length,
       sessionsCount: sessions.length,
+    });
+  }
+  if (resource === 'membership') {
+    // Plans the member can subscribe to + their current subscription status.
+    return NextResponse.json({
+      plans: listActivePlans(siteId),
+      subscription: latestMemberSubscription(siteId, user.id),
+      active: hasActiveMemberSubscription(siteId, user.id),
     });
   }
   return NextResponse.json({ error: t.unknownResource }, { status: 400 });
@@ -179,8 +210,11 @@ export async function POST(request: Request) {
     if (!emailOk(email)) return NextResponse.json({ error: t.enterValidEmail }, { status: 400 });
     if (password.length < 8) return NextResponse.json({ error: t.passwordMin8 }, { status: 400 });
     try {
-      // Org-isolation: if the site requires approval, new members start 'pending'.
-      const status = site.memberApproval ? 'pending' : 'approved';
+      // Org-isolation: if the site requires approval, new members start 'pending'
+      // — UNLESS they arrived via a valid signed QR invite, which auto-approves
+      // (joining via QR needs no manual approval; access is gated by payment).
+      const invited = verifySiteInvite(siteId, str('invite'));
+      const status = invited ? 'approved' : site.memberApproval ? 'pending' : 'approved';
       const user = createSiteUser(siteId, email, password, str('name'), status);
       await createSiteSession(user.id, siteId, siteRequestMeta(request));
       // Notify the site owner of a pending join request (email + fuels the nav
@@ -383,6 +417,37 @@ export async function POST(request: Request) {
   // ── Authenticated account actions ─────────────────────────────────────
   const me = await getSiteUser(siteId);
   if (!me) return NextResponse.json({ error: t.unauthorized }, { status: 401 });
+  // Combined member gate for content actions: approved member AND active org.
+  const meMemberBlock = me.status !== 'approved'
+    ? NextResponse.json({ error: t.membersOnly }, { status: 403 })
+    : !siteBillingActive(siteId)
+      ? NextResponse.json({ error: t.orgInactive, code: 'org_inactive' }, { status: 403 })
+      : null;
+
+  if (action === 'subscribe') {
+    // Member picks a plan → Stripe Checkout (subscription) on the org's
+    // platform-managed catalog. Returns the hosted URL to redirect to.
+    const successUrl = siteUrl(site.slug, '/account?sub=success&session_id={CHECKOUT_SESSION_ID}');
+    const cancelUrl = siteUrl(site.slug, '/account?sub=cancel');
+    const res = await createMemberCheckout({
+      siteId,
+      siteUser: { id: me.id, email: me.email },
+      planId: str('planId'),
+      successUrl,
+      cancelUrl,
+    });
+    if (!res.ok) {
+      const status = res.error === 'not_configured' ? 503 : 400;
+      return NextResponse.json({ error: t.stripeNotConfigured }, { status });
+    }
+    return NextResponse.json({ ok: true, url: res.url });
+  }
+
+  if (action === 'subscribe-confirm') {
+    // Reconcile the returned Checkout Session and activate the subscription.
+    const r = await confirmMemberCheckout(siteId, str('sessionId'));
+    return NextResponse.json({ ok: r.ok, active: r.active });
+  }
 
   if (action === 'update-profile') {
     const updated = updateSiteProfile(siteId, me.id, {
@@ -433,14 +498,14 @@ export async function POST(request: Request) {
   }
 
   if (action === 'lesson-complete') {
-    if (me.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    if (meMemberBlock) return meMemberBlock;
     const ok = setLessonProgress(siteId, me.id, str('lessonId'), bool('done') ?? true);
     if (!ok) return NextResponse.json({ error: t.badRequest }, { status: 400 });
     return NextResponse.json({ ok: true });
   }
 
   if (action === 'ticket-create') {
-    if (me.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    if (meMemberBlock) return meMemberBlock;
     const subject = str('subject').trim();
     const bodyText = str('body').trim();
     if (!subject && !bodyText) return NextResponse.json({ error: t.badRequest }, { status: 400 });
@@ -451,7 +516,7 @@ export async function POST(request: Request) {
   }
 
   if (action === 'ticket-reply') {
-    if (me.status !== 'approved') return NextResponse.json({ error: t.membersOnly }, { status: 403 });
+    if (meMemberBlock) return meMemberBlock;
     const okr = memberReply(siteId, me.id, str('ticketId'), str('body').trim());
     if (!okr) return NextResponse.json({ error: t.badRequest }, { status: 400 });
     return NextResponse.json({ ok: true });

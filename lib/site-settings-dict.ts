@@ -14,7 +14,6 @@ export type SiteSettingsDict = {
   networkError: string;
   checkError: string;
   dnsNotPointing: string; // followed by details
-  serverIp: string;
   // identity
   identityTitle: string;
   name: string;
@@ -25,19 +24,16 @@ export type SiteSettingsDict = {
   // domains
   domainsTitle: string;
   domainsHint: string; // {host} placeholder
-  cnameFor: string;
-  aRecordFor: string;
   newDomainAria: string;
   attach: string;
   verified: string;
   awaitingDns: string;
+  domainProvisioning: string;
+  domainNeedsSupport: string;
+  domainManagedHint: string;
   checkNow: string;
   check: string;
   detach: string;
-  addDnsRecord: string;
-  dnsName: string;
-  dnsValue: string;
-  copyValue: string;
   // site users
   clientsTitle: string;
   clientsHint: string;
@@ -64,7 +60,6 @@ const ru: SiteSettingsDict = {
   networkError: 'Сеть недоступна.',
   checkError: 'Ошибка проверки.',
   dnsNotPointing: 'DNS ещё не указывает на платформу',
-  serverIp: 'IP вашего сервера',
   identityTitle: 'Основное',
   name: 'Название',
   slugLabel: 'Адрес (slug)',
@@ -72,20 +67,17 @@ const ru: SiteSettingsDict = {
   and: 'и',
   save: 'Сохранить',
   domainsTitle: 'Свои домены',
-  domainsHint: 'Направьте домен на платформу: запись CNAME → {host} (для поддоменов) или A-запись → IP сервера, затем нажмите «Проверить».',
-  cnameFor: 'для поддоменов',
-  aRecordFor: 'IP сервера',
+  domainsHint: 'Вставьте домен и нажмите «Привязать». Техническое подключение, DNS и SSL выполняет платформа.',
   newDomainAria: 'Новый домен',
   attach: 'Привязать',
   verified: 'подтверждён',
   awaitingDns: 'ждёт DNS · проверяем автоматически',
+  domainProvisioning: 'платформа подключает домен',
+  domainNeedsSupport: 'нужна проверка платформы',
+  domainManagedHint: 'Ничего настраивать не нужно: платформа автоматически проверяет подключение и SSL.',
   checkNow: 'Проверить DNS сейчас',
   check: 'Проверить',
   detach: 'Отвязать домен',
-  addDnsRecord: 'Добавьте у DNS-провайдера запись и подождите (обновление DNS занимает от минут до часов):',
-  dnsName: 'имя',
-  dnsValue: 'значение',
-  copyValue: 'Скопировать значение',
   clientsTitle: 'Клиенты сайта',
   clientsHint: 'Пользователи, которые зарегистрировались на вашем опубликованном сайте (через блоки «Вход»/«Регистрация»). Это отдельная база — она не смешивается с аккаунтами платформы.',
   clientsEmpty: 'Пока никто не зарегистрировался. Добавьте на страницу блок «Регистрация (клиенты сайта)» в конструкторе.',
@@ -109,7 +101,6 @@ const en: SiteSettingsDict = {
   networkError: 'Network unavailable.',
   checkError: 'Verification error.',
   dnsNotPointing: 'DNS doesn’t point to the platform yet',
-  serverIp: 'your server IP',
   identityTitle: 'General',
   name: 'Name',
   slugLabel: 'Address (slug)',
@@ -117,20 +108,17 @@ const en: SiteSettingsDict = {
   and: 'and',
   save: 'Save',
   domainsTitle: 'Custom domains',
-  domainsHint: 'Point your domain to the platform: a CNAME → {host} record (for subdomains) or an A record → server IP, then click “Check”.',
-  cnameFor: 'for subdomains',
-  aRecordFor: 'server IP',
+  domainsHint: 'Paste a domain and click “Attach”. The platform handles the technical setup, DNS and SSL.',
   newDomainAria: 'New domain',
   attach: 'Attach',
   verified: 'verified',
   awaitingDns: 'awaiting DNS · checking automatically',
+  domainProvisioning: 'platform is connecting the domain',
+  domainNeedsSupport: 'platform review needed',
+  domainManagedHint: 'No technical setup is required here: the platform keeps checking DNS and SSL automatically.',
   checkNow: 'Check DNS now',
   check: 'Check',
   detach: 'Detach domain',
-  addDnsRecord: 'Add a record at your DNS provider and wait (DNS propagation takes minutes to hours):',
-  dnsName: 'name',
-  dnsValue: 'value',
-  copyValue: 'Copy value',
   clientsTitle: 'Site customers',
   clientsHint: 'Users who registered on your published site (via the Login/Register blocks). This is a separate database — it doesn’t mix with platform accounts.',
   clientsEmpty: 'No one has registered yet. Add a “Register (site customers)” block to a page in the builder.',
@@ -154,7 +142,6 @@ const hy: SiteSettingsDict = {
   networkError: 'Ցանցն անհասանելի է։',
   checkError: 'Ստուգման սխալ։',
   dnsNotPointing: 'DNS-ը դեռ չի ուղղորդում դեպի հարթակ',
-  serverIp: 'ձեր սերվերի IP-ն',
   identityTitle: 'Հիմնական',
   name: 'Անվանում',
   slugLabel: 'Հասցե (slug)',
@@ -162,20 +149,17 @@ const hy: SiteSettingsDict = {
   and: 'և',
   save: 'Պահպանել',
   domainsTitle: 'Սեփական տիրույթներ',
-  domainsHint: 'Ուղղորդեք տիրույթը դեպի հարթակ՝ CNAME → {host} գրառում (ենթատիրույթների համար) կամ A-գրառում → սերվերի IP, ապա սեղմեք «Ստուգել»։',
-  cnameFor: 'ենթատիրույթների համար',
-  aRecordFor: 'սերվերի IP',
+  domainsHint: 'Մուտքագրեք տիրույթը և սեղմեք «Կապել»։ Տեխնիկական կապը, DNS-ը և SSL-ը կատարում է հարթակը։',
   newDomainAria: 'Նոր տիրույթ',
   attach: 'Կապել',
   verified: 'հաստատված',
   awaitingDns: 'սպասում է DNS · ստուգում ենք ավտոմատ',
+  domainProvisioning: 'հարթակը կապում է տիրույթը',
+  domainNeedsSupport: 'պետք է հարթակի ստուգում',
+  domainManagedHint: 'Այստեղ տեխնիկական կարգավորում պետք չէ․ հարթակը ավտոմատ ստուգում է DNS-ը և SSL-ը։',
   checkNow: 'Ստուգել DNS-ը հիմա',
   check: 'Ստուգել',
   detach: 'Անջատել տիրույթը',
-  addDnsRecord: 'Ավելացրեք գրառում ձեր DNS-մատակարարի մոտ և սպասեք (DNS-ի թարմացումը տևում է րոպեներից մինչև ժամեր).',
-  dnsName: 'անուն',
-  dnsValue: 'արժեք',
-  copyValue: 'Պատճենել արժեքը',
   clientsTitle: 'Կայքի հաճախորդներ',
   clientsHint: 'Օգտատերեր, ովքեր գրանցվել են ձեր հրապարակված կայքում («Մուտք»/«Գրանցում» բլոկների միջոցով)։ Սա առանձին բազա է — չի խառնվում հարթակի հաշիվների հետ։',
   clientsEmpty: 'Դեռ ոչ ոք չի գրանցվել։ Ավելացրեք էջին «Գրանցում (կայքի հաճախորդներ)» բլոկը կառուցիչում։',

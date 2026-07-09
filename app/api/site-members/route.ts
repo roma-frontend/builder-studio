@@ -23,6 +23,7 @@ import {
 import { listDocumentsForAdmin, deleteDocument } from '@/lib/site-documents';
 import { listTicketsForAdmin, getTicketForAdmin, adminReply, setTicketStatus } from '@/lib/site-tickets';
 import { createAnnouncement, listForAdmin as listAnnouncementsForAdmin, deleteAnnouncement } from '@/lib/site-announcements';
+import { listPlansForAdmin, createPlan, updatePlan, deletePlan, type PlanInput } from '@/lib/site-plans';
 import { getDb, sites } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { getLocale } from '@/lib/i18n';
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
   if (ticketId) {
     return NextResponse.json({ ticket: getTicketForAdmin(siteId, ticketId) });
   }
-  return NextResponse.json({ members: listMembers(siteId), materials: listMaterialsForAdmin(siteId), courses: listCoursesForAdmin(siteId), documents: listDocumentsForAdmin(siteId), tickets: listTicketsForAdmin(siteId), announcements: listAnnouncementsForAdmin(siteId) });
+  return NextResponse.json({ members: listMembers(siteId), materials: listMaterialsForAdmin(siteId), courses: listCoursesForAdmin(siteId), documents: listDocumentsForAdmin(siteId), tickets: listTicketsForAdmin(siteId), announcements: listAnnouncementsForAdmin(siteId), plans: listPlansForAdmin(siteId) });
 }
 
 export async function POST(request: Request) {
@@ -192,6 +193,37 @@ export async function POST(request: Request) {
       const require = bool('memberApproval');
       if (typeof require !== 'boolean') return NextResponse.json({ error: t.invalidValue }, { status: 400 });
       getDb().update(sites).set({ memberApproval: require, updatedAt: new Date() }).where(eq(sites.id, siteId)).run();
+      return NextResponse.json({ ok: true });
+    }
+    case 'plan-create': {
+      const perks = Array.isArray(body.perks) ? (body.perks as unknown[]).filter((x): x is string => typeof x === 'string') : undefined;
+      const plan = await createPlan(siteId, {
+        name: str('name'),
+        description: str('description'),
+        amountCents: typeof body.amountCents === 'number' ? body.amountCents : 0,
+        currency: str('currency') || 'usd',
+        interval: body.interval === 'year' ? 'year' : 'month',
+        perks,
+        active: bool('active'),
+        sortOrder: typeof body.sortOrder === 'number' ? body.sortOrder : undefined,
+      });
+      return NextResponse.json({ ok: true, plan });
+    }
+    case 'plan-update': {
+      const patch: Partial<PlanInput> = {};
+      if (typeof body.name === 'string') patch.name = body.name;
+      if (typeof body.description === 'string') patch.description = body.description;
+      if (typeof body.amountCents === 'number') patch.amountCents = body.amountCents;
+      if (typeof body.currency === 'string') patch.currency = body.currency;
+      if (body.interval === 'month' || body.interval === 'year') patch.interval = body.interval;
+      if (Array.isArray(body.perks)) patch.perks = (body.perks as unknown[]).filter((x): x is string => typeof x === 'string');
+      if (typeof body.active === 'boolean') patch.active = body.active;
+      if (typeof body.sortOrder === 'number') patch.sortOrder = body.sortOrder;
+      await updatePlan(siteId, str('planId'), patch);
+      return NextResponse.json({ ok: true });
+    }
+    case 'plan-delete': {
+      deletePlan(siteId, str('planId'));
       return NextResponse.json({ ok: true });
     }
     default:

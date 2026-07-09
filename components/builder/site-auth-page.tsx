@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
-import { Mail, Lock, User, Loader2, Eye, EyeOff, ArrowRight, ArrowLeft, Check, Store, MailCheck, KeyRound, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, User, UserPlus, Loader2, Eye, EyeOff, ArrowRight, ArrowLeft, Check, Store, MailCheck, KeyRound, ShieldCheck, CreditCard } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/components/ui/input-otp';
@@ -31,6 +31,15 @@ type SiteAuthResult = {
   otpRequired?: boolean;
   challenge?: string;
   email?: string;
+};
+type PublicPlan = {
+  id: string;
+  name: string;
+  description: string;
+  amountCents: number;
+  currency: string;
+  interval: 'month' | 'year';
+  perks: string[];
 };
 
 async function siteAuth(action: string, body: Record<string, string>, networkError: string): Promise<SiteAuthResult> {
@@ -263,6 +272,48 @@ function RegisterWizard({ siteId, base, brand }: Omit<Props, 'mode'>) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const pwScore = useMemo(() => passwordScore(form.password), [form.password]);
+  // Arrived via an org invite (QR / link) → show a friendly, org-named banner
+  // and carry the signed token so the server auto-approves this member.
+  const [invited, setInvited] = useState(false);
+  const [inviteToken, setInviteToken] = useState('');
+  const [plans, setPlans] = useState<PublicPlan[]>([]);
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const tok = p.get('invite');
+      if (tok) { setInvited(true); setInviteToken(tok); }
+    } catch { /* no window */ }
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}&resource=public-plans`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive && Array.isArray(d.plans)) setPlans(d.plans as PublicPlan[]);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [siteId]);
+  const inviteLocale = useLocale().locale;
+  const hasPlans = plans.length > 0;
+  const inviteText = hasPlans
+    ? ({
+        ru: `Вы присоединяетесь к организации «${brand}». После регистрации выберите план и оплатите доступ.`,
+        en: `You're joining “${brand}”. After registration, choose a plan and pay for access.`,
+        hy: `Դուք միանում եք «${brand}»-ին։ Գրանցվելուց հետո ընտրեք պլան և վճարեք մուտքի համար։`,
+      } as Record<string, string>)[inviteLocale] ?? ''
+    : ({
+        ru: `Вы присоединяетесь к организации «${brand}». Зарегистрируйтесь, чтобы отправить заявку на вступление.`,
+        en: `You're joining “${brand}”. Sign up to request membership.`,
+        hy: `Դուք միանում եք «${brand}»-ին։ Գրանցվեք՝ անդամակցության հայտ ուղարկելու համար։`,
+      } as Record<string, string>)[inviteLocale] ?? '';
+  const planPreviewText = ({
+    ru: { title: 'Планы этой организации', hint: 'Оплата откроется после создания аккаунта. Платёж проходит через защищённый Stripe платформы.' },
+    en: { title: 'This organization’s plans', hint: 'Payment opens after account creation. Checkout runs through the platform’s secure Stripe.' },
+    hy: { title: 'Այս կազմակերպության պլանները', hint: 'Վճարումը կբացվի հաշիվ ստեղծելուց հետո՝ հարթակի անվտանգ Stripe-ով։' },
+  } as Record<string, { title: string; hint: string }>)[inviteLocale] ?? { title: 'Plans', hint: '' };
+  const money = (cents: number, cur: string) =>
+    new Intl.NumberFormat(inviteLocale === 'hy' ? 'hy-AM' : inviteLocale, { style: 'currency', currency: cur.toUpperCase(), maximumFractionDigits: 2 }).format(cents / 100);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -284,7 +335,7 @@ function RegisterWizard({ siteId, base, brand }: Omit<Props, 'mode'>) {
   const finish = async () => {
     for (const s of [0, 1]) { const err = validate(s); if (err) { setError(err); setStep(s); return; } }
     setBusy(true); setError('');
-    const r = await siteAuth('register', { siteId, name: form.name.trim(), email: form.email.trim(), password: form.password }, t.networkError);
+    const r = await siteAuth('register', { siteId, name: form.name.trim(), email: form.email.trim(), password: form.password, invite: inviteToken }, t.networkError);
     if (!r.ok) { setError(r.error || rt.registerFailed); setBusy(false); return; }
     router.push(`${base}/account`);
     router.refresh();
@@ -296,6 +347,34 @@ function RegisterWizard({ siteId, base, brand }: Omit<Props, 'mode'>) {
     <Shell maxWidth="28rem">
       <Brand title={t.register} subtitle={brand} href={base || '/'} label={brand} icon={Store} />
       <p className="-mt-3 mb-5 text-center text-xs font-medium text-muted-foreground">{t.step} {step + 1} {t.of} {STEP_COUNT}</p>
+      {invited && inviteText && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+          <UserPlus className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{inviteText}</span>
+        </div>
+      )}
+      {plans.length > 0 && (
+        <div className="mb-5 rounded-2xl border border-border bg-muted/30 p-4">
+          <div className="mb-3 flex items-start gap-2">
+            <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <p className="text-sm font-semibold">{planPreviewText.title}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{planPreviewText.hint}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {plans.slice(0, 3).map((p) => (
+              <div key={p.id} className="rounded-xl border border-border bg-background/60 px-3 py-2 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate font-medium">{p.name}</span>
+                  <span className="shrink-0 font-semibold">{money(p.amountCents, p.currency)}<span className="text-xs font-normal text-muted-foreground">/{p.interval === 'year' ? 'yr' : 'mo'}</span></span>
+                </div>
+                {p.description && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{p.description}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <Stepper step={step} count={STEP_COUNT} />
       <div className="mb-5 text-center">
         <h2 className="text-base font-semibold">{t.stepTitles[step]}</h2>

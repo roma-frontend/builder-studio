@@ -27,6 +27,11 @@ function appHost(): string {
   return `${scheme}://${host}`;
 }
 
+/** Public base URL of the platform host (scheme included). */
+export function platformAppHost(): string {
+  return appHost();
+}
+
 /** Encode a nested object into application/x-www-form-urlencoded (Stripe's
  *  bracket syntax, e.g. line_items[0][price_data][currency]). */
 function encodeForm(obj: Record<string, unknown>, prefix = ''): string {
@@ -48,20 +53,30 @@ function encodeForm(obj: Record<string, unknown>, prefix = ''): string {
   return parts.filter(Boolean).join('&');
 }
 
-async function stripeFetch<T = unknown>(path: string, body?: Record<string, unknown>): Promise<T> {
+async function stripeFetch<T = unknown>(path: string, body?: Record<string, unknown>, opts?: StripeOpts): Promise<T> {
   const key = process.env.STRIPE_SECRET_KEY!;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${key}`,
+    'Content-Type': 'application/x-www-form-urlencoded',
+  };
+  const method = opts?.method ?? (body ? 'POST' : 'GET');
   const res = await fetch(`${STRIPE_API}${path}`, {
-    method: body ? 'POST' : 'GET',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    method,
+    headers,
     body: body ? encodeForm(body) : undefined,
     signal: AbortSignal.timeout(15000),
   });
   const json = (await res.json()) as T & { error?: { message?: string } };
   if (!res.ok) throw new Error(json?.error?.message || `Stripe ${res.status}`);
   return json;
+}
+
+/** Options for a raw Stripe call. */
+export interface StripeOpts { method?: 'GET' | 'POST' | 'DELETE' }
+
+/** Exported raw Stripe REST call. Throws on a non-2xx with Stripe's error message. */
+export async function stripeRequest<T = unknown>(path: string, body?: Record<string, unknown>, opts?: StripeOpts): Promise<T> {
+  return stripeFetch<T>(path, body, opts);
 }
 
 export interface CheckoutResult {
@@ -119,6 +134,40 @@ export async function createCheckout(opts: {
   });
 
   return { url: session.url, mode: 'stripe', planId: opts.planId, interval: opts.interval };
+}
+
+/** The subset of a Stripe Checkout Session we rely on for reconciliation. */
+export interface StripeCheckoutSession {
+  id: string;
+  payment_status?: string;
+  status?: string;
+  customer?: string;
+  client_reference_id?: string;
+  metadata?: Record<string, string>;
+  amount_total?: number;
+  currency?: string;
+  subscription?: {
+    id?: string;
+    status?: string;
+    current_period_start?: number;
+    current_period_end?: number;
+    cancel_at_period_end?: boolean;
+    items?: { data?: { price?: { recurring?: { interval?: string } } }[] };
+  } | null;
+}
+
+/** Fetch a Checkout Session (with the subscription expanded) so the success
+ *  page can reconcile a purchase even if the webhook hasn't arrived yet (or
+ *  isn't reachable — e.g. local dev without `stripe listen`). */
+export async function retrieveCheckoutSession(sessionId: string): Promise<StripeCheckoutSession | null> {
+  if (!stripeConfigured() || !sessionId) return null;
+  try {
+    return await stripeFetch<StripeCheckoutSession>(
+      `/checkout/sessions/${encodeURIComponent(sessionId)}?expand[]=subscription`,
+    );
+  } catch {
+    return null;
+  }
 }
 
 /** Cancel a Stripe subscription (at period end). No-op in manual mode. */

@@ -62,7 +62,10 @@ async function sendViaResend(msg: EmailMessage): Promise<SendResult> {
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    if (!res.ok) return { ok: false, provider: 'resend', error: `HTTP ${res.status}` };
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      return { ok: false, provider: 'resend', error: `HTTP ${res.status}${detail ? `: ${detail.slice(0, 300)}` : ''}` };
+    }
     return { ok: true, provider: 'resend' };
   } catch (e) {
     return { ok: false, provider: 'resend', error: e instanceof Error ? e.message : 'network error' };
@@ -87,7 +90,10 @@ async function sendViaBrevo(msg: EmailMessage): Promise<SendResult> {
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    if (!res.ok) return { ok: false, provider: 'brevo', error: `HTTP ${res.status}` };
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      return { ok: false, provider: 'brevo', error: `HTTP ${res.status}${detail ? `: ${detail.slice(0, 300)}` : ''}` };
+    }
     return { ok: true, provider: 'brevo' };
   } catch (e) {
     return { ok: false, provider: 'brevo', error: e instanceof Error ? e.message : 'network error' };

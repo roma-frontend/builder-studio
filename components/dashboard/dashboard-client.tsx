@@ -7,7 +7,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  Plus, Loader2, Pencil, ExternalLink, Settings2, Globe, Rocket, CircleDashed, Clock,
+  Plus, Loader2, Pencil, ExternalLink, Settings2, Globe, Rocket, CircleDashed, Clock, Users, QrCode,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,9 +24,10 @@ export interface DashSite {
   published: boolean;
   updatedAt: string;
   pendingMembers?: number;
+  liveUrl: string;
 }
 
-export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) {
+export function DashboardClient({ initialSites, canInvite = true }: { initialSites: DashSite[]; canInvite?: boolean }) {
   const router = useRouter();
   const t = dashDict(useLocale().locale).sites;
   const [sites, setSites] = useState(initialSites);
@@ -103,7 +104,7 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h2 className="truncate font-semibold tracking-tight">{site.name}</h2>
-                  <p className="mt-0.5 truncate text-sm text-muted-foreground">/s/{site.slug}</p>
+                  <p className="mt-0.5 truncate text-sm text-muted-foreground">{site.liveUrl.replace(/^https?:\/\//, '')}</p>
                 </div>
                 <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${site.published ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                   {site.published ? <Rocket className="h-3 w-3" /> : <CircleDashed className="h-3 w-3" />}
@@ -125,13 +126,21 @@ export function DashboardClient({ initialSites }: { initialSites: DashSite[] }) 
                 <Link href={`/studio/builder?site=${site.id}`} data-tour={idx === 0 ? 'site-edit' : undefined}>
                   <Button size="sm" className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> {t.edit}</Button>
                 </Link>
-                <Link href={`/s/${site.slug}?draft=1`} target="_blank">
+                <Link href={site.published ? site.liveUrl : `/s/${site.slug}?draft=1`} target="_blank">
                   <Button size="sm" variant="outline" className="gap-1.5"><ExternalLink className="h-3.5 w-3.5" /> {t.open}</Button>
                 </Link>
                 <Button size="sm" variant="outline" disabled={pubBusy === site.id} onClick={() => togglePublish(site)} className="gap-1.5">
                   {pubBusy === site.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
                   {site.published ? t.unpublish : t.publish}
                 </Button>
+                {canInvite && (
+                  <Link href={`/dashboard/sites/${site.id}#invite`}>
+                    <Button size="sm" variant="outline" className="gap-1.5"><QrCode className="h-3.5 w-3.5" /> {t.invite}</Button>
+                  </Link>
+                )}
+                <Link href={`/dashboard/sites/${site.id}#members`}>
+                  <Button size="sm" variant="outline" className="gap-1.5"><Users className="h-3.5 w-3.5" /> {t.members}</Button>
+                </Link>
                 <Link href={`/dashboard/sites/${site.id}`} data-tour={idx === 0 ? 'site-settings' : undefined} className="ml-auto">
                   <Button size="sm" variant="ghost" className="gap-1.5"><Settings2 className="h-3.5 w-3.5" /> {t.settings}</Button>
                 </Link>

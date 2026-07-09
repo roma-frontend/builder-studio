@@ -140,7 +140,7 @@ describe('draft/publish lifecycle', () => {
     const s = createSite(u.id, 'Pub');
     publishSite(s);
     let reloaded = getSiteBySlug('pub')!;
-    expect(reloaded.publishedDoc).toBe(s.draftDoc);
+    expect(parseDoc(reloaded.publishedDoc)?.brand).toBe(parseDoc(s.draftDoc)?.brand);
     expect(reloaded.publishedAt).not.toBeNull();
     unpublishSite(s);
     reloaded = getSiteBySlug('pub')!;

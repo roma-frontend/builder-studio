@@ -97,6 +97,11 @@ export const domains = sqliteTable(
     /** Normalized hostname, e.g. "example.com" (no scheme/port/path). */
     hostname: text('hostname').notNull(),
     verified: integer('verified', { mode: 'boolean' }).notNull().default(false),
+    /** Platform-side provisioning state (DNS/cert/provider), hidden from tenant admins. */
+    provisioningProvider: text('provisioning_provider').notNull().default(''),
+    provisioningStatus: text('provisioning_status').notNull().default('pending'),
+    provisioningError: text('provisioning_error').notNull().default(''),
+    lastCheckedAt: integer('last_checked_at', { mode: 'timestamp_ms' }),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [uniqueIndex('domains_hostname_idx').on(t.hostname), index('domains_site_idx').on(t.siteId)],
@@ -787,3 +792,137 @@ export const platformSettings = sqliteTable('platform_settings', {
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 });
 export type PlatformSetting = typeof platformSettings.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Tenant commerce (per-organization): an org admin builds a CATALOG of member
+// plans for THEIR site; new members subscribe through the PLATFORM Stripe
+// account. Fully scoped by siteId — one org's plans/subscriptions can never
+// touch another's.
+
+/** Legacy Connect table kept for old databases; new flows do not read/write it. */
+export const siteStripeAccounts = sqliteTable(
+  'site_stripe_accounts',
+  {
+    siteId: text('site_id')
+      .primaryKey()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    /** Legacy connected account id (acct_...). */
+    stripeAccountId: text('stripe_account_id').notNull(),
+    /** Legacy onboarding status. */
+    chargesEnabled: integer('charges_enabled', { mode: 'boolean' }).notNull().default(false),
+    detailsSubmitted: integer('details_submitted', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [uniqueIndex('site_stripe_acct_idx').on(t.stripeAccountId)],
+);
+export type SiteStripeAccount = typeof siteStripeAccounts.$inferSelect;
+
+/** A member plan in an org's catalog. Checkout uses inline Stripe price_data. */
+export const sitePlans = sqliteTable(
+  'site_plans',
+  {
+    id: text('id').primaryKey(),
+    siteId: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    name: text('name').notNull().default(''),
+    description: text('description').notNull().default(''),
+    /** Recurring amount in the smallest currency unit (cents). */
+    amountCents: integer('amount_cents').notNull().default(0),
+    currency: text('currency').notNull().default('usd'),
+    /** Billing cadence: 'month' | 'year'. */
+    interval: text('interval').notNull().default('month'),
+    /** JSON array of perk strings shown on the landing card. */
+    perks: text('perks').notNull().default('[]'),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    /** Legacy product/price ids from the removed Connect flow. */
+    stripeProductId: text('stripe_product_id'),
+    stripePriceId: text('stripe_price_id'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [index('site_plans_site_idx').on(t.siteId)],
+);
+export type SitePlan = typeof sitePlans.$inferSelect;
+
+/** A member's subscription to one of their org's plans. */
+export const memberSubscriptions = sqliteTable(
+  'member_subscriptions',
+  {
+    id: text('id').primaryKey(),
+    siteId: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    siteUserId: text('site_user_id')
+      .notNull()
+      .references(() => siteUsers.id, { onDelete: 'cascade' }),
+    planId: text('plan_id').notNull(),
+    /** 'pending' | 'active' | 'past_due' | 'canceled' | 'expired'. */
+    status: text('status').notNull().default('pending'),
+    provider: text('provider').notNull().default('stripe'),
+    /** Stripe subscription id on the platform account (sub_...). */
+    providerSubId: text('provider_sub_id'),
+    currentPeriodEnd: integer('current_period_end', { mode: 'timestamp_ms' }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [
+    index('member_subs_site_idx').on(t.siteId),
+    index('member_subs_user_idx').on(t.siteUserId),
+    uniqueIndex('member_subs_provider_idx').on(t.providerSubId),
+  ],
+);
+export type MemberSubscription = typeof memberSubscriptions.$inferSelect;
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// Platform-managed tenant commerce (Variant A): ALL member payments are
+// collected on the PLATFORM's single Stripe account (admins never configure
+// Stripe). Each collected payment is tagged with its org (siteId) so the
+// superadmin can see per-org revenue and settle payouts to admins via a manual
+// ledger. Balance(org) = collected − paid_out − platform fee.
+
+/** One collected member payment (a paid Checkout/invoice), tagged by org. */
+export const memberPayments = sqliteTable(
+  'member_payments',
+  {
+    id: text('id').primaryKey(),
+    siteId: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    siteUserId: text('site_user_id'),
+    planId: text('plan_id').notNull().default(''),
+    /** Amount collected in the smallest currency unit (cents). */
+    amountCents: integer('amount_cents').notNull().default(0),
+    currency: text('currency').notNull().default('usd'),
+    /** Stripe id (checkout session / invoice / payment intent) — idempotency key. */
+    providerRef: text('provider_ref').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    index('member_payments_site_idx').on(t.siteId),
+    uniqueIndex('member_payments_provider_idx').on(t.providerRef),
+  ],
+);
+export type MemberPayment = typeof memberPayments.$inferSelect;
+
+/** A superadmin-recorded payout to an org admin (manual settlement ledger). */
+export const orgPayouts = sqliteTable(
+  'org_payouts',
+  {
+    id: text('id').primaryKey(),
+    siteId: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    amountCents: integer('amount_cents').notNull().default(0),
+    currency: text('currency').notNull().default('usd'),
+    note: text('note').notNull().default(''),
+    /** Superadmin user id who recorded the payout. */
+    createdBy: text('created_by').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('org_payouts_site_idx').on(t.siteId)],
+);
+export type OrgPayout = typeof orgPayouts.$inferSelect;

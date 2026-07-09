@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { getRawDb } from '@/lib/db';
 import { trc, NUMERIC, TEXT_PROPS } from '@/lib/builder/templates-i18n';
 import type { Locale } from '@/lib/seo';
-import type { BuilderNode, BuilderPage } from '@/lib/builder/types';
+import type { BuilderDoc, BuilderNode, BuilderPage } from '@/lib/builder/types';
 
 /**
  * Automatic content translation for arbitrary user-authored text (builder
@@ -152,4 +152,32 @@ export async function translatePageAuto(page: BuilderPage, locale: Locale): Prom
     Promise.all(page.blocks.map((b) => translateNodeAuto(b, locale))),
   ]);
   return { ...page, title, description, blocks };
+}
+
+/**
+ * Translate the site CHROME carried on the doc — header nav labels, header CTA
+ * text, footer text + link labels, and page titles (the footer auto-links legal
+ * pages by their title). The brand name is left untouched (a proper noun). This
+ * mirrors what translateNodeAuto does for page blocks so the WHOLE tenant site
+ * — not just the body content — switches language. Returns a shallow-cloned doc
+ * with the translatable strings replaced; hrefs, styles and ids are preserved.
+ */
+export async function translateDocChrome(doc: BuilderDoc, locale: Locale): Promise<BuilderDoc> {
+  if (locale === 'ru') return doc;
+  const [nav, footerText, footerLinks, headerCtaText, pages] = await Promise.all([
+    Promise.all(doc.nav.map(async (l) => ({ ...l, label: await translateAuto(l.label, locale) }))),
+    translateAuto(doc.footer.text, locale),
+    Promise.all(doc.footer.links.map(async (l) => ({ ...l, label: await translateAuto(l.label, locale) }))),
+    doc.headerCtaText ? translateAuto(doc.headerCtaText, locale) : Promise.resolve(doc.headerCtaText),
+    // Only page titles are needed by the chrome (footer legal auto-links); block
+    // trees are translated separately by the renderer. Keep blocks untouched here.
+    Promise.all(doc.pages.map(async (p) => ({ ...p, title: await translateAuto(p.title, locale) }))),
+  ]);
+  return {
+    ...doc,
+    nav,
+    footer: { ...doc.footer, text: footerText, links: footerLinks },
+    headerCtaText,
+    pages,
+  };
 }

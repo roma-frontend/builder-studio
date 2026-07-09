@@ -24,7 +24,7 @@ export interface BillingDict {
   planName: Record<PlanId, string>;
   planTagline: Record<PlanId, string>;
   feature: Record<FeatureKey, string>;
-  limits: { sites: string; sitesUnlimited: string; ai: string; aiNone: string };
+  limits: { sites: string; sitesUnlimited: string; ai: string; aiNone: string; assistant: string; assistantUnlimited: string };
   checkout: {
     title: string;
     summary: string;
@@ -103,6 +103,13 @@ export interface BillingDict {
   };
   status: Record<string, string>;
   interval: { month: string; year: string };
+  paywall: {
+    title: string;
+    subtitle: string;
+    trialEnded: string;
+    lapsed: string;
+    memberInactive: string;
+  };
 }
 
 const ru: BillingDict = {
@@ -146,6 +153,8 @@ const ru: BillingDict = {
     sitesUnlimited: 'Неограниченно сайтов',
     ai: '{n} AI-генераций/мес',
     aiNone: 'Без AI-генераций',
+    assistant: 'AI-ассистент ({n} сообщений/день)',
+    assistantUnlimited: 'AI-ассистент (без лимита)',
   },
   checkout: {
     title: 'Оформление',
@@ -235,6 +244,13 @@ const ru: BillingDict = {
     pending: 'ожидание',
   },
   interval: { month: 'Месяц', year: 'Год' },
+  paywall: {
+    title: 'Выберите план, чтобы продолжить',
+    subtitle: 'Ваша организация и доступ ваших участников включаются вместе с подпиской. Оформите план ниже — и всё снова заработает.',
+    trialEnded: 'Бесплатный период Starter (3 дня) завершён. Чтобы продолжить работу, выберите подходящий план.',
+    lapsed: 'Срок подписки истёк. Продлите или выберите другой план, чтобы снова открыть организацию и доступ участникам.',
+    memberInactive: 'Доступ к материалам временно недоступен: у организации нет активной подписки. Обратитесь к администратору.',
+  },
 };
 
 const en: BillingDict = {
@@ -278,6 +294,8 @@ const en: BillingDict = {
     sitesUnlimited: 'Unlimited sites',
     ai: '{n} AI generations/mo',
     aiNone: 'No AI generations',
+    assistant: 'AI assistant ({n} messages/day)',
+    assistantUnlimited: 'AI assistant (unlimited)',
   },
   checkout: {
     title: 'Checkout',
@@ -367,6 +385,13 @@ const en: BillingDict = {
     pending: 'pending',
   },
   interval: { month: 'Month', year: 'Year' },
+  paywall: {
+    title: 'Choose a plan to continue',
+    subtitle: 'Your organization and your members’ access turn on with your subscription. Pick a plan below and everything comes back online.',
+    trialEnded: 'Your Starter free trial (3 days) has ended. Choose a plan to keep working.',
+    lapsed: 'Your subscription has expired. Renew or pick another plan to reopen your organization and member access.',
+    memberInactive: 'Content is temporarily unavailable: this organization has no active subscription. Please contact the administrator.',
+  },
 };
 
 const hy: BillingDict = {
@@ -410,6 +435,8 @@ const hy: BillingDict = {
     sitesUnlimited: 'Անսահմանափակ կայքեր',
     ai: '{n} AI գեներացիա/ամիս',
     aiNone: 'Առանց AI գեներացիայի',
+    assistant: 'AI օգնական ({n} հաղորդագրություն/օր)',
+    assistantUnlimited: 'AI օգնական (անսահմանափակ)',
   },
   checkout: {
     title: 'Ձևակերպում',
@@ -499,6 +526,13 @@ const hy: BillingDict = {
     pending: 'սպասում',
   },
   interval: { month: 'Ամիս', year: 'Տարի' },
+  paywall: {
+    title: 'Ընտրեք պլան՝ շարունակելու համար',
+    subtitle: 'Ձեր կազմակերպությունը և ձեր անդամների հասանելիությունը միանում են բաժանորդագրության հետ։ Ընտրեք պլան ստորև, և ամեն ինչ նորից կաշխատի։',
+    trialEnded: 'Starter-ի անվճար 3-օրյա շրջանն ավարտվել է։ Ընտրեք պլան՝ աշխատանքը շարունակելու համար։',
+    lapsed: 'Բաժանորդագրության ժամկետը լրացել է։ Երկարաձգեք կամ ընտրեք այլ պլան՝ կազմակերպությունն ու անդամների հասանելիությունը վերաբացելու համար։',
+    memberInactive: 'Նյութերը ժամանակավորապես անհասանելի են. կազմակերպությունը չունի ակտիվ բաժանորդագրություն։ Խնդրում ենք դիմել ադմինիստրատորին։',
+  },
 };
 
 export const BILLING_DICT: Record<Locale, BillingDict> = { ru, en, hy };

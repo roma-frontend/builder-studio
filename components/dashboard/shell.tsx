@@ -7,10 +7,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import {
-  Film, Blocks, LayoutDashboard, Globe, Inbox, UserCircle, Users, LayoutList,
+  Film, Blocks, LayoutDashboard, Globe, Inbox, UserCircle, Users, UsersRound, LayoutList,
   LogOut, Menu, X, ExternalLink, Crown, ShieldCheck, Plus, Search, Building2, Database,
   ScrollText, KeyRound, Activity, Trash2, ChevronLeft, ChevronRight, CreditCard, Bell,
+  Palette, LayoutTemplate,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -28,14 +30,18 @@ import { LanguageSwitcher } from '../language-switcher';
 export type Role = 'customer' | 'admin' | 'superadmin';
 export interface ShellUser { name: string; email: string; role: Role; handle?: string }
 
-type NavKey = 'overview' | 'sites' | 'organization' | 'submissions' | 'account' | 'users' | 'allSites' | 'audit' | 'organizations' | 'database' | 'access' | 'activity' | 'control' | 'studio' | 'trash' | 'billing' | 'billingAdmin' | 'notifications';
-interface NavItem { href: string; key: NavKey; icon: React.ComponentType<{ className?: string }>; staff?: boolean; super?: boolean }
+type NavKey = 'overview' | 'sites' | 'organization' | 'submissions' | 'account' | 'users' | 'allSites' | 'audit' | 'organizations' | 'database' | 'access' | 'activity' | 'control' | 'studio' | 'trash' | 'billing' | 'billingAdmin' | 'notifications' | 'themes' | 'presets' | 'members';
+interface NavItem { href: string; key: NavKey; icon: React.ComponentType<{ className?: string }>; staff?: boolean; super?: boolean; external?: boolean; notSuper?: boolean }
 
 const NAV: NavItem[] = [
   { href: '/dashboard', key: 'overview', icon: LayoutDashboard },
   { href: '/dashboard/sites', key: 'sites', icon: Globe },
+  { href: '/dashboard/members', key: 'members', icon: UsersRound, notSuper: true },
   { href: '/dashboard/join', key: 'organization', icon: Building2 },
   { href: '/dashboard/submissions', key: 'submissions', icon: Inbox },
+  // Reference galleries (public pages) — handy while building; open in a new tab.
+  { href: '/themes', key: 'themes', icon: Palette, external: true },
+  { href: '/presets', key: 'presets', icon: LayoutTemplate, external: true },
   { href: '/dashboard/account', key: 'account', icon: UserCircle },
   { href: '/dashboard/billing', key: 'billing', icon: CreditCard },
   { href: '/dashboard/users', key: 'users', icon: Users, staff: true },
@@ -107,6 +113,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
         (i) =>
           (i.staff ? isStaff : true) &&
           (i.super ? user.role === 'superadmin' : true) &&
+          !(i.notSuper && user.role === 'superadmin') &&
           !(hideOrgNav && i.key === 'organization') &&
           !disabledSet.has(i.key),
       );
@@ -152,10 +159,12 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
         : sup ? 'text-foreground/90 hover:bg-amber-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground';
       return (
         <Link key={item.href} href={item.href} data-tour={item.key === 'sites' ? 'nav-sites' : undefined} onClick={() => setOpen(false)}
+          target={item.external ? '_blank' : undefined} rel={item.external ? 'noreferrer' : undefined}
           className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${cls}`}>
           {on && <span className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full ${sup ? 'bg-amber-500' : 'bg-primary'}`} />}
           <item.icon className={`h-4 w-4 shrink-0 transition-transform ${sup ? 'text-amber-500' : ''} ${on ? 'scale-110' : ''}`} />
           <span className="truncate">{t.nav[item.key]}</span>
+          {item.external && <ExternalLink className="ml-auto h-3.5 w-3.5 opacity-50" />}
           {item.href === '/dashboard/organizations' && <OrgRequestsBadge initialCount={orgRequests} />}
           {item.href === '/dashboard/sites' && <SiteMembersBadge initialCount={siteMembers} />}
         </Link>
@@ -226,6 +235,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
                       : sup ? 'text-foreground/90 hover:bg-amber-500/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground';
                     return (
                       <Link key={item.href} href={item.href} onClick={() => setOpen(false)} title={t.nav[item.key]} aria-label={t.nav[item.key]}
+                        target={item.external ? '_blank' : undefined} rel={item.external ? 'noreferrer' : undefined}
                         className={`group relative my-1 flex items-center justify-center rounded-lg px-2 py-2.5 transition-colors ${cls}`}>
                         {on && <span className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full ${sup ? 'bg-amber-500' : 'bg-primary'}`} />}
                         <item.icon className={`h-4 w-4 shrink-0 transition-transform ${sup ? 'text-amber-500' : ''} ${on ? 'scale-110' : ''}`} />
@@ -436,7 +446,19 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
 
         <main className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
           {banner}
-          <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">{children}</div>
+          <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
+            {/* Smooth content reveal on every sidebar navigation. Keyed by the
+                path so each page remounts and replays the entrance (same feel
+                as the tenant account tabs). */}
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {children}
+            </motion.div>
+          </div>
         </main>
       </div>
     </div>

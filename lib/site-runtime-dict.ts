@@ -65,8 +65,13 @@ export type SiteRtDict = {
   // member content blocks (courses / documents / materials)
   membersOnly: string;
   signInToAccess: string;
+  orgInactiveTitle: string;
+  orgInactiveText: string;
   loadFailed: string;
   empty: string;
+  perMonth: string;
+  perYear: string;
+  planJoinCta: string;
   lessonsCount: string;
   completedOf: string;
   open: string;
@@ -135,8 +140,13 @@ const ru: SiteRtDict = {
   pwMin8Ph: 'Минимум 8 символов',
   membersOnly: 'Только для участников',
   signInToAccess: 'Войдите в аккаунт, чтобы получить доступ к этому разделу.',
+  orgInactiveTitle: 'Доступ временно закрыт',
+  orgInactiveText: 'У организации сейчас нет активной подписки — материалы временно недоступны. Свяжитесь с администратором.',
   loadFailed: 'Не удалось загрузить.',
   empty: 'Пока ничего нет.',
+  perMonth: '/мес',
+  perYear: '/год',
+  planJoinCta: 'Присоединиться',
   lessonsCount: 'уроков',
   completedOf: 'пройдено',
   open: 'Открыть',
@@ -205,8 +215,13 @@ const en: SiteRtDict = {
   pwMin8Ph: 'At least 8 characters',
   membersOnly: 'Members only',
   signInToAccess: 'Sign in to your account to access this section.',
+  orgInactiveTitle: 'Access temporarily closed',
+  orgInactiveText: 'This organization has no active subscription — content is temporarily unavailable. Please contact the administrator.',
   loadFailed: 'Could not load.',
   empty: 'Nothing here yet.',
+  perMonth: '/mo',
+  perYear: '/yr',
+  planJoinCta: 'Join',
   lessonsCount: 'lessons',
   completedOf: 'completed',
   open: 'Open',
@@ -275,8 +290,13 @@ const hy: SiteRtDict = {
   pwMin8Ph: 'Առնվազն 8 նիշ',
   membersOnly: 'Միայն անդամների համար',
   signInToAccess: 'Մուտք գործեք ձեր հաշիվ՝ այս բաժնին հասանելիություն ստանալու համար։',
+  orgInactiveTitle: 'Հասանելիությունը ժամանակավորապես փակ է',
+  orgInactiveText: 'Կազմակերպությունը ներկայումս չունի ակտիվ բաժանորդագրություն — նյութերը ժամանակավորապես անհասանելի են։ Դիմեք ադմինիստրատորին։',
   loadFailed: 'Չհաջողվեց բեռնել։',
   empty: 'Դեռ ոչինչ չկա։',
+  perMonth: '/ամիս',
+  perYear: '/տարի',
+  planJoinCta: 'Միանալ',
   lessonsCount: 'դաս',
   completedOf: 'ավարտված',
   open: 'Բացել',

@@ -99,6 +99,8 @@ export type SiteAccountDict = {
   gateSuspendedText: string;
   gatePendingText: string;
   gateReason: string; // «Причина: »
+  orgInactiveTitle: string;
+  orgInactiveText: string;
   // profile tab
   profileTitle: string;
   profileDesc: string;
@@ -287,6 +289,8 @@ const ru: SiteAccountDict = {
   gateSuspendedText: 'Ваш доступ к материалам временно приостановлен администратором.',
   gatePendingText: 'Ваша регистрация ожидает одобрения администратора. Как только заявку одобрят, здесь появятся материалы.',
   gateReason: 'Причина: ',
+  orgInactiveTitle: 'Доступ временно закрыт',
+  orgInactiveText: 'У организации сейчас нет активной подписки, поэтому материалы временно недоступны. Пожалуйста, свяжитесь с администратором — доступ вернётся, как только подписку продлят.',
   profileTitle: 'Профиль',
   profileDesc: 'Ваши личные данные и оформление аккаунта.',
   seenAs: 'Так вас видят на сайте',
@@ -470,6 +474,8 @@ const en: SiteAccountDict = {
   gateSuspendedText: 'Your access to materials has been temporarily suspended by the administrator.',
   gatePendingText: 'Your registration is awaiting the administrator’s approval. Once approved, materials will appear here.',
   gateReason: 'Reason: ',
+  orgInactiveTitle: 'Access temporarily closed',
+  orgInactiveText: 'This organization has no active subscription right now, so its content is temporarily unavailable. Please contact the administrator — access returns as soon as the plan is renewed.',
   profileTitle: 'Profile',
   profileDesc: 'Your personal details and account appearance.',
   seenAs: 'This is how you appear on the site',
@@ -653,6 +659,8 @@ const hy: SiteAccountDict = {
   gateSuspendedText: 'Ձեր մուտքը դեպի նյութեր ժամանակավորապես կասեցվել է ադմինիստրատորի կողմից։',
   gatePendingText: 'Ձեր գրանցումը սպասում է ադմինիստրատորի հաստատմանը։ Հենց դիմումը հաստատվի, նյութերն այստեղ կհայտնվեն։',
   gateReason: 'Պատճառ՝ ',
+  orgInactiveTitle: 'Հասանելիությունը ժամանակավորապես փակ է',
+  orgInactiveText: 'Կազմակերպությունը ներկայումս չունի ակտիվ բաժանորդագրություն, ուստի նյութերը ժամանակավորապես անհասանելի են։ Խնդրում ենք դիմել ադմինիստրատորին — հասանելիությունը կվերականգնվի պլանը երկարաձգելուն պես։',
   profileTitle: 'Պրոֆիլ',
   profileDesc: 'Ձեր անձնական տվյալները և հաշվի ձևավորումը։',
   seenAs: 'Այսպես են ձեզ տեսնում կայքում',

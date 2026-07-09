@@ -66,12 +66,25 @@ function Centered({ children }: { children: ReactNode }) {
   return <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">{children}</div>;
 }
 
-/** Fetch a member resource. Returns { data, state } where state distinguishes
- *  the members-only gate (401/403) from generic errors. */
+/** Shown when the organization's owner has no active subscription — the whole
+ *  org is temporarily dark. Distinct from the members-only sign-in gate. */
+function OrgGate({ t }: { t: SiteRtDict }) {
+  return (
+    <div className="mx-auto flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted"><Lock className="h-5 w-5 text-muted-foreground" /></span>
+      <p className="text-sm font-semibold">{t.orgInactiveTitle}</p>
+      <p className="text-sm text-muted-foreground">{t.orgInactiveText}</p>
+    </div>
+  );
+}
+
+/** Fetch a member resource. State distinguishes login/approval gates from
+ *  paid-plan requirements, so public landing pages can hide member-only blocks
+ *  until the visitor has paid. */
 function useMemberResource<T>(resource: string, id?: string) {
   const siteId = useSiteId();
   const [data, setData] = useState<T | null>(null);
-  const [state, setState] = useState<'loading' | 'ok' | 'gated' | 'error'>('loading');
+  const [state, setState] = useState<'loading' | 'ok' | 'gated' | 'org_inactive' | 'subscription_required' | 'error'>('loading');
   const [reloadKey, setReloadKey] = useState(0);
   const reload = () => setReloadKey((k) => k + 1);
   useEffect(() => {
@@ -85,6 +98,10 @@ function useMemberResource<T>(resource: string, id?: string) {
       .then(({ ok, status, body }) => {
         if (!alive) return;
         if (ok) { setData(body as T); setState('ok'); }
+        // The org's plan lapsed — distinct from the members-only gate so we can
+        // show a "temporarily unavailable" notice instead of a sign-in prompt.
+        else if (status === 403 && body?.code === 'org_inactive') setState('org_inactive');
+        else if (status === 402 && body?.code === 'subscription_required') setState('subscription_required');
         else if (status === 401 || status === 403) setState('gated');
         else setState('error');
       })
@@ -129,7 +146,9 @@ export function CourseListBlock({ title, columns, showProgress }: { title?: stri
   const base = useSiteBase();
   const { data, state } = useMemberResource<{ courses: Course[] }>('courses');
   if (state === 'loading') return <Centered><Loader2 className="h-5 w-5 animate-spin" /></Centered>;
+  if (state === 'subscription_required') return null;
   if (state === 'gated') return <Gate t={t} />;
+  if (state === 'org_inactive') return <OrgGate t={t} />;
   if (state === 'error') return <Centered>{t.loadFailed}</Centered>;
   const courses = data?.courses ?? [];
   if (courses.length === 0) return <BlockShell title={title} columns={columns}><Centered>{t.empty}</Centered></BlockShell>;
@@ -171,7 +190,9 @@ export function CourseDetail({ id }: { id: string }) {
   const [busy, setBusy] = useState<string>('');
 
   if (state === 'loading') return <Centered><Loader2 className="h-5 w-5 animate-spin" /></Centered>;
+  if (state === 'subscription_required') return <div className={sectionCls}><Gate t={t} /></div>;
   if (state === 'gated') return <div className={sectionCls}><Gate t={t} /></div>;
+  if (state === 'org_inactive') return <div className={sectionCls}><OrgGate t={t} /></div>;
   if (state === 'error' || !data?.course) return <div className={sectionCls}><Centered>{t.notFound}</Centered></div>;
   const course = data.course;
 
@@ -238,7 +259,9 @@ export function DocumentListBlock({ title, columns }: { title?: string; columns?
   const base = useSiteBase();
   const { data, state } = useMemberResource<{ documents: Document[] }>('documents');
   if (state === 'loading') return <Centered><Loader2 className="h-5 w-5 animate-spin" /></Centered>;
+  if (state === 'subscription_required') return null;
   if (state === 'gated') return <Gate t={t} />;
+  if (state === 'org_inactive') return <OrgGate t={t} />;
   if (state === 'error') return <Centered>{t.loadFailed}</Centered>;
   const docs = data?.documents ?? [];
   if (docs.length === 0) return <BlockShell title={title} columns={columns}><Centered>{t.empty}</Centered></BlockShell>;
@@ -264,7 +287,9 @@ export function DocumentDetail({ id }: { id: string }) {
   const base = useSiteBase();
   const { data, state } = useMemberResource<{ documents: Document[] }>('documents');
   if (state === 'loading') return <Centered><Loader2 className="h-5 w-5 animate-spin" /></Centered>;
+  if (state === 'subscription_required') return <div className={sectionCls}><Gate t={t} /></div>;
   if (state === 'gated') return <div className={sectionCls}><Gate t={t} /></div>;
+  if (state === 'org_inactive') return <div className={sectionCls}><OrgGate t={t} /></div>;
   const doc = data?.documents?.find((d) => d.id === id);
   if (state === 'error' || !doc) return <div className={sectionCls}><Centered>{t.notFound}</Centered></div>;
   const isImage = doc.contentType.startsWith('image/');
@@ -302,7 +327,9 @@ export function MaterialListBlock({ title, columns }: { title?: string; columns?
   const base = useSiteBase();
   const { data, state } = useMemberResource<{ materials: Material[] }>('materials');
   if (state === 'loading') return <Centered><Loader2 className="h-5 w-5 animate-spin" /></Centered>;
+  if (state === 'subscription_required') return null;
   if (state === 'gated') return <Gate t={t} />;
+  if (state === 'org_inactive') return <OrgGate t={t} />;
   if (state === 'error') return <Centered>{t.loadFailed}</Centered>;
   const materials = data?.materials ?? [];
   if (materials.length === 0) return <BlockShell title={title} columns={columns}><Centered>{t.empty}</Centered></BlockShell>;
@@ -326,7 +353,9 @@ export function MaterialDetail({ id }: { id: string }) {
   const base = useSiteBase();
   const { data, state } = useMemberResource<{ materials: Material[] }>('materials');
   if (state === 'loading') return <Centered><Loader2 className="h-5 w-5 animate-spin" /></Centered>;
+  if (state === 'subscription_required') return <div className={sectionCls}><Gate t={t} /></div>;
   if (state === 'gated') return <div className={sectionCls}><Gate t={t} /></div>;
+  if (state === 'org_inactive') return <div className={sectionCls}><OrgGate t={t} /></div>;
   const material = data?.materials?.find((m) => m.id === id);
   if (state === 'error' || !material) return <div className={sectionCls}><Centered>{t.notFound}</Centered></div>;
   return (
@@ -342,5 +371,90 @@ export function MaterialDetail({ id }: { id: string }) {
         </a>
       )}
     </section>
+  );
+}
+
+
+// ── Public member-plans section (tenant landing) ────────────────────────────
+// Presentational catalog of the org's ACTIVE plans (public marketing data via
+// ?resource=public-plans — no auth). The CTA sends visitors to the join/register
+// page; after joining (auto-approved via QR) they hit the account paywall to
+// subscribe. Purely a funnel entry — payment happens in the member account.
+interface LandingPlan {
+  id: string; name: string; description: string; amountCents: number;
+  currency: string; interval: 'month' | 'year'; perks: string[];
+}
+export function MemberPlansBlock({ title, columns, ctaHref }: { title?: string; columns?: string; ctaHref?: string }) {
+  const t = siteRt(useLocale().locale);
+  const locale = useLocale().locale;
+  const base = useSiteBase();
+  const { data, state } = useMemberResource<{ plans: LandingPlan[] }>('public-plans');
+  if (state === 'loading') return <Centered><Loader2 className="h-5 w-5 animate-spin" /></Centered>;
+  const plans = data?.plans ?? [];
+  if (plans.length === 0) return null; // nothing to advertise
+  const money = (cents: number, cur: string) =>
+    new Intl.NumberFormat(locale === 'hy' ? 'hy-AM' : locale, { style: 'currency', currency: cur.toUpperCase(), maximumFractionDigits: 2 }).format(cents / 100);
+  const join = ctaHref || `${base}/register`;
+  const per = (i: string) => (i === 'year' ? t.perYear : t.perMonth);
+  return (
+    <BlockShell title={title} columns={columns}>
+      {plans.map((p) => (
+        <CardItem key={p.id}>
+          <div className={cardCls}>
+            <h3 className="font-semibold leading-tight">{p.name}</h3>
+            <div className="text-2xl font-bold">{money(p.amountCents, p.currency)}<span className="text-sm font-normal text-muted-foreground">{per(p.interval)}</span></div>
+            {p.description && <p className="text-sm text-muted-foreground">{p.description}</p>}
+            {p.perks.length > 0 && (
+              <ul className="mt-1 space-y-1 text-sm">
+                {p.perks.map((perk, i) => (<li key={i} className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{perk}</li>))}
+              </ul>
+            )}
+            <Link href={join} className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
+              {t.planJoinCta}
+            </Link>
+          </div>
+        </CardItem>
+      ))}
+    </BlockShell>
+  );
+}
+
+// ── Pricing-card CTA wired to real subscriptions ────────────────────────────
+// The builder's `pricing` block CTA. When linked to a catalog plan (planId), it
+// starts a real Stripe subscription: logged-in members go straight to Checkout,
+// visitors are sent to the join/register page first. Unlinked → a plain link.
+export function PricingCta({ planId, href, cta, featured }: { planId?: string; href?: string; cta: string; featured: boolean }) {
+  const siteId = useSiteId();
+  const base = useSiteBase();
+  const [busy, setBusy] = useState(false);
+  const cls = [
+    'bn-btn mt-auto inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold transition-opacity hover:opacity-90',
+    featured ? 'bg-primary text-primary-foreground' : 'border border-border bg-background',
+  ].join(' ');
+
+  // No linked plan → behave exactly as before (a styled link).
+  if (!planId || !siteId) {
+    return <Link href={href || '#'} className={cls}>{cta}</Link>;
+  }
+
+  const go = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch('/api/site-auth', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'subscribe', siteId, planId }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && typeof d.url === 'string') { window.location.assign(d.url); return; }
+      // Not signed in (or not a member yet) → send them to join/register first.
+      if (res.status === 401) { window.location.assign(`${base}/register`); return; }
+      setBusy(false);
+    } catch { setBusy(false); }
+  };
+
+  return (
+    <button type="button" onClick={go} disabled={busy} className={cls}>
+      {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}{cta}
+    </button>
   );
 }

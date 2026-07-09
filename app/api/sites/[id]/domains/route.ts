@@ -8,6 +8,7 @@ import {
   addDomain,
   removeDomain,
   setDomainVerified,
+  setDomainProvisioning,
   normalizeHostname,
   APP_HOST,
 } from '@/lib/sites';
@@ -15,6 +16,7 @@ import {
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
 import { enforceFeature } from '@/lib/billing/enforce';
+import { expectedDomainTargets, provisionCustomDomain } from '@/lib/domain-provisioning';
 
 export const runtime = 'nodejs';
 
@@ -62,10 +64,25 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const domain = addDomain(site.id, hostname);
-  return NextResponse.json({ ok: true, domain });
+  const provisioned = await provisionCustomDomain(hostname);
+  setDomainProvisioning(domain.id, {
+    provisioningProvider: provisioned.provider,
+    provisioningStatus: provisioned.status,
+    provisioningError: provisioned.error ?? '',
+  });
+
+  return NextResponse.json({
+    ok: true,
+    domain: {
+      ...domain,
+      provisioningProvider: provisioned.provider,
+      provisioningStatus: provisioned.status,
+      provisioningError: provisioned.error ?? '',
+    },
+  });
 }
 
-/** Re-check DNS for a domain: A-record must point at SERVER_IP, or CNAME at APP_HOST. */
+/** Re-check DNS for a domain: CNAME must point at the platform target, or A-record at SERVER_IP. */
 export async function PATCH(request: Request, { params }: Params) {
   const t = apiErrors(await getLocale());
   const user = await getCurrentUser();
@@ -84,13 +101,13 @@ export async function PATCH(request: Request, { params }: Params) {
   if (!domain) return NextResponse.json({ error: t.domainNotFound }, { status: 404 });
 
   const serverIp = process.env.SERVER_IP || '';
-  const appHostname = APP_HOST.split(':')[0];
+  const expectedCnames = expectedDomainTargets();
   let verified = false;
   const details: string[] = [];
   try {
     const cnames = await dns.resolveCname(domain.hostname).catch(() => [] as string[]);
     details.push(cnames.length ? `CNAME: ${cnames.join(', ')}` : t.dnsCnameNone);
-    if (cnames.some((c) => c.toLowerCase().replace(/\.$/, '') === appHostname)) verified = true;
+    if (cnames.some((c) => expectedCnames.includes(c.toLowerCase().replace(/\.$/, '')))) verified = true;
     if (!verified) {
       const ips = await dns.resolve4(domain.hostname).catch(() => [] as string[]);
       details.push(ips.length ? `A: ${ips.join(', ')}` : t.dnsANone);
@@ -104,7 +121,11 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   setDomainVerified(domain.id, verified);
-  return NextResponse.json({ ok: true, verified, details });
+  const provisioningStatus = verified ? 'active' : domain.provisioningStatus === 'failed' ? 'failed' : 'dns_required';
+  if (provisioningStatus !== (verified ? 'active' : 'dns_required')) {
+    setDomainProvisioning(domain.id, { provisioningStatus });
+  }
+  return NextResponse.json({ ok: true, verified, details, domain: { ...domain, verified, provisioningStatus } });
 }
 
 export async function DELETE(request: Request, { params }: Params) {

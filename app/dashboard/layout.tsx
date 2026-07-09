@@ -15,6 +15,10 @@ import { StudioAssistant } from '@/components/assistant/studio-assistant';
 import { PlatformThemeStyle } from '@/components/platform-theme-style';
 import { llmConfigured } from '@/lib/llm';
 import { getUserEntitlements } from '@/lib/billing/entitlements';
+import { getActiveSubscription, getLatestSubscription } from '@/lib/billing/subscriptions';
+import { getEffectivePlans } from '@/lib/billing/plan-config';
+import { PlanRequired } from '@/components/billing/plan-required';
+import type { PlanId } from '@/lib/billing/plans';
 
 // Private area — keep it out of search indexes.
 export async function generateMetadata() {
@@ -43,6 +47,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // request), every dashboard section shows the onboarding instead of content.
   const hasOrg = listSitesForUser(user.id).length > 0;
   const gated = !isSuperadmin(user) && !hasOrg;
+  // Billing gate: an org owner (admin) whose subscription isn't active can't use
+  // the dashboard until they (re)subscribe — the whole org turns on with the
+  // plan. Superadmin is exempt; the onboarding (gated) takes precedence.
+  const activeSub = isSuperadmin(user) ? true : getActiveSubscription(user.id) != null;
+  const needsPlan = !isSuperadmin(user) && hasOrg && !activeSub;
   const orgRequests = isSuperadmin(user) ? countPendingOrgRequests() : 0;
   const siteMembers = gated ? 0 : countPendingMembersForOwner(user);
   // Aggregate baseline for the header NotificationBell: form submissions +
@@ -51,6 +60,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const notifications = gated ? 0 : statsForUser(user.id).submissions + siteMembers + orgRequests;
   const disabled = disabledCapabilitiesFor(user.role);
   const dashT = dashDict(await getLocale());
+
+  // Paywall copy depends on WHY billing is inactive: a trial that just ended vs
+  // a lapsed paid plan vs never subscribed.
+  const latestSub = needsPlan ? getLatestSubscription(user.id) : null;
+  const paywallReason: 'none' | 'trial_ended' | 'lapsed' = !latestSub
+    ? 'none'
+    : latestSub.status === 'trialing'
+      ? 'trial_ended'
+      : 'lapsed';
+  const paywallPlans = needsPlan ? getEffectivePlans() : [];
 
   // Telegram sign-ins have a synthetic tg_<id>@telegram.local email — show the
   // @username instead (or nothing) rather than that long placeholder.
@@ -77,6 +96,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <PageHeader title={dashT.org.welcomeTitle} description={dashT.org.welcomeDesc} />
             <OrgOnboarding />
           </>
+        ) : needsPlan ? (
+          <PlanRequired
+            reason={paywallReason}
+            plans={paywallPlans}
+            currentPlan={(latestSub?.planId as PlanId) ?? null}
+          />
         ) : (
           children
         )}

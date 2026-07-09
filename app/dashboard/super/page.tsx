@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { Building2, Database, KeyRound, Activity, Trash2, Crown, Film, CreditCard, Bell } from 'lucide-react';
+import { Building2, Database, KeyRound, Activity, Trash2, Crown, Film, CreditCard, Bell, Wallet } from 'lucide-react';
 import { getCurrentUser, isSuperadmin } from '@/lib/auth';
 import { getLocale } from '@/lib/i18n';
 import { dashDict } from '@/lib/dashboard-dict';
@@ -37,6 +37,16 @@ export default async function SuperHubPage() {
     icon: c.icon,
     accent: true,
   }));
+
+  // Platform-commerce console (per-org revenue + payouts). Inline-localized to
+  // avoid threading extra dict keys through every locale.
+  const locale = await getLocale();
+  const revText = ({
+    ru: { title: 'Выручка организаций', desc: 'Выручка по орг-м и выплаты админам' },
+    en: { title: 'Organization revenue', desc: 'Per-org revenue and admin payouts' },
+    hy: { title: 'Կազմակերպությունների եկամուտ', desc: 'Եկամուտ ըստ կազմ-ի և վճարումներ' },
+  } as Record<string, { title: string; desc: string }>)[locale] ?? { title: 'Organization revenue', desc: 'Per-org revenue and admin payouts' };
+  cards.push({ href: '/dashboard/revenue', title: revText.title, description: revText.desc, icon: Wallet, accent: true });
 
   return <SectionHub title={t.hub.superTitle} subtitle={t.hub.superSubtitle} cards={cards} openLabel={t.hub.open} />;
 }

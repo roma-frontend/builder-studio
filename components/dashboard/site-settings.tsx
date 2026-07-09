@@ -7,14 +7,14 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Loader2, Save, Globe, Plus, Trash2, RefreshCw, CheckCircle2, Inbox, ExternalLink, Copy, Check, Users,
+  ArrowLeft, Loader2, Save, Globe, Plus, Trash2, RefreshCw, CheckCircle2, Inbox, ExternalLink, Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useLocale } from '@/hooks/use-locale';
 import { siteSettingsDict } from '@/lib/site-settings-dict';
-import { BCP47 } from '@/lib/seo';
+import { BCP47, subdomainsSupported } from '@/lib/seo';
 
 interface SiteInfo {
   id: string;
@@ -27,6 +27,9 @@ interface DomainRow {
   id: string;
   hostname: string;
   verified: boolean;
+  provisioningProvider?: string;
+  provisioningStatus?: string;
+  provisioningError?: string;
 }
 interface SubmissionRow {
   id: string;
@@ -43,14 +46,12 @@ interface SiteUserRow {
 
 export function SiteSettings({
   appHost,
-  serverIp,
   site,
   initialDomains,
   initialSubmissions,
   initialSiteUsers,
 }: {
   appHost: string;
-  serverIp: string;
   site: SiteInfo;
   initialDomains: DomainRow[];
   initialSubmissions: SubmissionRow[];
@@ -71,22 +72,11 @@ export function SiteSettings({
   const [domErr, setDomErr] = useState('');
 
   const appHostname = appHost.split(':')[0];
-  const [copied, setCopied] = useState('');
-  const copy = (text: string, key: string) => {
-    navigator.clipboard?.writeText(text).then(() => {
-      setCopied(key);
-      setTimeout(() => setCopied((c) => (c === key ? '' : c)), 1500);
-    });
-  };
-  // DNS records for a hostname: apex (example.com) uses an A-record to the
-  // server IP; a subdomain (www.example.com) uses a CNAME to the platform host.
-  const dnsRecords = (hostname: string): { type: string; name: string; value: string }[] => {
-    const labels = hostname.split('.');
-    const isApex = labels.length <= 2;
-    const name = isApex ? '@' : labels.slice(0, labels.length - 2).join('.');
-    return isApex
-      ? [{ type: 'A', name, value: serverIp || t.serverIp }]
-      : [{ type: 'CNAME', name, value: appHostname }];
+  const subdomains = subdomainsSupported();
+  const domainStatus = (d: DomainRow) => {
+    if (d.verified || d.provisioningStatus === 'active') return { label: t.verified, tone: 'ok' as const };
+    if (d.provisioningStatus === 'failed') return { label: t.domainNeedsSupport, tone: 'error' as const };
+    return { label: t.domainProvisioning, tone: 'pending' as const };
   };
 
   const saveIdentity = async (e: FormEvent) => {
@@ -126,7 +116,7 @@ export function SiteSettings({
       });
       const data = await res.json();
       if (res.ok) {
-        setDomains((d) => [...d, { id: data.domain.id, hostname: data.domain.hostname, verified: false }]);
+        setDomains((d) => [...d, data.domain]);
         setNewDomain('');
       } else setDomErr(data.error || t.error);
     } finally {
@@ -143,7 +133,7 @@ export function SiteSettings({
       });
       const data = await res.json();
       if (res.ok) {
-        setDomains((list) => list.map((d) => (d.id === domainId ? { ...d, verified: data.verified } : d)));
+        setDomains((list) => list.map((d) => (d.id === domainId ? { ...d, ...data.domain } : d)));
         return { verified: Boolean(data.verified), error: data.verified ? '' : `${t.dnsNotPointing} (${(data.details || []).join(' · ')})` };
       }
       return { verified: false, error: data.error || t.checkError };
@@ -199,7 +189,7 @@ export function SiteSettings({
     <main className="min-h-dvh bg-background">
       {confirmDialog}
       <header className="border-b border-border/60 bg-background/85 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
+        <div className="flex h-14 items-center justify-between gap-3 px-4">
           <Link href="/dashboard" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" /> {t.backToSites}
           </Link>
@@ -210,7 +200,7 @@ export function SiteSettings({
         </div>
       </header>
 
-      <div className="mx-auto max-w-3xl space-y-8 px-4 py-8">
+      <div className="space-y-8 px-4 py-8">
         {/* Identity */}
         <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <h2 className="font-semibold tracking-tight">{t.identityTitle}</h2>
@@ -223,8 +213,9 @@ export function SiteSettings({
               <label htmlFor="site-slug" className="text-sm font-medium">{t.slugLabel}</label>
               <Input id="site-slug" value={slug} onChange={(e) => setSlug(e.target.value)} />
               <p className="text-xs text-muted-foreground">
-                {t.availableAt} {appHost}/s/<b>{slug || '…'}</b>
-                {appHostname !== 'localhost' && <> {t.and} <b>{slug || '…'}</b>.{appHostname}</>}
+                {subdomains
+                  ? <>{t.availableAt} <b>{slug || '…'}</b>.{appHostname} {t.and} {appHost}/s/<b>{slug || '…'}</b></>
+                  : <>{t.availableAt} {appHost}/s/<b>{slug || '…'}</b></>}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -257,10 +248,12 @@ export function SiteSettings({
                 <li key={d.id} className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{d.hostname}</span>
-                    {d.verified ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5" /> {t.verified}</span>
+                    {domainStatus(d).tone === 'ok' ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5" /> {domainStatus(d).label}</span>
+                    ) : domainStatus(d).tone === 'error' ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-destructive"><RefreshCw className="h-3.5 w-3.5" /> {domainStatus(d).label}</span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t.awaitingDns}</span>
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {domainStatus(d).label}</span>
                     )}
                     <div className="ml-auto flex items-center gap-1">
                       <Button size="sm" variant="ghost" disabled={domBusy === d.id} onClick={() => checkDomain(d.id)} className="gap-1.5" title={t.checkNow}>
@@ -271,23 +264,7 @@ export function SiteSettings({
                       </Button>
                     </div>
                   </div>
-                  {!d.verified && (
-                    <div className="mt-2 rounded-lg border border-border/60 bg-muted/30 p-2.5">
-                      <p className="mb-1.5 text-xs text-muted-foreground">{t.addDnsRecord}</p>
-                      {dnsRecords(d.hostname).map((r, i) => (
-                        <div key={i} className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
-                          <span className="rounded bg-background px-1.5 py-0.5 font-semibold">{r.type}</span>
-                          <span className="text-muted-foreground">{t.dnsName}</span>
-                          <code className="rounded bg-background px-1.5 py-0.5">{r.name}</code>
-                          <span className="text-muted-foreground">{t.dnsValue}</span>
-                          <code className="rounded bg-background px-1.5 py-0.5">{r.value}</code>
-                          <button type="button" onClick={() => copy(r.value, `${d.id}-${i}`)} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground hover:bg-background hover:text-foreground" title={t.copyValue}>
-                            {copied === `${d.id}-${i}` ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {!d.verified && <p className="mt-2 text-xs text-muted-foreground">{t.domainManagedHint}</p>}
                 </li>
               ))}
             </ul>

@@ -54,6 +54,10 @@ CREATE TABLE IF NOT EXISTS domains (
   site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
   hostname TEXT NOT NULL,
   verified INTEGER NOT NULL DEFAULT 0,
+  provisioning_provider TEXT NOT NULL DEFAULT '',
+  provisioning_status TEXT NOT NULL DEFAULT 'pending',
+  provisioning_error TEXT NOT NULL DEFAULT '',
+  last_checked_at INTEGER,
   created_at INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS domains_hostname_idx ON domains (hostname);
@@ -460,12 +464,97 @@ CREATE TABLE IF NOT EXISTS assistant_usage (
   count INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, day)
 );
+
+-- Legacy Connect table; new tenant-commerce flows use the platform Stripe account.
+CREATE TABLE IF NOT EXISTS site_stripe_accounts (
+  site_id TEXT PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
+  stripe_account_id TEXT NOT NULL,
+  charges_enabled INTEGER NOT NULL DEFAULT 0,
+  details_submitted INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER
+);
+CREATE UNIQUE INDEX IF NOT EXISTS site_stripe_acct_idx ON site_stripe_accounts (stripe_account_id);
+
+-- Tenant commerce: an org's catalog of member plans.
+CREATE TABLE IF NOT EXISTS site_plans (
+  id TEXT PRIMARY KEY,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  name TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  amount_cents INTEGER NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL DEFAULT 'usd',
+  interval TEXT NOT NULL DEFAULT 'month',
+  perks TEXT NOT NULL DEFAULT '[]',
+  active INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  stripe_product_id TEXT,
+  stripe_price_id TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS site_plans_site_idx ON site_plans (site_id);
+
+-- Tenant commerce: a member's subscription to one of their org's plans.
+CREATE TABLE IF NOT EXISTS member_subscriptions (
+  id TEXT PRIMARY KEY,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  site_user_id TEXT NOT NULL REFERENCES site_users(id) ON DELETE CASCADE,
+  plan_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  provider TEXT NOT NULL DEFAULT 'stripe',
+  provider_sub_id TEXT,
+  current_period_end INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS member_subs_site_idx ON member_subscriptions (site_id);
+CREATE INDEX IF NOT EXISTS member_subs_user_idx ON member_subscriptions (site_user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS member_subs_provider_idx ON member_subscriptions (provider_sub_id) WHERE provider_sub_id IS NOT NULL;
+
+-- Platform-managed commerce: collected member payments (tagged by org).
+CREATE TABLE IF NOT EXISTS member_payments (
+  id TEXT PRIMARY KEY,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  site_user_id TEXT,
+  plan_id TEXT NOT NULL DEFAULT '',
+  amount_cents INTEGER NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL DEFAULT 'usd',
+  provider_ref TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS member_payments_site_idx ON member_payments (site_id);
+CREATE UNIQUE INDEX IF NOT EXISTS member_payments_provider_idx ON member_payments (provider_ref);
+
+-- Platform-managed commerce: superadmin-recorded payouts to org admins.
+CREATE TABLE IF NOT EXISTS org_payouts (
+  id TEXT PRIMARY KEY,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  amount_cents INTEGER NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL DEFAULT 'usd',
+  note TEXT NOT NULL DEFAULT '',
+  created_by TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS org_payouts_site_idx ON org_payouts (site_id);
 `;
 
 type DB = BetterSQLite3Database<typeof schema>;
 
 // Survive Next.js dev-server module reloads without leaking connections.
 const globalForDb = globalThis as unknown as { __cwkDb?: DB; __cwkSqlite?: Database.Database };
+
+function ensureColumn(sqlite: Database.Database, table: string, column: string, ddl: string): void {
+  const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+}
+
+function ensureRuntimeMigrations(sqlite: Database.Database): void {
+  ensureColumn(sqlite, 'domains', 'provisioning_provider', `provisioning_provider TEXT NOT NULL DEFAULT ''`);
+  ensureColumn(sqlite, 'domains', 'provisioning_status', `provisioning_status TEXT NOT NULL DEFAULT 'pending'`);
+  ensureColumn(sqlite, 'domains', 'provisioning_error', `provisioning_error TEXT NOT NULL DEFAULT ''`);
+  ensureColumn(sqlite, 'domains', 'last_checked_at', `last_checked_at INTEGER`);
+}
 
 function createDb(): DB {
   mkdirSync(path.dirname(DB_FILE), { recursive: true });
@@ -475,10 +564,7 @@ function createDb(): DB {
   sqlite.pragma('busy_timeout = 5000');
   sqlite.exec(MIGRATIONS);
   // Idempotent column additions for databases created before a column existed.
-  const addColumn = (table: string, column: string, ddl: string) => {
-    const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-    if (!cols.some((c) => c.name === column)) sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
-  };
+  const addColumn = (table: string, column: string, ddl: string) => ensureColumn(sqlite, table, column, ddl);
   addColumn('users', 'role', `role TEXT NOT NULL DEFAULT 'customer'`);
   addColumn('users', 'is_active', `is_active INTEGER NOT NULL DEFAULT 1`);
   // Brute-force lockout counters (both auth realms).
@@ -522,6 +608,7 @@ function createDb(): DB {
   addColumn('site_sessions', 'user_agent', `user_agent TEXT NOT NULL DEFAULT ''`);
   addColumn('site_sessions', 'ip', `ip TEXT NOT NULL DEFAULT ''`);
   addColumn('submissions', 'site_user_id', `site_user_id TEXT`);
+  ensureRuntimeMigrations(sqlite);
   // Org-isolation (variant A): membership approval + admin materials.
   addColumn('sites', 'member_approval', `member_approval INTEGER NOT NULL DEFAULT 1`);
   addColumn('site_users', 'status', `status TEXT NOT NULL DEFAULT 'approved'`);
@@ -536,6 +623,7 @@ function createDb(): DB {
 
 export function getDb(): DB {
   if (!globalForDb.__cwkDb) globalForDb.__cwkDb = createDb();
+  else if (globalForDb.__cwkSqlite) ensureRuntimeMigrations(globalForDb.__cwkSqlite);
   return globalForDb.__cwkDb;
 }
 

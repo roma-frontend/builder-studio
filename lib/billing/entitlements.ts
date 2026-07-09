@@ -5,7 +5,7 @@
 
 import 'server-only';
 import { getActiveSubscription } from '@/lib/billing/subscriptions';
-import { isStaff } from '@/lib/auth';
+import { isSuperadmin } from '@/lib/auth';
 import { effectiveFeatures, getEffectivePlan } from '@/lib/billing/plan-config';
 import { ALL_FEATURES, type FeatureKey, type PlanId } from '@/lib/billing/plans';
 
@@ -40,7 +40,10 @@ function build(planId: PlanId | null, unlimited: boolean): Entitlements {
 /** Resolve entitlements for a platform user. */
 export function getUserEntitlements(user: { id: string; role?: string } | null | undefined): Entitlements {
   if (!user) return build(null, false);
-  if (isStaff(user)) return build('studio', true);
+  // Only the SUPERADMIN owns the platform and is unrestricted. An 'admin' is an
+  // ORGANIZATION OWNER — a paying customer — so their entitlements come from
+  // their own active subscription (the plan they bought), not a blanket grant.
+  if (isSuperadmin(user)) return build('studio', true);
   const sub = getActiveSubscription(user.id);
   return build(sub ? (sub.planId as PlanId) : null, false);
 }

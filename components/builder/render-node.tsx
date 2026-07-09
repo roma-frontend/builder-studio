@@ -17,7 +17,7 @@ import mediaData from '@/data/media.json';
 import type { MediaEntry } from '@/lib/media';
 import { presetHrefFromSources } from '@/lib/media';
 import { SiteAuthForm, SiteAccount } from '@/components/builder/site-auth-blocks';
-import { CourseListBlock, DocumentListBlock, MaterialListBlock } from '@/components/builder/site-content-blocks';
+import { CourseListBlock, DocumentListBlock, MaterialListBlock, MemberPlansBlock, PricingCta } from '@/components/builder/site-content-blocks';
 import { siteRt, type SiteRtDict } from '@/lib/site-runtime-dict';
 
 const RT_DEFAULT = siteRt('ru');
@@ -947,7 +947,7 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
             ))}
           </ul>
           {p.cta ? (
-            <Link href={p.href || '#'} className={cn(buttonVariants({ variant: featured ? 'default' : 'outline' }), 'bn-btn mt-auto')}>{p.cta}</Link>
+            <PricingCta planId={p.planId} href={p.href} cta={p.cta} featured={featured} />
           ) : null}
         </div>
       );
@@ -1129,6 +1129,8 @@ function renderInner(node: BuilderNode, t: SiteRtDict) {
 
     case 'materialList':
       return <MaterialListBlock title={p.title} columns={p.columns} />;
+    case 'memberPlans':
+      return <MemberPlansBlock title={p.title} columns={p.columns} ctaHref={p.ctaHref} />;
 
     default:
       return null;

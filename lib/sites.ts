@@ -9,6 +9,7 @@ import { type BuilderDoc, type BuilderNode } from '@/lib/builder/types';
 import { legalPages } from '@/lib/builder/templates';
 import { trc, translatePage } from '@/lib/builder/templates-i18n';
 import { DEFAULT_LOCALE, type Locale } from '@/lib/seo';
+import { syncBuilderPricingPlans } from '@/lib/site-plans';
 import starterSeed from '@/data/builder.json';
 
 // The committed demo document doubles as the starter template for a tenant's
@@ -154,9 +155,10 @@ export function saveDraft(site: Site, doc: BuilderDoc): void {
 
 /** Copy the draft over the published snapshot. */
 export function publishSite(site: Site): void {
+  const doc = syncBuilderPricingPlans(site.id, parseDoc(site.draftDoc) ?? JSON.parse(site.draftDoc) as BuilderDoc);
   getDb()
     .update(sites)
-    .set({ publishedDoc: site.draftDoc, publishedAt: new Date(), updatedAt: new Date() })
+    .set({ publishedDoc: JSON.stringify(doc), publishedAt: new Date(), updatedAt: new Date() })
     .where(eq(sites.id, site.id))
     .run();
 }
@@ -201,6 +203,10 @@ export function addDomain(siteId: string, hostname: string): Domain {
     siteId,
     hostname: hostname.toLowerCase(),
     verified: false,
+    provisioningProvider: '',
+    provisioningStatus: 'pending',
+    provisioningError: '',
+    lastCheckedAt: null,
     createdAt: new Date(),
   };
   getDb().insert(domains).values(domain).run();
@@ -216,7 +222,22 @@ export function removeDomain(siteId: string, domainId: string): boolean {
 }
 
 export function setDomainVerified(domainId: string, verified: boolean): void {
-  getDb().update(domains).set({ verified }).where(eq(domains.id, domainId)).run();
+  getDb()
+    .update(domains)
+    .set({ verified, provisioningStatus: verified ? 'active' : 'dns_required', lastCheckedAt: new Date() })
+    .where(eq(domains.id, domainId))
+    .run();
+}
+
+export function setDomainProvisioning(
+  domainId: string,
+  update: Partial<Pick<Domain, 'provisioningProvider' | 'provisioningStatus' | 'provisioningError' | 'verified'>>,
+): void {
+  getDb()
+    .update(domains)
+    .set({ ...update, lastCheckedAt: new Date() })
+    .where(eq(domains.id, domainId))
+    .run();
 }
 
 // ---- submissions ----

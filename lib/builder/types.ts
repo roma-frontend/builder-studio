@@ -35,6 +35,7 @@ export type NodeType =
   | 'courseList'
   | 'documentList'
   | 'materialList'
+  | 'memberPlans'
   | 'landingHero';
 
 export interface BuilderNode {
@@ -151,6 +152,7 @@ export const NODE_LABELS: Record<NodeType, string> = {
   courseList: 'Курсы (клиенты сайта)',
   documentList: 'Документы (клиенты сайта)',
   materialList: 'Материалы (клиенты сайта)',
+  memberPlans: 'Планы участников (оплата)',
   landingHero: 'Лендинг-герой (с эффектами)',
 };
 
@@ -194,7 +196,7 @@ export function defaultProps(type: NodeType): Record<string, string> {
     case 'form':
       return { formId: 'contact', submitText: 'Отправить', successMsg: 'Спасибо! Мы свяжемся с вами.' };
     case 'pricing':
-      return { plan: 'Pro', price: '990₽', period: '/мес', features: 'Всё из Base\nПриоритетная поддержка\nБез ограничений', cta: 'Выбрать', href: '/site/contact', featured: 'false', priceVariant: 'card' };
+      return { plan: 'Pro', price: '990₽', period: '/мес', features: 'Всё из Base\nПриоритетная поддержка\nБез ограничений', cta: 'Выбрать', href: '/site/contact', featured: 'false', priceVariant: 'card', planId: '' };
     case 'testimonial':
       return { quote: 'Отличный продукт — собрали сайт за вечер!', author: 'Анна Иванова', role: 'CEO, Acme', quoteVariant: 'card' };
     case 'socials':
@@ -223,6 +225,8 @@ export function defaultProps(type: NodeType): Record<string, string> {
       return { title: 'Документы', columns: '3' };
     case 'materialList':
       return { title: 'Материалы', columns: '3' };
+    case 'memberPlans':
+      return { title: 'Планы участников', columns: '3' };
     case 'landingHero':
       return {
         badge: 'ИИ-платформа для сайтов',

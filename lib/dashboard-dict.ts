@@ -23,6 +23,9 @@ export type DashDict = {
     billing: string;
     billingAdmin: string;
     notifications: string;
+    themes: string;
+    presets: string;
+    members: string;
   };
   roles: { superadmin: string; admin: string; customer: string };
   userMenu: { label: string; signedIn: string };
@@ -99,6 +102,8 @@ export type DashDict = {
     reqOne: string;
     reqMany: string; // contains {n}
     review: string;
+    members: string;
+    invite: string;
   };
   overview: {
     metaTitle: string;
@@ -264,6 +269,9 @@ const ru: DashDict = {
     billing: 'Подписка',
     billingAdmin: 'Платежи',
     notifications: 'Уведомления',
+    themes: 'Темы',
+    presets: 'Пресеты',
+    members: 'Пользователи',
   },
   roles: { superadmin: 'Суперадмин', admin: 'Админ', customer: 'Клиент' },
   userMenu: { label: 'Меню аккаунта', signedIn: 'Вы вошли как' },
@@ -340,6 +348,8 @@ const ru: DashDict = {
     reqOne: '1 заявка на вступление',
     reqMany: '{n} заявок на вступление',
     review: 'Рассмотреть →',
+    members: 'Пользователи',
+    invite: 'Пригласить',
   },
   overview: {
     metaTitle: 'Обзор',
@@ -544,6 +554,9 @@ const en: DashDict = {
     billing: 'Subscription',
     billingAdmin: 'Billing',
     notifications: 'Notifications',
+    themes: 'Themes',
+    presets: 'Presets',
+    members: 'Users',
   },
   roles: { superadmin: 'Superadmin', admin: 'Admin', customer: 'Customer' },
   userMenu: { label: 'Account menu', signedIn: 'Signed in as' },
@@ -620,6 +633,8 @@ const en: DashDict = {
     reqOne: '1 join request',
     reqMany: '{n} join requests',
     review: 'Review →',
+    members: 'Users',
+    invite: 'Invite',
   },
   overview: {
     metaTitle: 'Overview',
@@ -824,6 +839,9 @@ const hy: DashDict = {
     billing: 'Բաժանորդագրություն',
     billingAdmin: 'Վճարումներ',
     notifications: 'Ծանուցումներ',
+    themes: 'Թեմաներ',
+    presets: 'Կաղապարներ',
+    members: 'Օգտատերեր',
   },
   roles: { superadmin: 'Գերադմին', admin: 'Ադմին', customer: 'Հաճախորդ' },
   userMenu: { label: 'Հաշվի ընտրացանկ', signedIn: 'Մուտք եք գործել որպես' },
@@ -900,6 +918,8 @@ const hy: DashDict = {
     reqOne: '1 միանալու հայտ',
     reqMany: '{n} միանալու հայտ',
     review: 'Դիտել →',
+    members: 'Օգտատերեր',
+    invite: 'Հրավիրել',
   },
   overview: {
     metaTitle: 'Ընդհանուր',

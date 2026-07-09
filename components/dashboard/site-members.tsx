@@ -5,7 +5,7 @@
 // (platform-authenticated + ownership-checked). Fully siteId-scoped.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Check, X, Ban, Clock, Plus, Trash2, Users, Library, ShieldCheck, GraduationCap, ChevronRight, Eye, EyeOff, Upload, FileType, LifeBuoy, Send, ArrowLeft, Megaphone, UserPlus, Pencil, KeyRound, Download, Copy, Settings2 } from 'lucide-react';
+import { Loader2, Check, X, Ban, Clock, Plus, Trash2, Users, Library, ShieldCheck, GraduationCap, ChevronRight, ChevronLeft, Eye, EyeOff, Upload, FileType, LifeBuoy, Send, ArrowLeft, Megaphone, UserPlus, Pencil, KeyRound, Download, Copy, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SITE_MEMBERS_SEEN_EVENT } from '@/components/dashboard/site-members-badge';
@@ -50,6 +50,32 @@ export function SiteMembers({ siteId, memberApproval, settings }: { siteId: stri
   const [approval, setApproval] = useState(memberApproval);
   const [tab, setTab] = useState<TabId>(settings ? 'settings' : 'members');
 
+  // Horizontal tab carousel: show scroll arrows when the strip overflows so
+  // every tool stays reachable on narrow screens (no hidden, unscrollable tabs).
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [arrows, setArrows] = useState({ left: false, right: false });
+  const updateArrows = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setArrows({ left: scrollLeft > 4, right: scrollLeft + clientWidth < scrollWidth - 4 });
+  }, []);
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    updateArrows();
+    el.addEventListener('scroll', updateArrows, { passive: true });
+    const ro = new ResizeObserver(updateArrows);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', updateArrows); ro.disconnect(); };
+  }, [updateArrows]);
+  const scrollByDir = (dir: -1 | 1) => scrollerRef.current?.scrollBy({ left: dir * 240, behavior: 'smooth' });
+  // Keep the active tab in view when it changes (e.g. deep-linked / programmatic).
+  useEffect(() => {
+    scrollerRef.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`)
+      ?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+  }, [tab]);
+
   const load = useCallback(() => {
     fetch(`/api/site-members?site=${encodeURIComponent(siteId)}`)
       .then((r) => r.json())
@@ -84,21 +110,42 @@ export function SiteMembers({ siteId, memberApproval, settings }: { siteId: stri
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Compact tab bar — one place to reach every organization tool */}
-      <div className="flex gap-1 overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {tabs.map((tb) => {
-          const on = tab === tb.id;
-          const Icon = tb.icon;
-          return (
-            <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
-              className={`flex flex-none items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${on ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Icon className="h-4 w-4" />
-              <span>{tb.label}</span>
-              {tb.count ? <span className={`rounded-full px-1.5 text-[11px] font-bold ${on ? 'bg-primary/15 text-primary' : 'bg-muted-foreground/15 text-muted-foreground'}`}>{tb.count}</span> : null}
+    <div id="members" className="space-y-6 scroll-mt-20">
+      {/* Compact tab bar — a horizontal carousel so every organization tool
+          stays reachable; arrows appear when the strip overflows. */}
+      <div className="relative">
+        {arrows.left && (
+          <>
+            <button type="button" onClick={() => scrollByDir(-1)} aria-label="←"
+              className="absolute left-1 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:text-foreground">
+              <ChevronLeft className="h-4 w-4" />
             </button>
-          );
-        })}
+            <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-[5] w-10 rounded-l-2xl bg-gradient-to-r from-background to-transparent" />
+          </>
+        )}
+        <div ref={scrollerRef} className="flex gap-1 overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {tabs.map((tb) => {
+            const on = tab === tb.id;
+            const Icon = tb.icon;
+            return (
+              <button key={tb.id} data-tab={tb.id} type="button" onClick={() => setTab(tb.id)}
+                className={`flex flex-none items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${on ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                <Icon className="h-4 w-4" />
+                <span>{tb.label}</span>
+                {tb.count ? <span className={`rounded-full px-1.5 text-[11px] font-bold ${on ? 'bg-primary/15 text-primary' : 'bg-muted-foreground/15 text-muted-foreground'}`}>{tb.count}</span> : null}
+              </button>
+            );
+          })}
+        </div>
+        {arrows.right && (
+          <>
+            <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-[5] w-10 rounded-r-2xl bg-gradient-to-l from-background to-transparent" />
+            <button type="button" onClick={() => scrollByDir(1)} aria-label="→"
+              className="absolute right-1 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:text-foreground">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Active tab */}

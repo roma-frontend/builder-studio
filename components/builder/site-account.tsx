@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { iconCls, passwordScore, StrengthMeter } from '@/components/auth/auth-ui';
 import { SiteThemeToggle } from '@/components/builder/site-theme-toggle';
 import { SiteUserMenu } from '@/components/builder/site-user-menu';
+import { MemberPlans } from '@/components/builder/member-plans';
 import { useLocale } from '@/hooks/use-locale';
 import { BCP47, type Locale } from '@/lib/seo';
 import { siteAccountDict, type SiteAccountDict } from '@/lib/site-account-dict';
@@ -130,6 +131,8 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
   const [loggingOut, setLoggingOut] = useState(false);
   const [open, setOpen] = useState(false); // mobile sidebar
   const [unread, setUnread] = useState(0);
+  const [orgActive, setOrgActive] = useState(true);
+  const [memberPlanRequired, setMemberPlanRequired] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
   const [subNav, setSubNav] = useState<'account' | null>(null);
@@ -149,7 +152,21 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
   // eslint-disable-next-line react-hooks/preserve-manual-memoization -- setMe is a stable setter; siteId is the only real dep.
   const refresh = useCallback(() => {
     return fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}`)
-      .then((r) => r.json()).then((d) => setMe(d.user ?? null)).catch(() => {});
+      .then((r) => r.json())
+      .then(async (d) => {
+        const user = d.user ?? null;
+        setMe(user);
+        setOrgActive(d.orgActive !== false);
+        if (!user || user.status !== 'approved') {
+          setMemberPlanRequired(false);
+          return;
+        }
+        const membership = await fetch(`/api/site-auth?site=${encodeURIComponent(siteId)}&resource=membership`)
+          .then((r) => r.json())
+          .catch(() => ({}));
+        setMemberPlanRequired(Array.isArray(membership.plans) && membership.plans.length > 0 && !membership.active);
+      })
+      .catch(() => {});
   }, [siteId]);
 
   const loadUnread = useCallback(() => {
@@ -221,6 +238,17 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
   // Org-isolation gate: non-approved members can't see member content at all.
   if (me.status && me.status !== 'approved') {
     return <MembershipGate me={me} base={base} brand={brand} onLogout={logout} loggingOut={loggingOut} />;
+  }
+
+  // Billing gate: the organization's owner has no active subscription, so the
+  // whole org is temporarily dark for its members. Approved members still can't
+  // reach content until the admin renews their plan.
+  if (!orgActive) {
+    return <OrgInactiveGate base={base} brand={brand} onLogout={logout} loggingOut={loggingOut} />;
+  }
+
+  if (memberPlanRequired) {
+    return <MemberPlanGate siteId={siteId} base={base} brand={brand} onLogout={logout} loggingOut={loggingOut} />;
   }
 
   const color = me.avatarColor || AVATAR_COLORS[0];
@@ -483,6 +511,27 @@ export function SiteAccount({ siteId, base, brand }: { siteId: string; base: str
         </main>
       </div>
     </div>
+  );
+}
+
+function MemberPlanGate({ siteId, base, brand, onLogout, loggingOut }: { siteId: string; base: string; brand: string; onLogout: () => void; loggingOut: boolean }) {
+  return (
+    <main className="min-h-dvh bg-background px-4 py-8">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+        <Link href={base || '/'} className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground shadow-lg shadow-primary/20">
+            <Store className="h-5 w-5" />
+          </span>
+          <span className="truncate text-sm font-black tracking-tight">{brand}</span>
+        </Link>
+        <Button variant="outline" onClick={onLogout} disabled={loggingOut} className="gap-2">
+          {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+        </Button>
+      </div>
+      <div className="mx-auto mt-8 max-w-6xl">
+        <MemberPlans siteId={siteId} />
+      </div>
+    </main>
   );
 }
 
@@ -768,8 +817,29 @@ function MembershipGate({ me, base, brand, onLogout, loggingOut }: { me: Me; bas
   );
 }
 
-type Material = { id: string; title: string; body: string; url: string; createdAt: string | number | Date };
+function OrgInactiveGate({ base, brand, onLogout, loggingOut }: { base: string; brand: string; onLogout: () => void; loggingOut: boolean }) {
+  const t = siteAccountDict(useLocale().locale);
+  return (
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-background px-4 py-10">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-background/80 p-8 text-center shadow-2xl backdrop-blur-md">
+        <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-amber-500">
+          <Ban className="h-7 w-7" />
+        </span>
+        <h1 className="text-xl font-bold tracking-tight">{t.orgInactiveTitle}</h1>
+        <p className="mt-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">{brand}</p>
+        <p className="mt-4 text-sm text-muted-foreground">{t.orgInactiveText}</p>
+        <div className="mt-6 flex justify-center gap-3">
+          <Link href={base || '/'}><Button variant="outline">{t.toSite}</Button></Link>
+          <Button variant="ghost" onClick={onLogout} disabled={loggingOut} className="gap-2">
+            {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} {t.logout}
+          </Button>
+        </div>
+      </div>
+    </main>
+  );
+}
 
+type Material = { id: string; title: string; body: string; url: string; createdAt: string | number | Date };
 const NEW_MS = 7 * 24 * 60 * 60 * 1000; // «новое» — моложе недели
 
 function MaterialsTab({ siteId }: { siteId: string }) {

@@ -47,6 +47,19 @@ export function getSubscription(id: string): Subscription | null {
   return getDb().select().from(subscriptions).where(eq(subscriptions.id, id)).get() ?? null;
 }
 
+/** The newest subscription row for a user regardless of status (drives the
+ *  paywall copy: was it a trial that ended, or a lapsed paid plan?). */
+export function getLatestSubscription(userId: string): Subscription | null {
+  return (
+    getDb()
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId))
+      .orderBy(desc(subscriptions.createdAt))
+      .get() ?? null
+  );
+}
+
 /** Whether the user has ever had any subscription row (trial-abuse guard). */
 export function hasAnySubscription(userId: string): boolean {
   return !!getDb().select({ id: subscriptions.id }).from(subscriptions).where(eq(subscriptions.userId, userId)).get();

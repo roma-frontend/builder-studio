@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getSiteBySlug, getSiteByHostname, addSubmission, APP_HOST, getSite } from '@/lib/sites';
 import { getSiteUser } from '@/lib/site-auth';
+import { getDb, users } from '@/lib/db';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { publishSubmission } from '@/lib/realtime';
 import { notifySubmission } from '@/lib/notify';
+import { sendEmail } from '@/lib/email';
+import { eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -98,6 +101,7 @@ export async function POST(request: Request) {
     addSubmission(siteId, formId, payload, siteUserId);
     // Real-time: notify the owner's open dashboard tabs (best-effort, in-process).
     if (siteId) publishSubmission({ siteId, formId, at: new Date().toISOString() });
+    if (siteId) await emailSiteOwner(siteId, formId, payload);
     // Telegram: notify the platform owner of a new lead (best-effort, gated).
     notifySubmission({ siteName: siteId ? getSite(siteId)?.name : undefined, formId, fields: payload });
   } catch {
@@ -109,6 +113,46 @@ export async function POST(request: Request) {
     void deliverWebhook(webhook, { formId, notifyEmail: notifyEmail || undefined, data: payload, at: new Date().toISOString() });
   }
   return NextResponse.json({ ok: true });
+}
+
+function escHtml(v: unknown): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+async function emailSiteOwner(siteId: string, formId: string, fields: Record<string, unknown>): Promise<void> {
+  const site = getSite(siteId);
+  if (!site) return;
+  const owner = getDb().select({ email: users.email, name: users.name }).from(users).where(eq(users.id, site.userId)).get();
+  if (!owner?.email) return;
+  const rows = Object.entries(fields)
+    .filter(([k]) => !k.startsWith('_') && k !== 'formId')
+    .map(([k, v]) => `<tr><td style="padding:6px 12px;color:#666">${escHtml(k)}</td><td style="padding:6px 12px;font-weight:600">${escHtml(v)}</td></tr>`)
+    .join('');
+  const textRows = Object.entries(fields)
+    .filter(([k]) => !k.startsWith('_') && k !== 'formId')
+    .map(([k, v]) => `${k}: ${String(v ?? '')}`)
+    .join('\n');
+  const subject = `Новая заявка — ${site.name}`;
+  const html = `
+    <div style="font-family:Inter,Arial,sans-serif;line-height:1.5;color:#111">
+      <h2 style="margin:0 0 8px">Новая заявка с сайта ${escHtml(site.name)}</h2>
+      <p style="margin:0 0 16px;color:#666">Форма: <b>${escHtml(formId)}</b></p>
+      <table style="border-collapse:collapse;border:1px solid #eee;border-radius:12px;overflow:hidden">${rows}</table>
+      <p style="margin-top:16px;color:#666;font-size:13px">Заявка также сохранена в дашборде организации.</p>
+    </div>`;
+  const result = await sendEmail({
+    to: owner.email,
+    subject,
+    html,
+    text: `Новая заявка с сайта ${site.name}\nФорма: ${formId}\n\n${textRows}\n\nЗаявка также сохранена в дашборде организации.`,
+  });
+  if (!result.ok) {
+    console.warn(`[form email] failed to notify site owner ${owner.email} for site ${site.id}: ${result.provider} ${result.error ?? ''}`);
+  }
 }
 
 /** Only allow public https endpoints — blocks SSRF to localhost/private ranges. */

@@ -8,6 +8,12 @@ import {
   markEventProcessed,
   getSubscriptionByProviderSub,
 } from '@/lib/billing/subscriptions';
+import {
+  getMemberSubscriptionByProviderSub,
+  upsertMemberSubscription,
+  recordMemberPayment,
+  deactivateSubscription,
+} from '@/lib/member-subscription';
 import { isInterval, isPlanId, type BillingInterval, type PlanId } from '@/lib/billing/plans';
 
 export const runtime = 'nodejs';
@@ -20,6 +26,19 @@ export const runtime = 'nodejs';
 // Reads the RAW body (request.text) — required for signature verification.
 
 const sec = (n: number | null | undefined) => (n ? new Date(n * 1000) : null);
+const subIdOf = (v: unknown): string => {
+  if (typeof v === 'string') return v;
+  if (v && typeof v === 'object' && 'id' in v && typeof (v as { id?: unknown }).id === 'string') return (v as { id: string }).id;
+  return '';
+};
+
+const memberStatus = (status: string): 'active' | 'past_due' | 'canceled' | 'expired' | 'pending' => {
+  if (status === 'active' || status === 'trialing') return 'active';
+  if (status === 'past_due' || status === 'unpaid') return 'past_due';
+  if (status === 'canceled') return 'canceled';
+  if (status === 'incomplete_expired') return 'expired';
+  return 'pending';
+};
 
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -57,7 +76,27 @@ export async function POST(request: Request) {
         const userId = meta.userId || obj.client_reference_id;
         const planId = meta.planId;
         const interval = meta.interval;
-        if (userId && isPlanId(planId) && isInterval(interval)) {
+        const siteId = meta.siteId;
+        const siteUserId = meta.siteUserId || obj.client_reference_id;
+        const providerSubId = subIdOf(obj.subscription);
+        if (siteId && siteUserId && planId && providerSubId) {
+          upsertMemberSubscription({
+            siteId,
+            siteUserId,
+            planId,
+            providerSubId,
+            status: 'active',
+            currentPeriodEnd: sec(obj.subscription?.current_period_end),
+          });
+          recordMemberPayment({
+            siteId,
+            siteUserId,
+            planId,
+            amountCents: typeof obj.amount_total === 'number' ? obj.amount_total : 0,
+            currency: (obj.currency || 'usd').toLowerCase(),
+            providerRef: obj.id ?? '',
+          });
+        } else if (userId && isPlanId(planId) && isInterval(interval)) {
           upsertSubscription({
             userId,
             planId: planId as PlanId,
@@ -73,6 +112,20 @@ export async function POST(request: Request) {
       case 'customer.subscription.updated':
       case 'customer.subscription.created': {
         const meta = obj.metadata ?? {};
+        const siteId = meta.siteId;
+        const siteUserId = meta.siteUserId;
+        const providerSubId = obj.id ?? '';
+        if (siteId && siteUserId && meta.planId && providerSubId) {
+          upsertMemberSubscription({
+            siteId,
+            siteUserId,
+            planId: meta.planId,
+            providerSubId,
+            status: memberStatus(obj.status ?? 'pending'),
+            currentPeriodEnd: sec(obj.current_period_end),
+          });
+          break;
+        }
         const userId = meta.userId;
         const planId = meta.planId;
         const item = obj.items?.data?.[0];
@@ -97,14 +150,41 @@ export async function POST(request: Request) {
         break;
       }
       case 'customer.subscription.deleted': {
-        const local = getSubscriptionByProviderSub(obj.id ?? '');
-        if (local) cancelSubscription(local.id, false);
+        const providerSubId = obj.id ?? '';
+        const member = getMemberSubscriptionByProviderSub(providerSubId);
+        if (member) {
+          deactivateSubscription(providerSubId, 'canceled');
+        } else {
+          const local = getSubscriptionByProviderSub(providerSubId);
+          if (local) cancelSubscription(local.id, false);
+        }
         break;
       }
       case 'invoice.paid':
       case 'invoice.payment_succeeded': {
-        const local = getSubscriptionByProviderSub(obj.subscription ?? '');
+        const providerSubId = subIdOf(obj.subscription);
+        const member = getMemberSubscriptionByProviderSub(providerSubId);
         const line = obj.lines?.data?.[0];
+        if (member) {
+          upsertMemberSubscription({
+            siteId: member.siteId,
+            siteUserId: member.siteUserId,
+            planId: member.planId,
+            providerSubId,
+            status: 'active',
+            currentPeriodEnd: sec(line?.period?.end) ?? member.currentPeriodEnd,
+          });
+          recordMemberPayment({
+            siteId: member.siteId,
+            siteUserId: member.siteUserId,
+            planId: member.planId,
+            amountCents: obj.amount_paid ?? obj.total ?? 0,
+            currency: (obj.currency || 'usd').toLowerCase(),
+            providerRef: obj.id ?? '',
+          });
+          break;
+        }
+        const local = getSubscriptionByProviderSub(providerSubId);
         if (local) {
           recordPayment({
             userId: local.userId,
@@ -127,8 +207,13 @@ export async function POST(request: Request) {
         break;
       }
       case 'invoice.payment_failed': {
-        const local = getSubscriptionByProviderSub(obj.subscription ?? '');
-        if (local) {
+        const providerSubId = subIdOf(obj.subscription);
+        const member = getMemberSubscriptionByProviderSub(providerSubId);
+        if (member) {
+          deactivateSubscription(providerSubId, 'past_due');
+        } else {
+          const local = getSubscriptionByProviderSub(providerSubId);
+          if (!local) break;
           setSubscriptionStatus(local.id, 'past_due');
           recordPayment({
             userId: local.userId,

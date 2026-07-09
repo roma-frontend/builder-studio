@@ -13,7 +13,7 @@ import { SiteBaseProvider, CourseDetail, DocumentDetail, MaterialDetail } from '
 import { SiteAuthClient } from '@/components/builder/site-auth-page';
 import { getLocale } from '@/lib/i18n';
 import { siteRt } from '@/lib/site-runtime-dict';
-import { translateNodeAuto } from '@/lib/auto-translate';
+import { translateDocChrome, translateNodeAuto } from '@/lib/auto-translate';
 import type { BuilderDoc, BuilderPage } from '@/lib/builder/types';
 
 export function findPageByPath(doc: BuilderDoc, slug: string[]): BuilderPage | null {
@@ -32,8 +32,10 @@ export const RESOURCE_PATHS = new Set(['course', 'document', 'material']);
  *  Wrapped in the tenant chrome + auth/base context; content itself is
  *  member-gated by the /api/site-auth resource it fetches. */
 export async function SiteResourcePage({ doc, resource, id }: { doc: BuilderDoc; resource: string; id: string }) {
-  const t = siteRt(await getLocale());
+  const locale = await getLocale();
+  const t = siteRt(locale);
   const base = doc.base === undefined ? '/site' : doc.base || '';
+  const chromeDoc = await translateDocChrome(doc, locale);
   const detail =
     resource === 'course' ? <CourseDetail id={id} />
     : resource === 'document' ? <DocumentDetail id={id} />
@@ -43,7 +45,7 @@ export async function SiteResourcePage({ doc, resource, id }: { doc: BuilderDoc;
       <ThemeStyle theme={doc.themeId && doc.themeId !== 'auto' ? getTheme(doc.themeId) : DEFAULT_THEME} />
       <SiteAuthProvider siteId={doc.siteId ?? ''}>
         <SiteBaseProvider base={base}>
-          <SiteChrome doc={doc} t={t}>
+          <SiteChrome doc={chromeDoc} t={t}>
             <section className="py-12">{detail}</section>
           </SiteChrome>
         </SiteBaseProvider>
@@ -76,7 +78,10 @@ export async function SiteRenderer({ doc, page, edit, platformChrome }: { doc: B
   const locale = await getLocale();
   const t = siteRt(locale);
   const base = doc.base === undefined ? '/site' : doc.base || '';
-  const translated = await Promise.all(page.blocks.map((node) => translateNodeAuto(node, locale)));
+  const [chromeDoc, translated] = await Promise.all([
+    translateDocChrome(doc, locale),
+    Promise.all(page.blocks.map((node) => translateNodeAuto(node, locale))),
+  ]);
   const blocks = translated.map((node) => (
     <RenderNode key={node.id} node={node} t={t} />
   ));
@@ -95,7 +100,7 @@ export async function SiteRenderer({ doc, page, edit, platformChrome }: { doc: B
               <SiteFooter />
             </main>
           ) : (
-            <SiteChrome doc={doc} t={t}>
+            <SiteChrome doc={chromeDoc} t={t}>
               {blocks}
             </SiteChrome>
           )}

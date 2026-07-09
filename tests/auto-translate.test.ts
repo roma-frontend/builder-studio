@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { translateAuto, translateNodeAuto, translatePageAuto } from '@/lib/auto-translate';
-import type { BuilderNode, BuilderPage } from '@/lib/builder/types';
+import { translateAuto, translateDocChrome, translateNodeAuto, translatePageAuto } from '@/lib/auto-translate';
+import type { BuilderDoc, BuilderNode, BuilderPage } from '@/lib/builder/types';
 
 // Mock Google's gtx endpoint. Returns the documented shape:
 //   [ [ [translatedChunk, originalChunk, ...], ... ], ... ]
@@ -96,5 +96,30 @@ describe('auto-translate', () => {
     expect(out.blocks[0].props.text).toBe('P');
 
     expect(await translatePageAuto(page, 'ru')).toBe(page);
+  });
+
+  it('translates the site chrome (nav, footer, CTA, page titles) but keeps brand & hrefs', async () => {
+    vi.stubGlobal('fetch', mockFetchOk('C'));
+    const doc = {
+      brand: 'BBH',
+      themeId: 'auto',
+      headerCtaText: 'Необычный призыв связаться',
+      nav: [{ label: 'Уникальный пункт меню', href: '/about' }, { label: 'Второй особый пункт', href: '/contact' }],
+      footer: { text: 'Произвольный текст подвала', links: [{ label: 'Своеобразная ссылка', href: '/legal/privacy' }] },
+      pages: [{ id: 'p1', path: '', title: 'Нестандартный заголовок', blocks: [] }],
+    } as unknown as BuilderDoc;
+
+    const out = await translateDocChrome(doc, 'en');
+    expect(out.brand).toBe('BBH');                       // brand untouched
+    expect(out.nav[0].label).toBe('C');                  // nav label translated
+    expect(out.nav[0].href).toBe('/about');              // href preserved
+    expect(out.footer.text).toBe('C');                   // footer text translated
+    expect(out.footer.links[0].label).toBe('C');         // footer link label translated
+    expect(out.footer.links[0].href).toBe('/legal/privacy');
+    expect(out.headerCtaText).toBe('C');                 // CTA translated
+    expect(out.pages[0].title).toBe('C');                // page title (footer auto-links)
+
+    // ru locale returns the doc reference unchanged (no MT call)
+    expect(await translateDocChrome(doc, 'ru')).toBe(doc);
   });
 });

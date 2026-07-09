@@ -23,6 +23,14 @@ const APP_NAV = [
   { href: '/presets', key: 'presets' },
 ] as const;
 
+// Signed-in non-superadmins (admin / customer) get the public reference pages
+// so they can browse the platform in their role (Studio stays superadmin-only).
+const SIGNED_NAV = [
+  { href: '/themes', key: 'themes' },
+  { href: '/presets', key: 'presets' },
+  { href: '/pricing', key: 'pricing' },
+] as const;
+
 // Landing anchors — shown to guests and non-superadmins; smooth-scroll to sections.
 const LANDING_NAV = [
   { href: '/#how', key: 'how' },
@@ -198,8 +206,9 @@ export function SiteHeader({ initialUser }: { initialUser?: HeaderUser | null })
     }
   };
 
-  // Platform links are superadmin-only; everyone else gets landing anchors.
-  const nav = user?.role === 'superadmin' ? APP_NAV : LANDING_NAV;
+  // Platform links are superadmin-only; signed-in admins/customers get the
+  // reference pages (themes/presets/pricing); guests get landing anchors.
+  const nav = user?.role === 'superadmin' ? APP_NAV : user ? SIGNED_NAV : LANDING_NAV;
 
   const guestActions = (
     <>

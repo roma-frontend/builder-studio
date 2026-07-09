@@ -151,7 +151,11 @@ export function PricingCards({
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-muted-foreground">
                       <Check className="mt-0.5 size-4 shrink-0" style={{ color: plan.accent }} />
-                      {t.feature[f]}
+                      {f === 'assistant.use'
+                        ? (plan.assistantDaily === null
+                            ? t.limits.assistantUnlimited
+                            : fill(t.limits.assistant, { n: plan.assistantDaily ?? 0 }))
+                        : t.feature[f]}
                     </li>
                   ))}
                 </ul>
