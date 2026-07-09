@@ -3,6 +3,8 @@ import { createUser } from '@/lib/auth';
 import { createSite } from '@/lib/sites';
 import { createSiteUser } from '@/lib/site-auth';
 import { recordMemberPayment } from '@/lib/member-subscription';
+import { ownerBillingActive, siteBillingActive } from '@/lib/billing/org-access';
+import { upsertSubscription } from '@/lib/billing/subscriptions';
 import { orgBilling, orgCollectedCents, orgPaidOutCents, recordPayout, listPayouts, listOrgsRevenue } from '@/lib/org-billing';
 import { resetDb } from './helpers';
 
@@ -96,5 +98,30 @@ describe('platform-managed org billing', () => {
     // An org with only a payout (no payments) still shows up for the superadmin.
     const rows = listOrgsRevenue();
     expect(rows.find((r) => r.siteId === site.id)?.paidOutCents).toBe(250);
+  });
+
+  it('activates org access only for superadmins or owners with active billing', () => {
+    const superadmin = createUser('root@example.com', 'password123', 'Root');
+    const owner = createUser('billing-owner@example.com', 'password123', 'Owner');
+    const site = createSite(owner.id, 'Billing Org');
+
+    expect(ownerBillingActive(null)).toBe(false);
+    expect(siteBillingActive('')).toBe(false);
+    expect(siteBillingActive('missing')).toBe(false);
+    expect(ownerBillingActive(owner)).toBe(false);
+    expect(siteBillingActive(site.id)).toBe(false);
+
+    upsertSubscription({
+      userId: owner.id,
+      planId: 'pro',
+      interval: 'month',
+      status: 'active',
+      provider: 'manual',
+      providerSubId: 'manual_active',
+      currentPeriodEnd: new Date(Date.now() + 86400_000),
+    });
+    expect(ownerBillingActive(owner)).toBe(true);
+    expect(siteBillingActive(site.id)).toBe(true);
+    expect(ownerBillingActive(superadmin)).toBe(true);
   });
 });

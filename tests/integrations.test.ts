@@ -37,7 +37,7 @@ describe('lib/llm', () => {
 
 describe('lib/assistant-prompt', () => {
   it('builds a role-scoped, localized prompt with a nav allow-list', async () => {
-    const { buildAssistantPrompt, assistantRoutesForRole, ASSISTANT_ROUTES } = await import('@/lib/assistant-prompt');
+    const { buildAssistantPrompt, ASSISTANT_ROUTES } = await import('@/lib/assistant-prompt');
     expect(ASSISTANT_ROUTES).toContain('/presets');
 
     const ru = buildAssistantPrompt('ru', 'customer', 'Roman');

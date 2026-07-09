@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { translateAuto, translateDocChrome, translateNodeAuto, translatePageAuto } from '@/lib/auto-translate';
 import type { BuilderDoc, BuilderNode, BuilderPage } from '@/lib/builder/types';
 
