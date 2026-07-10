@@ -5,6 +5,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { listSitesForUser, statsForUser } from '@/lib/sites';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
@@ -22,6 +23,7 @@ import { useLocale } from '@/hooks/use-locale';
 import { studioDict } from '@/lib/studio-dict';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { dashDict } from '@/lib/dashboard-dict';
+import { getCurrentUser } from '@/lib/auth';
 
 const ALL_BLOCKS = ['hero', 'split', 'cards', 'mosaic', 'sticky', 'background', 'beams', 'marquee'];
 
@@ -639,9 +641,9 @@ export default function StudioPage() {
             </div>
             <LanguageSwitcher />
             <ThemeToggle />
-            <Link href="/studio/builder">
-              <Button size="sm" className="gap-1.5 px-2 md:px-3" aria-label={t.builderBtn} title={t.builderBtn}><LayoutList className="h-4 w-4" /> <span className="hidden md:inline">{t.builderBtn}</span></Button>
-            </Link>
+            <Button size="sm" onClick={openLandingInBuilder} disabled={openingBuilder} className="gap-1.5 px-2 md:px-3" aria-label={t.builderBtn} title={t.builderBtn}>
+              {openingBuilder ? <Loader2 className="h-4 w-4 animate-spin" /> : <LayoutList className="h-4 w-4" />} <span className="hidden md:inline">{t.builderBtn}</span>
+            </Button>
             <Link href="/" className="hidden sm:block">
               <Button size="sm" variant="outline" className="gap-1.5 px-2 md:px-3" aria-label={t.toHome} title={t.toHome}><span className="hidden md:inline">{t.toHome}</span> <ArrowRight className="h-4 w-4" /></Button>
             </Link>

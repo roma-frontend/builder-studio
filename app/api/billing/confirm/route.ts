@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
 import { isInterval, isPlanId, type BillingInterval, type PlanId } from '@/lib/billing/plans';
+import { isCurrency, planAmount, type Currency } from '@/lib/billing/currency';
 import { stripeConfigured } from '@/lib/billing/provider';
 import { getEffectivePlan } from '@/lib/billing/plan-config';
 import { upsertSubscription, recordPayment, hasAnySubscription } from '@/lib/billing/subscriptions';
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
   if (!me) return NextResponse.json({ error: t.unauthorizedDot }, { status: 401 });
   if (stripeConfigured()) return NextResponse.json({ error: t.forbidden }, { status: 403 });
 
-  let body: { planId?: unknown; interval?: unknown };
+  let body: { planId?: unknown; interval?: unknown; currency?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -44,8 +45,11 @@ export async function POST(request: Request) {
   }
   const planId = body.planId as PlanId;
   const interval = body.interval as BillingInterval;
+  const currency: Currency = isCurrency(body.currency) ? body.currency : 'usd';
   const plan = getEffectivePlan(planId);
-  const amount = interval === 'year' ? plan.priceYear : plan.priceMonth;
+  const amount = currency === 'usd'
+    ? (interval === 'year' ? plan.priceYear : plan.priceMonth)
+    : planAmount(planId, interval, currency);
   const now = new Date();
 
   // Free trial: only for first-time subscribers of a plan that offers one.
@@ -59,7 +63,7 @@ export async function POST(request: Request) {
     status: trialEligible ? 'trialing' : 'active',
     provider: 'manual',
     amount,
-    currency: plan.currency,
+    currency,
     currentPeriodStart: now,
     currentPeriodEnd: end,
     cancelAtPeriodEnd: false,
@@ -72,7 +76,7 @@ export async function POST(request: Request) {
       subscriptionId: subId,
       planId,
       amount,
-      currency: plan.currency,
+      currency,
       status: 'paid',
       provider: 'manual',
       description: `Manual activation — ${planId} (${interval})`,
@@ -90,7 +94,7 @@ export async function POST(request: Request) {
     userEmail: me.email,
     planName: plan.name || planId,
     interval,
-    amount: trialEligible ? undefined : `${(amount / 100).toFixed(2)} ${plan.currency.toUpperCase()}`,
+    amount: trialEligible ? undefined : `${(amount / 100).toFixed(2)} ${currency.toUpperCase()}`,
     status: trialEligible ? 'trial' : 'active',
   });
   return NextResponse.json({ ok: true, trial: trialEligible });

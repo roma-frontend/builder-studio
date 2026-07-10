@@ -21,6 +21,7 @@ import { useMounted } from '@/hooks/use-mounted';
 import { THEMES, getTheme, themeCss } from '@/lib/themes';
 import { RenderNode } from '@/components/builder/render-node';
 import { TourLauncher } from '@/components/tour/tour-launcher';
+import { PublishCelebration } from '@/components/dashboard/publish-celebration';
 import { RevealDisabled } from '@/components/builder/reveal';
 import { Header as ChromeHeader, Footer as ChromeFooter } from '@/components/builder/site-chrome';
 import { TEMPLATES, LANDINGS, SECTION_PRESETS, isPristineStarter, buildTemplatePage, buildSubpages, buildSection, tplText } from '@/lib/builder/templates';
@@ -1577,6 +1578,7 @@ function BuilderEditor() {
   }, [siteId]);
 
   const [pubBusy, setPubBusy] = useState(false);
+  const [celebrate, setCelebrate] = useState<{ url: string; isLanding: boolean } | null>(null);
   const publish = async () => {
     if (!siteId) return;
     setPubBusy(true);
@@ -1588,11 +1590,64 @@ function BuilderEditor() {
       if (res.ok) {
         setSiteMeta((m) => (m ? { ...m, published: true } : m));
         setMsg(siteMeta?.slug === '__landing__' ? tr('Опубликовано — лендинг обновлён на «/»') : tr('Опубликовано — сайт доступен по /s/{slug}').replace('{slug}', siteMeta?.slug ?? ''));
+        // Celebrate: landing publishes to "/", a normal site to /s/<slug>.
+        const isLanding = siteMeta?.slug === '__landing__';
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        setCelebrate({ url: isLanding ? `${origin}/` : `${origin}/s/${siteMeta?.slug ?? ''}`, isLanding });
+      } else if (res.status === 403) {
+        // Value-first: publishing is a paid moment — send free users to pricing.
+        window.location.href = '/pricing';
       } else setMsg(data.error || tr('Ошибка публикации'));
     } catch {
       setMsg(tr('Ошибка публикации'));
     } finally {
       setPubBusy(false);
+    }
+  };
+
+  // ── In-builder AI agent ────────────────────────────────────────────────
+  // A natural-language instruction is classified server-side into ONE safe
+  // action and applied to the live doc (undoable): restyle (theme) or rewrite
+  // the current page. Paid feature (assistant.use) → 403 sends free users to
+  // pricing (value-first).
+  const [aiInstruction, setAiInstruction] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const applyAi = async () => {
+    const instruction = aiInstruction.trim();
+    if (!instruction || aiBusy) return;
+    setAiBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/assistant/apply', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ instruction }),
+      });
+      if (res.status === 403) { window.location.href = '/pricing'; return; }
+      const data = await res.json().catch(() => ({}));
+      const a = data?.action;
+      if (!res.ok || !a) { setMsg(tr('Не удалось выполнить запрос ИИ.')); return; }
+      if (a.kind === 'theme') {
+        setDoc((d) => ({ ...d, themeId: a.themeId, ...(THEME_BTN_PRESETS[a.themeId] ?? {}) }));
+        setMsg(tr('Тема применена: {label}').replace('{label}', a.label || a.themeId));
+        setAiInstruction('');
+      } else if (a.kind === 'regenerate') {
+        const gr = await fetch('/api/generate-page', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ brief: instruction, title: page?.title }),
+        });
+        if (gr.status === 403) { window.location.href = '/pricing'; return; }
+        const gd = await gr.json().catch(() => ({}));
+        const blocks = gd?.page?.blocks;
+        if (gr.ok && Array.isArray(blocks) && blocks.length) {
+          setBlocks(() => blocks);
+          setMsg(tr('Страница перегенерирована по вашему описанию.'));
+          setAiInstruction('');
+        } else setMsg(tr('Не удалось перегенерировать страницу.'));
+      } else if (a.kind === 'chat') {
+        setMsg(a.message);
+      }
+    } catch {
+      setMsg(tr('Ошибка ИИ. Попробуйте ещё раз.'));
+    } finally {
+      setAiBusy(false);
     }
   };
 
@@ -1755,6 +1810,24 @@ function BuilderEditor() {
         </div>
         {msg && <div className="border-t border-border/60 bg-muted/40 px-4 py-1 text-center text-xs text-muted-foreground">{msg}</div>}
       </header>
+
+      {/* In-builder AI agent bar */}
+      <div className="flex items-center gap-2 border-b border-border/60 bg-gradient-to-r from-primary/[0.06] to-transparent px-3 py-2 sm:px-4">
+        <Wand2 className="h-4 w-4 shrink-0 text-primary" />
+        <input
+          value={aiInstruction}
+          onChange={(e) => setAiInstruction(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); applyAi(); } }}
+          placeholder={tr('Попросите ИИ: «сделай неоновый ночной стиль» или «перепиши страницу под барбершоп»')}
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          disabled={aiBusy}
+          aria-label={tr('AI-редактирование')}
+        />
+        <Button size="sm" onClick={applyAi} disabled={aiBusy || !aiInstruction.trim()} className="shrink-0 gap-1.5">
+          {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+          <span className="hidden md:inline">{tr('Применить')}</span>
+        </Button>
+      </div>
 
       <div className="flex min-h-0 flex-1">
         <aside className={cn('min-w-0 flex-1 overflow-y-auto px-3 pb-3 @container lg:border-r lg:border-border/60', mobileView === 'preview' && 'hidden lg:block')}>
@@ -2747,6 +2820,7 @@ function BuilderEditor() {
         </div>
       )}
       <TourLauncher tour="studio-builder" />
+      <PublishCelebration open={!!celebrate} liveUrl={celebrate?.url ?? ''} isLanding={celebrate?.isLanding} onClose={() => setCelebrate(null)} />
     </main>
   );
 }

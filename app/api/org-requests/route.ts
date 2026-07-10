@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { createOrgRequest, getMyOrgRequests, listJoinableOrgs, orgEligibility } from '@/lib/org-requests';
+import { createOrgRequest, getMyOrgRequests, listJoinableOrgs, orgEligibility, manualOrgApprovalEnabled, selfServeCreateOrg } from '@/lib/org-requests';
 import { notifyOrgRequest } from '@/lib/notify';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors, type ApiErrorsDict } from '@/lib/api-errors-dict';
@@ -42,6 +42,15 @@ export async function POST(request: Request) {
 
   const type = body.type === 'join' ? 'join' : 'create';
   try {
+    // Self-serve: creating an org needs no human review by default — provision
+    // it instantly and hand back the new site id so the UI can drop the user
+    // straight into the builder. Joining someone else's org still goes through
+    // review (it's the org owner's decision). Manual approval can be re-enabled
+    // platform-wide via the `manual-org-approval` setting.
+    if (type === 'create' && !manualOrgApprovalEnabled()) {
+      const { siteId } = selfServeCreateOrg(me, { requestedName: body.requestedName, requestedSlug: body.requestedSlug, message: body.message });
+      return NextResponse.json({ ok: true, autoApproved: true, siteId });
+    }
     const req = createOrgRequest(me, { type, requestedName: body.requestedName, requestedSlug: body.requestedSlug, targetSiteId: body.targetSiteId, message: body.message });
     notifyOrgRequest({ type, requesterEmail: me.email, requesterName: me.name, requestedName: body.requestedName, message: body.message });
     return NextResponse.json({ ok: true, request: req });

@@ -17,10 +17,9 @@ import { ThemeStyle } from '@/components/theme-style';
 import { getTheme } from '@/lib/themes';
 import { llmConfigured } from '@/lib/llm';
 import { getUserEntitlements } from '@/lib/billing/entitlements';
-import { getActiveSubscription, getLatestSubscription } from '@/lib/billing/subscriptions';
-import { getEffectivePlans } from '@/lib/billing/plan-config';
-import { PlanRequired } from '@/components/billing/plan-required';
-import type { PlanId } from '@/lib/billing/plans';
+import { getActiveSubscription } from '@/lib/billing/subscriptions';
+import { FreePlanBanner } from '@/components/dashboard/free-plan-banner';
+import { TrialBanner } from '@/components/dashboard/trial-banner';
 
 // Private area — keep it out of search indexes.
 export async function generateMetadata() {
@@ -55,11 +54,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const orgDashRaw = isSuperadmin(user) ? '' : (ownedSites[0]?.dashboardTheme ?? '');
   const orgDashTheme = orgDashRaw && orgDashRaw !== 'auto' ? orgDashRaw : '';
   const gated = !isSuperadmin(user) && !hasOrg;
-  // Billing gate: an org owner (admin) whose subscription isn't active can't use
-  // the dashboard until they (re)subscribe — the whole org turns on with the
-  // plan. Superadmin is exempt; the onboarding (gated) takes precedence.
+  // Value-first: an org owner with no active subscription is NOT locked out —
+  // they can build unlimited sites for free. Publishing, custom domains and
+  // extra AI video are the paid moments (enforced per-action). We only surface a
+  // slim upgrade banner. Superadmin is exempt; onboarding (gated) takes priority.
   const activeSub = isSuperadmin(user) ? true : getActiveSubscription(user.id) != null;
-  const needsPlan = !isSuperadmin(user) && hasOrg && !activeSub;
+  const freePlan = !isSuperadmin(user) && hasOrg && !activeSub;
+  // Complimentary onboarding trial: surface an explicit, honest banner so a
+  // brand-new owner understands Pro is on for free (not a purchased plan).
+  const sub = isSuperadmin(user) ? null : getActiveSubscription(user.id);
+  const trialEndsOn = sub && sub.status === 'trialing' && sub.currentPeriodEnd
+    ? sub.currentPeriodEnd.toISOString().slice(0, 10)
+    : null;
   const orgRequests = isSuperadmin(user) ? countPendingOrgRequests() : 0;
   const siteMembers = gated ? 0 : countPendingMembersForOwner(user);
   // Aggregate baseline for the header NotificationBell: form submissions +
@@ -68,16 +74,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const notifications = gated ? 0 : statsForUser(user.id).submissions + siteMembers + orgRequests;
   const disabled = disabledCapabilitiesFor(user.role);
   const dashT = dashDict(await getLocale());
-
-  // Paywall copy depends on WHY billing is inactive: a trial that just ended vs
-  // a lapsed paid plan vs never subscribed.
-  const latestSub = needsPlan ? getLatestSubscription(user.id) : null;
-  const paywallReason: 'none' | 'trial_ended' | 'lapsed' = !latestSub
-    ? 'none'
-    : latestSub.status === 'trialing'
-      ? 'trial_ended'
-      : 'lapsed';
-  const paywallPlans = needsPlan ? getEffectivePlans() : [];
 
   // Telegram sign-ins have a synthetic tg_<id>@telegram.local email — show the
   // @username instead (or nothing) rather than that long placeholder.
@@ -91,7 +87,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {orgDashTheme ? <ThemeStyle theme={getTheme(orgDashTheme)} /> : <PlatformThemeStyle />}
       <DashboardShell
         user={{ name: user.name, email: user.email, role: (user.role as Role) ?? 'customer', handle }}
-        banner={impersonating ? <ImpersonationBanner name={user.name || user.email} /> : null}
+        banner={impersonating ? <ImpersonationBanner name={user.name || user.email} /> : freePlan ? <FreePlanBanner /> : trialEndsOn ? <TrialBanner endsOn={trialEndsOn} /> : null}
         gated={gated}
         orgRequests={orgRequests}
         siteMembers={siteMembers}
@@ -104,12 +100,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <PageHeader title={dashT.org.welcomeTitle} description={dashT.org.welcomeDesc} />
             <OrgOnboarding />
           </>
-        ) : needsPlan ? (
-          <PlanRequired
-            reason={paywallReason}
-            plans={paywallPlans}
-            currentPlan={(latestSub?.planId as PlanId) ?? null}
-          />
         ) : (
           children
         )}

@@ -32,15 +32,18 @@ export function StatCard({
   return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
-export function EmptyState({ icon: Icon, title, description, action }: {
-  icon: React.ComponentType<{ className?: string }>; title: string; description?: string; action?: React.ReactNode;
+export function EmptyState({ icon: Icon, title, description, action, hint }: {
+  icon: React.ComponentType<{ className?: string }>; title: string; description?: string; action?: React.ReactNode; hint?: string;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 py-16 text-center">
-      <Icon className="h-10 w-10 text-muted-foreground/40" />
-      <p className="font-medium">{title}</p>
+    <div className="relative flex flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-dashed border-border/60 bg-gradient-to-br from-primary/[0.04] via-transparent to-transparent px-6 py-16 text-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary ring-1 ring-primary/10">
+        <Icon className="h-7 w-7" />
+      </span>
+      <p className="text-base font-semibold tracking-tight">{title}</p>
       {description && <p className="max-w-sm text-sm text-muted-foreground">{description}</p>}
-      {action}
+      {action && <div className="mt-1">{action}</div>}
+      {hint && <p className="mt-1 text-xs text-muted-foreground/70">{hint}</p>}
     </div>
   );
 }

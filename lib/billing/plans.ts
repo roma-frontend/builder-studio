@@ -72,9 +72,9 @@ export const PLANS: Record<PlanId, Plan> = {
     rank: 1,
     price: { month: 900, year: 9000 },
     currency: 'usd',
-    trialDays: 3, // 3-day free trial, then billing starts
-    limits: { sites: 1, assistantDaily: 0, videoMonthly: 0 }, // no AI assistant / no video on Starter
-    features: ['sites.publish'],
+    trialDays: 0, // the free trial lives on Pro (below) — Starter charges immediately
+    limits: { sites: 1, assistantDaily: 0, videoMonthly: 2 }, // no assistant, but 2 AI videos/mo so the UTP is tasted
+    features: ['sites.publish', 'ai.generate'],
     accent: '#64748b',
   },
   pro: {
@@ -82,7 +82,7 @@ export const PLANS: Record<PlanId, Plan> = {
     rank: 2,
     price: { month: 2900, year: 29000 },
     currency: 'usd',
-    trialDays: 0,
+    trialDays: 7, // 7-day free trial on the recommended plan (no card required)
     limits: { sites: 5, assistantDaily: 50, videoMonthly: 30 }, // assistant 50/day, 30 AI videos/mo
     features: ['sites.publish', 'sites.customDomain', 'ai.generate', 'assistant.use'],
     accent: '#6366f1',

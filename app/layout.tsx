@@ -20,6 +20,29 @@ const montserrat = Montserrat({ subsets: ['latin', 'cyrillic'], variable: '--fon
 
 import { getLocale } from '@/lib/i18n';
 import { ui } from '@/lib/ui-dict';
+import { getCurrentUser } from '@/lib/auth';
+import { getUserPrefs } from '@/lib/user-prefs';
+
+// The user's saved light/dark choice lives in the DB (user_prefs.theme) and was
+// previously only applied client-side after /api/prefs resolved — so every
+// fresh load first painted the `defaultTheme` ("dark") and then flipped to the
+// saved theme ~1s later (a jarring dark flash, most visible on heavy client
+// pages like the Studio/builder). We now resolve it on the server and feed it
+// to next-themes as the default, so the inline theme script paints the correct
+// theme on the very first frame. Best-effort: logged-out or DB errors fall back
+// to the platform default.
+async function initialThemeChoice(): Promise<'light' | 'dark' | 'system'> {
+  try {
+    const user = await getCurrentUser();
+    if (user) {
+      const t = getUserPrefs(user.id)['theme'];
+      if (t === 'light' || t === 'dark' || t === 'system') return t;
+    }
+  } catch {
+    /* no session / DB unreachable — use the default below */
+  }
+  return 'light';
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const tagline = ui(await getLocale()).metaTagline;
@@ -69,6 +92,7 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
+  const initialTheme = await initialThemeChoice();
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
@@ -78,7 +102,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body className={`${inter.variable} ${playfair.variable} ${montserrat.variable} font-sans antialiased`}>
-        <ThemeProvider disableTransitionOnChange={true} attribute="class" defaultTheme="dark" enableSystem>
+        <ThemeProvider disableTransitionOnChange={true} attribute="class" defaultTheme={initialTheme} enableSystem>
           <PrefsSync />
           {children}
         </ThemeProvider>

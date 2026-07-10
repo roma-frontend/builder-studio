@@ -88,6 +88,26 @@ export function BillingClient({
             <Link href="/pricing">{t.mine.seePlans}</Link>
           </Button>
         </div>
+      ) : sub.status === 'trialing' ? (
+        <div className="rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 to-card/60 p-6 backdrop-blur">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">{planLabel(sub.planId)}</h2>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_CLS.trialing}`}>
+                  {t.status.trialing ?? 'trial'}
+                </span>
+              </div>
+              <p className="mt-2 text-sm font-medium text-foreground/90">
+                {t.mine.trialEnds}: {fmtDate(sub.currentPeriodEnd)}
+              </p>
+              <p className="mt-1 text-xs font-medium text-sky-600 dark:text-sky-400">{t.mine.trialNote}</p>
+            </div>
+            <Button asChild variant="outline">
+              <Link href="/pricing">{t.mine.seePlans}</Link>
+            </Button>
+          </div>
+        </div>
       ) : (
         <div className="rounded-2xl border border-border bg-card/60 p-6 backdrop-blur">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -114,7 +134,7 @@ export function BillingClient({
               )}
             </div>
             <div className="flex flex-col gap-2">
-              {stripeMode && (
+              {stripeMode && sub.provider === 'stripe' && (
                 <Button variant="outline" onClick={() => act('portal')} disabled={busy !== null}>
                   {busy === 'portal' ? <Loader2 className="size-4 animate-spin" /> : <ExternalLink className="size-4" />}
                   {t.mine.manage}

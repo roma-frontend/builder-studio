@@ -27,11 +27,21 @@ describe('media-usage (monthly AI video quota)', () => {
     expect(q.allowed).toBe(true);
   });
 
-  it('a user without an active subscription gets the free floor (0 videos, blocked)', () => {
+  it('a user without an active subscription gets the free floor (2 videos to taste the UTP)', () => {
     createUser('owner@example.com', 'password123', 'Owner'); // superadmin
     const customer = createUser('c@example.com', 'password123', 'Customer');
     const q = videoQuota(customer);
-    expect(q.limit).toBe(0);
+    expect(q.limit).toBe(2);
+    expect(q.remaining).toBe(2);
+    expect(q.allowed).toBe(true);
+  });
+
+  it('free floor blocks once the 2 free videos are used', () => {
+    createUser('owner@example.com', 'password123', 'Owner'); // superadmin
+    const customer = createUser('c@example.com', 'password123', 'Customer');
+    recordVideoGenerated(customer.id);
+    recordVideoGenerated(customer.id);
+    const q = videoQuota(customer);
     expect(q.remaining).toBe(0);
     expect(q.allowed).toBe(false);
   });

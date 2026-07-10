@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Globe, Rocket, Inbox, Users, Pencil, ExternalLink, CircleDashed, Plus } from 'lucide-react';
-import { getCurrentUser, isStaff } from '@/lib/auth';
+import { getCurrentUser, isStaff, isSuperadmin } from '@/lib/auth';
 import { listSitesForUser, statsForUser } from '@/lib/sites';
 import { platformStats } from '@/lib/admin';
 import { disabledCapabilitiesFor } from '@/lib/access';
 import { Button } from '@/components/ui/button';
 import { PageHeader, StatCard, EmptyState } from '@/components/dashboard/ui';
+import { GettingStarted } from '@/components/dashboard/getting-started';
 import { getLocale } from '@/lib/i18n';
 import { dashDict } from '@/lib/dashboard-dict';
 import { TourLauncher } from '@/components/tour/tour-launcher';
@@ -41,6 +42,15 @@ export default async function DashboardOverview() {
         description={t.subtitle}
         action={<Link href="/dashboard/sites"><Button className="gap-1.5"><Plus className="h-4 w-4" /> {d.newSite}</Button></Link>}
       />
+
+      {!isSuperadmin(user) && (
+        <GettingStarted
+          hasSite={stats.sites > 0}
+          hasPublished={stats.published > 0}
+          hasLeads={stats.submissions > 0}
+          primarySiteId={sites[0]?.id ?? null}
+        />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label={t.statSites} value={stats.sites} icon={Globe} href="/dashboard/sites" />

@@ -9,6 +9,7 @@ import 'server-only';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { type BillingInterval, type PlanId } from '@/lib/billing/plans';
 import { getEffectivePlan } from '@/lib/billing/plan-config';
+import { type Currency, planAmount } from '@/lib/billing/currency';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 
@@ -95,14 +96,20 @@ export async function createCheckout(opts: {
   email: string;
   planId: PlanId;
   interval: BillingInterval;
+  currency?: Currency;
 }): Promise<CheckoutResult> {
   const plan = getEffectivePlan(opts.planId);
-  const amount = opts.interval === 'year' ? plan.priceYear : plan.priceMonth;
+  const currency: Currency = opts.currency ?? 'usd';
+  // USD respects superadmin price overrides (effective plan); local currencies
+  // come from the explicit currency price table.
+  const amount = currency === 'usd'
+    ? (opts.interval === 'year' ? plan.priceYear : plan.priceMonth)
+    : planAmount(opts.planId, opts.interval, currency);
   const base = appHost();
 
   if (!stripeConfigured()) {
     // Manual mode: hand off to an internal confirmation route.
-    const url = `/checkout/${opts.planId}/confirm?interval=${opts.interval}`;
+    const url = `/checkout/${opts.planId}/confirm?interval=${opts.interval}&currency=${currency}`;
     return { url, mode: 'manual', planId: opts.planId, interval: opts.interval };
   }
 
@@ -119,7 +126,7 @@ export async function createCheckout(opts: {
       {
         quantity: 1,
         price_data: {
-          currency: plan.currency,
+          currency,
           unit_amount: amount,
           recurring: { interval: opts.interval },
           product_data: { name: `Builder Studio — ${plan.id}` },

@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader, EmptyState } from '@/components/dashboard/ui';
+import { PublishCelebration } from '@/components/dashboard/publish-celebration';
 import { SITE_MEMBERS_SEEN_EVENT } from '@/components/dashboard/site-members-badge';
 import { useLocale } from '@/hooks/use-locale';
 import { dashDict } from '@/lib/dashboard-dict';
@@ -35,6 +36,7 @@ export function DashboardClient({ initialSites, canInvite = true }: { initialSit
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [pubBusy, setPubBusy] = useState<string | null>(null);
+  const [celebrateUrl, setCelebrateUrl] = useState<string | null>(null);
 
   // Opening «Мои сайты» = the owner has seen the pending requests surfaced here,
   // so clear the blinking nav badge.
@@ -68,8 +70,14 @@ export function DashboardClient({ initialSites, canInvite = true }: { initialSit
     try {
       const res = await fetch(`/api/sites/${site.id}/publish`, { method: site.published ? 'DELETE' : 'POST' });
       const data = await res.json();
-      if (res.ok) setSites((list) => list.map((s) => (s.id === site.id ? { ...s, published: !site.published } : s)));
-      else setError(data.error || t.publishError);
+      if (res.ok) {
+        setSites((list) => list.map((s) => (s.id === site.id ? { ...s, published: !site.published } : s)));
+        // Publishing (not unpublishing) is the "moment of delight".
+        if (!site.published) setCelebrateUrl(site.liveUrl);
+      } else if (res.status === 403) {
+        // Value-first: publishing is a paid moment — send free users to pricing.
+        router.push('/pricing');
+      } else setError(data.error || t.publishError);
     } finally {
       setPubBusy(null);
     }
@@ -150,6 +158,7 @@ export function DashboardClient({ initialSites, canInvite = true }: { initialSit
         </div>
       )}
       <TourLauncher tour="dashboard-sites" />
+      <PublishCelebration open={!!celebrateUrl} liveUrl={celebrateUrl ?? ''} onClose={() => setCelebrateUrl(null)} />
     </>
   );
 }

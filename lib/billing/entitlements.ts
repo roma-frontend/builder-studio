@@ -10,7 +10,9 @@ import { effectiveFeatures, getEffectivePlan } from '@/lib/billing/plan-config';
 import { ALL_FEATURES, type FeatureKey, type PlanId } from '@/lib/billing/plans';
 
 /** Capabilities available WITHOUT any paid subscription (the free floor). */
-export const FREE_FEATURES: FeatureKey[] = [];
+export const FREE_FEATURES: FeatureKey[] = ['ai.generate'];
+/** Free AI-video allowance per month for users with no active plan (taste the UTP). */
+export const FREE_VIDEO_MONTHLY = 2;
 
 export interface Entitlements {
   planId: PlanId | null;
@@ -28,8 +30,9 @@ function build(planId: PlanId | null, unlimited: boolean): Entitlements {
   const sites = unlimited ? null : plan ? plan.sites : 1;
   // Free floor gets NO assistant (0). Unlimited (staff/Studio) = null.
   const assistantDaily = unlimited ? null : plan ? plan.assistantDaily : 0;
-  // Free floor gets NO AI video (0). Superadmin (unlimited) = null.
-  const videoMonthly = unlimited ? null : plan ? plan.videoMonthly : 0;
+  // Free floor still gets a small AI-video allowance so everyone tastes the UTP;
+  // superadmin (unlimited) = null.
+  const videoMonthly = unlimited ? null : plan ? plan.videoMonthly : FREE_VIDEO_MONTHLY;
   return {
     planId,
     unlimited,

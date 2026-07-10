@@ -9,13 +9,11 @@ import { cn } from '@/lib/utils';
 import { billingDict, fill } from '@/lib/billing-dict';
 import {
   defaultPlanDTOs,
-  formatPrice,
-  monthlyEquivalentDTO,
-  yearlySavingPctDTO,
   type BillingInterval,
   type PlanDTO,
   type PlanId,
 } from '@/lib/billing/plans';
+import { CURRENCIES, CURRENCY_LABEL, currencyForLocale, planAmount, formatMoney, type Currency } from '@/lib/billing/currency';
 
 export function PricingCards({
   currentPlan,
@@ -28,9 +26,19 @@ export function PricingCards({
   const t = billingDict(locale);
   const router = useRouter();
   const [interval, setInterval] = useState<BillingInterval>('month');
+  const [currency, setCurrency] = useState<Currency>(currencyForLocale(locale));
   const [loading, setLoading] = useState<PlanId | null>(null);
   const list = plans && plans.length ? plans : defaultPlanDTOs();
-  const priceLocale = locale === 'en' ? 'en-US' : locale;
+
+  // USD respects superadmin overrides (DTO price); local currencies use the
+  // explicit currency table.
+  const priceMinor = (plan: PlanDTO, iv: BillingInterval) =>
+    currency === 'usd' ? (iv === 'year' ? plan.priceYear : plan.priceMonth) : planAmount(plan.id, iv, currency);
+  const monthlyMinor = (plan: PlanDTO) => (interval === 'year' ? Math.round(priceMinor(plan, 'year') / 12) : priceMinor(plan, 'month'));
+  const savingPct = (plan: PlanDTO) => {
+    const m = priceMinor(plan, 'month') * 12;
+    return m ? Math.round(((m - priceMinor(plan, 'year')) / m) * 100) : 0;
+  };
 
   const choose = async (planId: PlanId) => {
     setLoading(planId);
@@ -38,10 +46,10 @@ export function PricingCards({
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId, interval }),
+        body: JSON.stringify({ planId, interval, currency }),
       });
       if (res.status === 401) {
-        router.push(`/login?next=/checkout/${planId}?interval=${interval}`);
+        router.push(`/login?next=/checkout/${planId}?interval=${interval}%26currency=${currency}`);
         return;
       }
       const data = await res.json();
@@ -55,7 +63,7 @@ export function PricingCards({
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <div className="mb-10 flex items-center justify-center">
+      <div className="mb-10 flex flex-wrap items-center justify-center gap-3">
         <div className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1 backdrop-blur">
           {(['month', 'year'] as BillingInterval[]).map((iv) => (
             <button
@@ -69,9 +77,25 @@ export function PricingCards({
               {iv === 'month' ? t.pricing.monthly : t.pricing.yearly}
               {iv === 'year' && savingSample && (
                 <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                  {fill(t.pricing.save, { n: yearlySavingPctDTO(savingSample) })}
+                  {fill(t.pricing.save, { n: savingPct(savingSample) })}
                 </span>
               )}
+            </button>
+          ))}
+        </div>
+        {/* Currency selector — defaults to the visitor's locale, switchable. */}
+        <div className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1 backdrop-blur">
+          {CURRENCIES.map((cur) => (
+            <button
+              key={cur}
+              onClick={() => setCurrency(cur)}
+              aria-pressed={currency === cur}
+              className={cn(
+                'rounded-full px-3.5 py-2 text-sm font-medium transition-all',
+                currency === cur ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {CURRENCY_LABEL[cur]}
             </button>
           ))}
         </div>
@@ -79,7 +103,6 @@ export function PricingCards({
 
       <div className="grid gap-6 md:grid-cols-3">
         {list.map((plan) => {
-          const price = monthlyEquivalentDTO(plan, interval);
           const isCurrent = currentPlan === plan.id;
           const popular = plan.popular;
           return (
@@ -110,12 +133,12 @@ export function PricingCards({
                 <p className="mt-1 text-sm text-muted-foreground">{plan.tagline || t.planTagline[plan.id]}</p>
 
                 <div className="mt-5 flex items-end gap-1">
-                  <span className="text-4xl font-extrabold tracking-tight">{formatPrice(price, plan.currency, priceLocale)}</span>
+                  <span className="text-4xl font-extrabold tracking-tight">{formatMoney(monthlyMinor(plan), currency)}</span>
                   <span className="mb-1 text-sm text-muted-foreground">{t.pricing.perMonth}</span>
                 </div>
                 {interval === 'year' && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {fill(t.pricing.billedYearly, { price: formatPrice(plan.priceYear, plan.currency) })}
+                    {fill(t.pricing.billedYearly, { price: formatMoney(priceMinor(plan, 'year'), currency) })}
                   </p>
                 )}
                 {plan.trialDays > 0 && (

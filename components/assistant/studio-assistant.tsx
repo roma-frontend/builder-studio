@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Wand2, X, Send, Mic, Eraser, ArrowUpRight, Loader2, Maximize2, Minimize2,
+  Wand2, X, Send, Mic, Eraser, ArrowUpRight, Maximize2, Minimize2,
   Plus, Pencil, Trash2, Check, Copy, MessageSquare, PanelLeft, RotateCcw,
+  Square, RefreshCw, Search, ArrowDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLocale } from '@/hooks/use-locale';
@@ -36,20 +37,59 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
   const [pendingDelete, setPendingDelete] = useState<{ id: string; secs: number } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
+  const [historyQuery, setHistoryQuery] = useState('');
+  // Smart autoscroll: only glue to the bottom when the user is already there.
+  const [atBottom, setAtBottom] = useState(true);
+  const [hasNew, setHasNew] = useState(false);
+  // The FAB "ping" halo should invite the first open, then stop nagging.
+  const [hasOpened, setHasOpened] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const starters = t.starters[role] ?? t.starters.customer;
 
+  const isNearBottom = () => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+    setHasNew(false);
+  };
+
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    if (atBottom) scrollToBottom('smooth');
+    else if (a.messages.length) setHasNew(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [a.messages]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); setOpen((v) => !v); }
+      // Esc closes the panel — but let it first dismiss an in-progress inline
+      // edit / rename / delete confirmation instead of nuking the whole panel.
+      if (e.key === 'Escape' && open) {
+        if (editing) { setEditing(null); return; }
+        if (renaming) { setRenaming(null); return; }
+        if (pendingDelete) { setPendingDelete(null); return; }
+        if (sidebarOpen) { setSidebarOpen(false); return; }
+        setOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [open, editing, renaming, pendingDelete, sidebarOpen]);
+
+  // Remember the first open so the FAB stops "pinging" once discovered, and
+  // land the caret in the composer whenever the panel opens.
+  useEffect(() => {
+    if (!open) return;
+    setHasOpened(true);
+    setAtBottom(true);
+    const id = setTimeout(() => { a.inputRef.current?.focus(); scrollToBottom('auto'); }, 60);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Delete countdown (4s) with an undo window.
   useEffect(() => {
@@ -60,6 +100,10 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
   }, [pendingDelete, a]);
 
   const submit = () => { if (a.input.trim()) a.send(a.input); };
+  const fmtTime = (ts?: number) => {
+    if (!ts) return '';
+    try { return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(ts); } catch { return ''; }
+  };
   const copy = async (id: string, text: string) => {
     try { await navigator.clipboard.writeText(text); setCopiedId(id); setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1600); } catch { /* ignore */ }
   };
@@ -81,7 +125,7 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
 
   const iconBtn = 'rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
 
-  const renderBubble = (m: AssistantMessage) => {
+  const renderBubble = (m: AssistantMessage, isStreaming: boolean) => {
     const isUser = m.role === 'user';
     // Inline edit of a sent user message — a nice textarea right in the bubble.
     if (isUser && editing?.id === m.id) {
@@ -113,11 +157,18 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
       <div className={cn('group flex flex-col', isUser ? 'items-end' : 'items-start')}>
         <div className={cn('max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm',
           isUser ? 'rounded-br-md bg-primary text-primary-foreground' : 'rounded-bl-md border border-border/60 bg-card/80 text-foreground backdrop-blur')}>
-          {m.content ? (isUser ? <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p> : <AssistantMarkdown content={m.content} onNavigate={handleNavigate} />) : <TypingDots />}
+          {m.content
+            ? (isUser
+                ? <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                : <div className="relative">
+                    <AssistantMarkdown content={m.content} onNavigate={handleNavigate} />
+                    {isStreaming && <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 rounded-full bg-primary align-middle motion-safe:animate-pulse" aria-hidden />}
+                  </div>)
+            : <TypingDots />}
         </div>
-        {/* Row actions: edit (user) · copy (both) */}
+        {/* Row actions: edit (user) · copy (both) · regenerate (assistant) · time */}
         {m.content && (
-          <div className={cn('mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100', isUser ? 'flex-row-reverse' : '')}>
+          <div className={cn('mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100', isUser ? 'flex-row-reverse' : '')}>
             {isUser && (
               <button type="button" onClick={() => editUserMsg(m.id, m.content)} title={t.edit} aria-label={t.edit} className={iconBtn}>
                 <Pencil className="h-3.5 w-3.5" />
@@ -126,64 +177,98 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
             <button type="button" onClick={() => copy(m.id, m.content)} title={t.copy} aria-label={t.copy} className={iconBtn}>
               {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
+            {!isUser && !a.isLoading && (
+              <button type="button" onClick={() => a.regenerate(m.id)} title={t.regenerate} aria-label={t.regenerate} className={iconBtn}>
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {m.createdAt && <span className="px-1 text-[10px] tabular-nums text-muted-foreground/60">{fmtTime(m.createdAt)}</span>}
           </div>
         )}
       </div>
     );
   };
 
-  const renderSidebar = () => (
-    <div className="flex h-full w-64 shrink-0 flex-col border-r border-border/60 bg-muted/20">
-      <div className="p-3">
-        <button type="button" onClick={() => { a.newChat(); setSidebarOpen(false); }}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
-          <Plus className="h-4 w-4" /> {t.newChat}
+  const renderConvRow = (c: typeof a.conversations[number]) => {
+    if (pendingDelete?.id === c.id) {
+      return (
+        <div key={c.id} className="flex items-center gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-500">
+          <span className="flex-1 truncate">{t.deletingIn.replace('{n}', String(pendingDelete.secs))}</span>
+          <button type="button" onClick={() => setPendingDelete(null)} className="inline-flex items-center gap-1 font-semibold hover:underline">
+            <RotateCcw className="h-3 w-3" /> {t.undo}
+          </button>
+        </div>
+      );
+    }
+    if (renaming?.id === c.id) {
+      return (
+        <form key={c.id} onSubmit={(e) => { e.preventDefault(); a.rename(c.id, renaming.value); setRenaming(null); }}
+          className="flex items-center gap-1 px-1 py-1">
+          <input autoFocus value={renaming.value} onChange={(e) => setRenaming({ id: c.id, value: e.target.value })}
+            onBlur={() => { a.rename(c.id, renaming.value); setRenaming(null); }}
+            className="min-w-0 flex-1 rounded-md border border-primary/50 bg-background px-2 py-1 text-sm outline-none" />
+          <button type="submit" className={iconBtn} aria-label={t.save}><Check className="h-3.5 w-3.5" /></button>
+        </form>
+      );
+    }
+    const active = a.currentId === c.id;
+    return (
+      <div key={c.id} className={cn('group/item flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-colors',
+        active ? 'bg-primary/10 text-foreground' : 'text-muted-foreground hover:bg-muted')}>
+        <button type="button" onClick={() => { a.selectConversation(c.id); setSidebarOpen(false); }}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left">
+          <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-70" />
+          <span className="truncate">{c.title}</span>
         </button>
+        <button type="button" onClick={() => setRenaming({ id: c.id, value: c.title })} title={t.renameAction} aria-label={t.renameAction}
+          className="rounded p-1 opacity-0 transition-opacity hover:bg-background group-hover/item:opacity-100"><Pencil className="h-3 w-3" /></button>
+        <button type="button" onClick={() => setPendingDelete({ id: c.id, secs: 4 })} title={t.deleteAction} aria-label={t.deleteAction}
+          className="rounded p-1 text-red-500/80 opacity-0 transition-opacity hover:bg-red-500/10 group-hover/item:opacity-100"><Trash2 className="h-3 w-3" /></button>
       </div>
-      <p className="px-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t.history}</p>
-      <div className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-2 [scrollbar-width:thin]">
-        {a.conversations.length === 0 && <p className="px-3 py-6 text-center text-xs text-muted-foreground">{t.emptyHistory}</p>}
-        {a.conversations.map((c) => {
-          if (pendingDelete?.id === c.id) {
-            return (
-              <div key={c.id} className="flex items-center gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-500">
-                <span className="flex-1 truncate">{t.deletingIn.replace('{n}', String(pendingDelete.secs))}</span>
-                <button type="button" onClick={() => setPendingDelete(null)} className="inline-flex items-center gap-1 font-semibold hover:underline">
-                  <RotateCcw className="h-3 w-3" /> {t.undo}
-                </button>
-              </div>
-            );
-          }
-          if (renaming?.id === c.id) {
-            return (
-              <form key={c.id} onSubmit={(e) => { e.preventDefault(); a.rename(c.id, renaming.value); setRenaming(null); }}
-                className="flex items-center gap-1 px-1 py-1">
-                <input autoFocus value={renaming.value} onChange={(e) => setRenaming({ id: c.id, value: e.target.value })}
-                  onBlur={() => { a.rename(c.id, renaming.value); setRenaming(null); }}
-                  className="min-w-0 flex-1 rounded-md border border-primary/50 bg-background px-2 py-1 text-sm outline-none" />
-                <button type="submit" className={iconBtn} aria-label={t.save}><Check className="h-3.5 w-3.5" /></button>
-              </form>
-            );
-          }
-          const active = a.currentId === c.id;
-          return (
-            <div key={c.id} className={cn('group/item flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-colors',
-              active ? 'bg-primary/10 text-foreground' : 'text-muted-foreground hover:bg-muted')}>
-              <button type="button" onClick={() => { a.selectConversation(c.id); setSidebarOpen(false); }}
-                className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                <span className="truncate">{c.title}</span>
-              </button>
-              <button type="button" onClick={() => setRenaming({ id: c.id, value: c.title })} title={t.renameAction} aria-label={t.renameAction}
-                className="rounded p-1 opacity-0 transition-opacity hover:bg-background group-hover/item:opacity-100"><Pencil className="h-3 w-3" /></button>
-              <button type="button" onClick={() => setPendingDelete({ id: c.id, secs: 4 })} title={t.deleteAction} aria-label={t.deleteAction}
-                className="rounded p-1 text-red-500/80 opacity-0 transition-opacity hover:bg-red-500/10 group-hover/item:opacity-100"><Trash2 className="h-3 w-3" /></button>
+    );
+  };
+
+  const renderSidebar = () => {
+    const q = historyQuery.trim().toLowerCase();
+    const filtered = q ? a.conversations.filter((c) => c.title.toLowerCase().includes(q)) : a.conversations;
+    // Bucket by recency (based on updatedAt) for a tidy, scannable history.
+    const now = Date.now();
+    const startOfToday = new Date().setHours(0, 0, 0, 0);
+    const weekAgo = now - 7 * 864e5;
+    const groups: { label: string; items: typeof filtered }[] = [
+      { label: t.groupToday, items: filtered.filter((c) => c.updatedAt >= startOfToday) },
+      { label: t.groupWeek, items: filtered.filter((c) => c.updatedAt < startOfToday && c.updatedAt >= weekAgo) },
+      { label: t.groupOlder, items: filtered.filter((c) => c.updatedAt < weekAgo) },
+    ].filter((g) => g.items.length > 0);
+    return (
+      <div className="flex h-full w-64 shrink-0 flex-col border-r border-border/60 bg-muted/20">
+        <div className="space-y-2 p-3">
+          <button type="button" onClick={() => { a.newChat(); setSidebarOpen(false); }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
+            <Plus className="h-4 w-4" /> {t.newChat}
+          </button>
+          <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-background/60 px-2.5 py-1.5 focus-within:border-primary/50">
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <input value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder={t.searchHistory}
+              className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground" />
+            {historyQuery && (
+              <button type="button" onClick={() => setHistoryQuery('')} className="text-muted-foreground hover:text-foreground" aria-label={t.cancel}><X className="h-3.5 w-3.5" /></button>
+            )}
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-2 pb-2 [scrollbar-width:thin]">
+          {a.conversations.length === 0 && <p className="px-3 py-6 text-center text-xs text-muted-foreground">{t.emptyHistory}</p>}
+          {a.conversations.length > 0 && filtered.length === 0 && <p className="px-3 py-6 text-center text-xs text-muted-foreground">{t.noMatches}</p>}
+          {groups.map((g) => (
+            <div key={g.label} className="mb-1">
+              <p className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">{g.label}</p>
+              <div className="space-y-0.5">{g.items.map(renderConvRow)}</div>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -197,7 +282,7 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
             <motion.span key="w" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}><Wand2 className="h-6 w-6" /></motion.span>
           )}
         </AnimatePresence>
-        {!open && <span className="absolute inset-0 -z-10 animate-ping rounded-2xl bg-primary/30" style={{ animationDuration: '2.4s' }} />}
+        {!open && !hasOpened && <span className="absolute inset-0 -z-10 rounded-2xl bg-primary/30 motion-safe:animate-ping" style={{ animationDuration: '2.4s' }} />}
       </motion.button>
 
       <AnimatePresence>
@@ -243,7 +328,8 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
               </div>
 
               {/* Messages */}
-              <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 [scrollbar-width:thin]">
+              <div className="relative min-h-0 flex-1">
+              <div ref={scrollRef} onScroll={() => setAtBottom(isNearBottom())} className="h-full space-y-3 overflow-y-auto px-4 py-4 [scrollbar-width:thin]">
                 <div className={cn(expanded && 'mx-auto w-full max-w-3xl space-y-3')}>
                   {a.messages.length === 0 && (
                     <div className="space-y-4">
@@ -260,9 +346,9 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
                       )}
                     </div>
                   )}
-                  {a.messages.map((m) => (
+                  {a.messages.map((m, i) => (
                     <div key={m.id} className="space-y-2">
-                      {renderBubble(m)}
+                      {renderBubble(m, a.isLoading && i === a.messages.length - 1 && m.role === 'assistant')}
                       {m.role === 'assistant' && m.route && !a.isLoading && (
                         <div className="pl-1">
                           <button type="button" onClick={() => handleNavigate(m.route!)}
@@ -287,6 +373,17 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
                   {a.error && <p className="text-center text-xs text-red-500">{t.error}</p>}
                 </div>
               </div>
+              {/* Jump to latest — appears when new content arrives while scrolled up */}
+              <AnimatePresence>
+                {hasNew && (
+                  <motion.button type="button" onClick={() => scrollToBottom('smooth')}
+                    initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+                    className="absolute bottom-3 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border/70 bg-background/90 px-3 py-1.5 text-xs font-medium shadow-lg backdrop-blur hover:bg-muted">
+                    <ArrowDown className="h-3.5 w-3.5" /> {t.newMessages}
+                  </motion.button>
+                )}
+              </AnimatePresence>
+              </div>
 
               {/* Composer */}
               {!a.unavailable && (
@@ -302,10 +399,17 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
                         <Mic className={cn('h-4 w-4', a.isListening && 'animate-pulse')} />
                       </button>
                     )}
-                    <button type="button" onClick={submit} disabled={!a.input.trim() || a.isLoading} aria-label={t.send}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-opacity disabled:opacity-40">
-                      {a.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    </button>
+                    {a.isLoading ? (
+                      <button type="button" onClick={a.stop} aria-label={t.stop} title={t.stop}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                        <Square className="h-3.5 w-3.5 fill-current" />
+                      </button>
+                    ) : (
+                      <button type="button" onClick={submit} disabled={!a.input.trim()} aria-label={t.send}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-opacity disabled:opacity-40">
+                        <Send className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                   <p className="mt-1.5 text-center text-[10px] text-muted-foreground/70">{t.poweredBy} · ⌘/Ctrl+J</p>
                 </div>

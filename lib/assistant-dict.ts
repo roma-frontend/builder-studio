@@ -34,6 +34,14 @@ export interface AssistantDict {
   copy: string;
   copied: string;
   goTo: string;
+  stop: string;
+  regenerate: string;
+  searchHistory: string;
+  noMatches: string;
+  newMessages: string;
+  groupToday: string;
+  groupWeek: string;
+  groupOlder: string;
   starters: Record<Role, string[]>;
 }
 
@@ -66,6 +74,14 @@ const ru: AssistantDict = {
   copy: 'Копировать',
   copied: 'Скопировано',
   goTo: 'Перейти',
+  stop: 'Остановить',
+  regenerate: 'Сгенерировать заново',
+  searchHistory: 'Поиск по чатам…',
+  noMatches: 'Ничего не найдено',
+  newMessages: 'Новые сообщения',
+  groupToday: 'Сегодня',
+  groupWeek: 'Последние 7 дней',
+  groupOlder: 'Ранее',
   starters: {
     customer: [
       '✨ Как создать сайт?',
@@ -117,6 +133,14 @@ const en: AssistantDict = {
   copy: 'Copy',
   copied: 'Copied',
   goTo: 'Go to',
+  stop: 'Stop',
+  regenerate: 'Regenerate',
+  searchHistory: 'Search chats…',
+  noMatches: 'No matches',
+  newMessages: 'New messages',
+  groupToday: 'Today',
+  groupWeek: 'Previous 7 days',
+  groupOlder: 'Older',
   starters: {
     customer: [
       '✨ How do I create a site?',
@@ -168,6 +192,14 @@ const hy: AssistantDict = {
   copy: 'Պատճենել',
   copied: 'Պատճենվեց',
   goTo: 'Անցնել',
+  stop: 'Կանգնեցնել',
+  regenerate: 'Վերագեներացնել',
+  searchHistory: 'Փնտրել զրույցներում…',
+  noMatches: 'Ոչինչ չգտնվեց',
+  newMessages: 'Նոր հաղորդագրություններ',
+  groupToday: 'Այսօր',
+  groupWeek: 'Վերջին 7 օրը',
+  groupOlder: 'Ավելի վաղ',
   starters: {
     customer: [
       '✨ Ինչպե՞ս ստեղծել կայք',

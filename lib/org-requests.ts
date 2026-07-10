@@ -6,11 +6,21 @@ import { LANDING_SLUG } from '@/lib/landing-site';
 import { publishNotify } from '@/lib/realtime';
 import { upsertSubscription, hasAnySubscription } from '@/lib/billing/subscriptions';
 import { PLANS } from '@/lib/billing/plans';
+import { getSetting } from '@/lib/platform-settings';
 
 // Platform-level organization requests (ported from hr-project). A logged-in
 // platform user requests to CREATE a new org (tenant site) or JOIN an existing
 // one; a superadmin approves/rejects. On approve of 'create' a site is created
 // and owned by the requester; on 'join' the requester becomes that org's admin.
+//
+// SELF-SERVE: by default new users create their org INSTANTLY (no human in the
+// loop) — the single biggest activation lever. A superadmin can re-enable the
+// manual review gate by setting `manual-org-approval` = '1' (e.g. for B2B).
+
+/** True when a superadmin must manually approve org-creation ('1' = on). */
+export function manualOrgApprovalEnabled(): boolean {
+  return getSetting('manual-org-approval') === '1';
+}
 
 export function normalizeSlug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
@@ -124,6 +134,91 @@ export function getMyOrgRequests(userId: string): OrgRequest[] {
   return getDb().select().from(orgRequests).where(eq(orgRequests.requesterId, userId)).orderBy(desc(orgRequests.createdAt)).all();
 }
 
+/**
+ * Shared org-creation provisioning used by BOTH superadmin approval and the
+ * self-serve path: create the site, honour the requested slug, promote the
+ * owner to admin and kick off the free trial so the org is live immediately.
+ * Returns the new site id.
+ */
+function provisionCreatedOrg(requesterId: string, requestedName: string, requestedSlug: string): string {
+  const db = getDb();
+  if (requestedSlug && slugTaken(requestedSlug)) throw new Error('SLUG_TAKEN');
+  const site = createSite(requesterId, requestedName || 'Организация');
+  if (requestedSlug && !slugTaken(requestedSlug)) {
+    db.update(sites).set({ slug: requestedSlug }).where(eq(sites.id, site.id)).run();
+  }
+  // NOTE: org owners intentionally stay on the 'customer' role. Ownership-based
+  // powers (their own sites, members, builder, billing) derive from site
+  // ownership, not from a global role. The 'admin' role is reserved for
+  // *platform staff* (all-users list, all-sites, audit) and must only be
+  // granted deliberately by a superadmin — never automatically on self-serve
+  // signup, or a fresh tenant would see cross-tenant data.
+  // Kick off a free PRO trial so a brand-new org can taste the full product
+  // (AI video, assistant, custom domain) immediately; when it ends the owner
+  // drops to the free floor / paywall until they subscribe. Only for a
+  // first-time org owner with no subscription history yet.
+  if (!hasAnySubscription(requesterId)) {
+    const pro = PLANS.pro;
+    const now = new Date();
+    const trialEnd = new Date(now.getTime() + Math.max(1, pro.trialDays) * 864e5);
+    upsertSubscription({
+      userId: requesterId,
+      planId: 'pro',
+      interval: 'month',
+      status: 'trialing',
+      provider: 'manual',
+      amount: pro.price.month,
+      currency: pro.currency,
+      currentPeriodStart: now,
+      currentPeriodEnd: trialEnd,
+      cancelAtPeriodEnd: false,
+    });
+  }
+  return site.id;
+}
+
+/**
+ * Self-serve org creation (no human review). Validates like a 'create' request,
+ * provisions the org immediately and records an already-approved request row
+ * for history/audit. Returns the new site id.
+ */
+export function selfServeCreateOrg(
+  user: User,
+  input: { requestedName?: string; requestedSlug?: string; message?: string },
+): { siteId: string } {
+  const elig = orgEligibility(user);
+  if (!elig.eligible) throw new Error(elig.reason === 'super' ? 'SUPERADMIN_NO_ORG' : 'ALREADY_HAS_ORG');
+
+  const requestedName = (input.requestedName ?? '').trim();
+  if (!requestedName) throw new Error('NAME_REQUIRED');
+  // A slug is OPTIONAL here: normalizeSlug is Latin-only, so a Cyrillic/Armenian
+  // name yields ''. In that case we let createSite() auto-generate a proper
+  // transliterated, unique slug from the name (see lib/sites slugify).
+  const requestedSlug = normalizeSlug(input.requestedSlug || requestedName);
+  if (requestedSlug && slugTaken(requestedSlug)) throw new Error('SLUG_TAKEN');
+
+  const siteId = provisionCreatedOrg(user.id, requestedName, requestedSlug);
+  const now = new Date();
+  getDb().insert(orgRequests).values({
+    id: newId('or'),
+    type: 'create',
+    requesterId: user.id,
+    requesterEmail: user.email,
+    requesterName: user.name,
+    requestedName,
+    requestedSlug,
+    targetSiteId: null,
+    message: (input.message ?? '').slice(0, 500),
+    status: 'approved',
+    reviewedBy: null,
+    reviewedAt: now,
+    rejectionReason: '',
+    resultSiteId: siteId,
+    createdAt: now,
+  }).run();
+  return { siteId };
+}
+
 export interface OrgRequestRow extends OrgRequest {
   targetName: string | null;
 }
@@ -153,36 +248,7 @@ export function approveOrgRequest(superadminId: string, requestId: string): { si
 
   let siteId: string;
   if (req.type === 'create') {
-    if (req.requestedSlug && slugTaken(req.requestedSlug)) throw new Error('SLUG_TAKEN');
-    const site = createSite(req.requesterId, req.requestedName || 'Организация');
-    // Honour the requested slug when still free.
-    if (req.requestedSlug && !slugTaken(req.requestedSlug)) {
-      db.update(sites).set({ slug: req.requestedSlug }).where(eq(sites.id, site.id)).run();
-    }
-    // Promote a plain customer to admin (they now run an organization).
-    const owner = db.select().from(users).where(eq(users.id, req.requesterId)).get();
-    if (owner && owner.role === 'customer') db.update(users).set({ role: 'admin' }).where(eq(users.id, owner.id)).run();
-    // Kick off the Starter free trial (3 days) so a brand-new org is live
-    // immediately; when it ends the owner hits the paywall until they subscribe.
-    // Only for a first-time org owner who has no subscription history yet.
-    if (!hasAnySubscription(req.requesterId)) {
-      const starter = PLANS.starter;
-      const now = new Date();
-      const trialEnd = new Date(now.getTime() + Math.max(1, starter.trialDays) * 864e5);
-      upsertSubscription({
-        userId: req.requesterId,
-        planId: 'starter',
-        interval: 'month',
-        status: 'trialing',
-        provider: 'manual',
-        amount: starter.price.month,
-        currency: starter.currency,
-        currentPeriodStart: now,
-        currentPeriodEnd: trialEnd,
-        cancelAtPeriodEnd: false,
-      });
-    }
-    siteId = site.id;
+    siteId = provisionCreatedOrg(req.requesterId, req.requestedName, req.requestedSlug);
   } else {
     if (!req.targetSiteId) throw new Error('ORG_NOT_FOUND');
     // Join = become a regular TENANT member (site_user) of that organization —

@@ -57,6 +57,8 @@ export interface BillingDict {
     plan: string;
     renews: string;
     endsOn: string;
+    trialEnds: string;
+    trialNote: string;
     manage: string;
     cancel: string;
     cancelAtEnd: string;
@@ -188,6 +190,8 @@ const ru: BillingDict = {
     plan: 'План',
     renews: 'Продлевается',
     endsOn: 'Действует до',
+    trialEnds: 'Пробный период до',
+    trialNote: 'Пока бесплатно — автоматического списания не будет. Выберите план, когда будете готовы.',
     manage: 'Управлять оплатой',
     cancel: 'Отменить подписку',
     cancelAtEnd: 'Отменится в конце периода',
@@ -329,6 +333,8 @@ const en: BillingDict = {
     plan: 'Plan',
     renews: 'Renews',
     endsOn: 'Active until',
+    trialEnds: 'Trial ends',
+    trialNote: 'Free for now — you won’t be charged automatically. Pick a plan whenever you’re ready.',
     manage: 'Manage payment',
     cancel: 'Cancel subscription',
     cancelAtEnd: 'Cancels at period end',
@@ -470,6 +476,8 @@ const hy: BillingDict = {
     plan: 'Պլան',
     renews: 'Երկարաձգվում է',
     endsOn: 'Գործում է մինչև',
+    trialEnds: 'Փորձաշրջանն ավարտվում է',
+    trialNote: 'Առայժմ անվճար է — ավտոմատ գանձում չի լինի։ Ընտրեք պլան, երբ պատրաստ լինեք։',
     manage: 'Կառավարել վճարումը',
     cancel: 'Չեղարկել բաժանորդագրությունը',
     cancelAtEnd: 'Կչեղարկվի ժամանակահատվածի վերջում',

@@ -97,14 +97,15 @@ describe('approveOrgRequest', () => {
     expect(() => approveOrgRequest(su.id, req.id)).toThrow('ALREADY_REVIEWED');
   });
 
-  it('create: builds site, honours slug, promotes customer', () => {
+  it('create: builds site, honours slug, keeps requester as customer (no auto-staff)', () => {
     const su = createUser('a@x.com', 'pw', 'Admin');
     const cust = createUser('c@x.com', 'pw', 'Cust');
     const req = createOrgRequest(cust, { type: 'create', requestedName: 'Coffee', requestedSlug: 'coffee-shop' });
     const { siteId } = approveOrgRequest(su.id, req.id);
     const site = getDb().select().from(sites).all().find((s) => s.id === siteId)!;
     expect(site.slug).toBe('coffee-shop');
-    expect(getDb().select().from(users).all().find((u) => u.id === cust.id)?.role).toBe('admin');
+    // Org owners stay 'customer' — the 'admin' role is platform staff only.
+    expect(getDb().select().from(users).all().find((u) => u.id === cust.id)?.role).toBe('customer');
     expect(getDb().select().from(orgRequests).all()[0].status).toBe('approved');
   });
 

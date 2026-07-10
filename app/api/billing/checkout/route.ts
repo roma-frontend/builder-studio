@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
 import { isPlanId, isInterval } from '@/lib/billing/plans';
+import { isCurrency } from '@/lib/billing/currency';
 import { createCheckout } from '@/lib/billing/provider';
 import { recordAudit } from '@/lib/audit';
 
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
   const me = await getCurrentUser();
   if (!me) return NextResponse.json({ error: t.unauthorizedDot }, { status: 401 });
 
-  let body: { planId?: unknown; interval?: unknown };
+  let body: { planId?: unknown; interval?: unknown; currency?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
   if (!isPlanId(body.planId) || !isInterval(body.interval)) {
     return NextResponse.json({ error: t.badRequest }, { status: 400 });
   }
+  const currency = isCurrency(body.currency) ? body.currency : 'usd';
 
   try {
     const result = await createCheckout({
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
       email: me.email,
       planId: body.planId,
       interval: body.interval,
+      currency,
     });
     recordAudit({ id: me.id, email: me.email }, 'billing.checkout', body.planId, `${body.interval}, ${result.mode}`);
     return NextResponse.json({ url: result.url, mode: result.mode });

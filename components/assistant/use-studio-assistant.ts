@@ -12,6 +12,7 @@ export interface AssistantMessage {
   content: string;
   suggestions?: string[];
   route?: string;
+  createdAt?: number;
 }
 
 export interface Conversation {
@@ -84,6 +85,10 @@ export function useStudioAssistant() {
   const recRef = useRef<SR | null>(null);
   const silenceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Live streaming controller so the user can cancel a reply mid-flight; the
+  // partial text already received is kept (not discarded).
+  const abortRef = useRef<AbortController | null>(null);
+  const stoppedRef = useRef(false);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -106,7 +111,7 @@ export function useStudioAssistant() {
       const res = await fetch(`/api/assistant/conversations/${id}`);
       if (res.ok) {
         const rows = (await res.json()).messages ?? [];
-        setMessages(rows.map((m: { id: string; role: 'user' | 'assistant'; content: string }) => ({ id: m.id, role: m.role, content: m.content })));
+        setMessages(rows.map((m: { id: string; role: 'user' | 'assistant'; content: string; createdAt?: number }) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt })));
       }
     } catch { /* ignore */ }
   }, []);
@@ -163,21 +168,26 @@ export function useStudioAssistant() {
   // message. Handles lazy conversation creation, persistence and tag parsing.
   const runStream = useCallback(async (history: AssistantMessage[], firstText: string) => {
     setIsLoading(true);
+    setError(null);
+    stoppedRef.current = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
     let convId = currentId;
     if (!convId) {
       try {
         const res = await fetch('/api/assistant/conversations', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ firstMessage: firstText }),
+          signal: controller.signal,
         });
         if (res.ok) {
           const conv = (await res.json()).conversation as Conversation;
           convId = conv.id; setCurrentId(conv.id); setConversations((prev) => [conv, ...prev]);
         }
-      } catch { /* proceed without persistence */ }
+      } catch { /* proceed without persistence (or aborted before we started) */ }
     }
     const assistantId = `a${Date.now()}`;
-    setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '' }]);
+    setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '', createdAt: Date.now() }]);
     try {
       const res = await fetch('/api/assistant', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -186,6 +196,7 @@ export function useStudioAssistant() {
           lang: detectLanguage(firstText),
           conversationId: convId ?? undefined,
         }),
+        signal: controller.signal,
       });
       if (res.status === 503) { setUnavailable(true); setMessages((prev) => prev.filter((m) => m.id !== assistantId)); return; }
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
@@ -211,6 +222,7 @@ export function useStudioAssistant() {
           const dres = await fetch('/api/assistant/data', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: data, lang: detectLanguage(firstText) }),
+            signal: controller.signal,
           });
           if (dres.ok) {
             const md = (await dres.json()).markdown as string;
@@ -223,14 +235,27 @@ export function useStudioAssistant() {
         if (!found) return prev;
         return [{ ...found, updatedAt: Date.now() }, ...prev.filter((c) => c.id !== convId)];
       });
-    } catch {
-      setError('error');
-      setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+    } catch (e) {
+      // A user-initiated stop is not an error: keep whatever streamed so far,
+      // but if nothing arrived, drop the empty placeholder bubble.
+      if (stoppedRef.current || (e instanceof DOMException && e.name === 'AbortError')) {
+        setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content.trim() !== ''));
+      } else {
+        setError('error');
+        setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+      }
     } finally {
+      abortRef.current = null;
       setIsLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [currentId]);
+
+  /** Cancel an in-flight reply; the partial text already streamed is kept. */
+  const stop = useCallback(() => {
+    stoppedRef.current = true;
+    abortRef.current?.abort();
+  }, []);
 
   /** Navigate to an in-app route (used by clickable links in replies). */
   const navigate = useCallback((route: string) => { router.push(route); }, [router]);
@@ -239,7 +264,7 @@ export function useStudioAssistant() {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
     setError(null);
-    const userMsg: AssistantMessage = { id: `u${Date.now()}`, role: 'user', content: trimmed };
+    const userMsg: AssistantMessage = { id: `u${Date.now()}`, role: 'user', content: trimmed, createdAt: Date.now() };
     const history = [...messages, userMsg];
     setMessages(history);
     setInput('');
@@ -259,12 +284,28 @@ export function useStudioAssistant() {
     await runStream(history, trimmed);
   }, [isLoading, messages, runStream]);
 
+  // Regenerate an assistant reply: rewind to the user message that produced it
+  // and re-run the stream, so a fresh answer replaces the old one.
+  const regenerate = useCallback(async (assistantId: string) => {
+    if (isLoading) return;
+    const idx = messages.findIndex((m) => m.id === assistantId);
+    if (idx < 0 || messages[idx].role !== 'assistant') return;
+    // Find the user message immediately preceding this assistant reply.
+    let userIdx = idx - 1;
+    while (userIdx >= 0 && messages[userIdx].role !== 'user') userIdx -= 1;
+    if (userIdx < 0) return;
+    setError(null);
+    const history = messages.slice(0, userIdx + 1);
+    setMessages(history);
+    await runStream(history, messages[userIdx].content);
+  }, [isLoading, messages, runStream]);
+
   // Load conversation history once on mount.
   useEffect(() => { void loadConversations(); }, [loadConversations]);
 
   return {
     messages, conversations, currentId, input, setInput, isLoading, isListening, unavailable, error,
-    voiceSupported, inputRef, send, editMessage, navigate, startVoice,
+    voiceSupported, inputRef, send, editMessage, regenerate, stop, navigate, startVoice,
     loadConversations, newChat, selectConversation, rename, remove,
   };
 }

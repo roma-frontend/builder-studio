@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLocale } from '@/hooks/use-locale';
 import { dashDict } from '@/lib/dashboard-dict';
+import { AiSiteWizard } from '@/components/dashboard/ai-site-wizard';
 
 type Req = { id: string; type: string; requestedName: string; requestedSlug: string; targetSiteId: string | null; status: string; rejectionReason: string; resultSiteId: string | null; createdAt: string | number };
 type Org = { id: string; name: string; slug: string };
@@ -76,6 +77,9 @@ export function OrgOnboarding() {
     const d = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) { setErr(d.error || t.errGeneric); return; }
+    // Self-serve: the org was created instantly — drop the user straight into
+    // the builder to start designing (fastest path to the "aha" moment).
+    if (d.autoApproved && d.siteId) { window.location.href = `/studio/builder?site=${d.siteId}`; return; }
     load();
   };
 
@@ -134,7 +138,17 @@ export function OrgOnboarding() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-5">
+    <div className="mx-auto max-w-xl space-y-6">
+      {/* AI hero: the fastest path — describe the business, get a live site. */}
+      <AiSiteWizard />
+
+      <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+        <span className="h-px flex-1 bg-border" />
+        {locale === 'ru' ? 'или настройте вручную' : locale === 'hy' ? 'կամ կարգավորեք ձեռքով' : 'or set up manually'}
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <div className="space-y-5">
       {/* Last resolved request feedback */}
       {requests[0] && requests[0].status === 'rejected' && (
         <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
@@ -182,6 +196,7 @@ export function OrgOnboarding() {
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />} {t.submit}
         </Button>
         <p className="text-center text-xs text-muted-foreground">{t.reviewedBySuper}</p>
+      </div>
       </div>
     </div>
   );
