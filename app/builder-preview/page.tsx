@@ -11,6 +11,7 @@ import { useLocale } from '@/hooks/use-locale';
 import { ui } from '@/lib/ui-dict';
 import { builderTr } from '@/lib/builder-dict';
 import type { BuilderDoc } from '@/lib/builder/types';
+import { updateProps } from '@/lib/builder/tree';
 
 // Human labels (Russian source; localised via builderTr) for the hover badge.
 const TYPE_LABEL: Record<string, string> = {
@@ -42,6 +43,8 @@ export default function BuilderPreview() {
   const trRef = useRef(tr);
   useEffect(() => { trRef.current = tr; });
   const [state, setState] = useState<Incoming | null>(null);
+  const [themeOverride, setThemeOverride] = useState<string | null>(null);
+  const themeFadeTimer = useRef<number | null>(null);
 
   // Report the selected element's viewport rect to the editor so it can float a
   // mini-toolbar over the iframe. Re-sent on scroll/resize so it stays glued.
@@ -137,6 +140,31 @@ export default function BuilderPreview() {
       if (e.data.type === 'dragpoint') { highlightAt(e.data.x as number, e.data.y as number); return; }
       if (e.data.type === 'dropAt') { dropAt(e.data.x as number, e.data.y as number, e.data.nodeType as string); return; }
       if (e.data.type === 'stylehint') { applyHint(e.data); return; }
+      if (e.data.type === 'nodeprops' && typeof e.data.id === 'string' && e.data.props && typeof e.data.props === 'object') {
+        // Small style/text patches avoid serializing a full BuilderDoc for a
+        // single Inspector interaction.
+        const id = e.data.id;
+        const props = e.data.props as Record<string, string>;
+        setState((current) => current ? {
+          ...current,
+          doc: {
+            ...current.doc,
+            // Inspector only edits the active page; avoid a full document walk
+            // when a project contains many pages.
+            pages: current.doc.pages.map((page) => page.id === current.pageId ? { ...page, blocks: updateProps(page.blocks, id, props) } : page),
+          },
+        } : current);
+        return;
+      }
+      if (e.data.type === 'theme') {
+        // Theme CSS is independent from the document tree. Update it directly
+        // so selecting a style never remounts the full visual canvas.
+        document.documentElement.dataset.themeSwitching = 'true';
+        if (themeFadeTimer.current) window.clearTimeout(themeFadeTimer.current);
+        setThemeOverride(typeof e.data.themeId === 'string' ? e.data.themeId : null);
+        themeFadeTimer.current = window.setTimeout(() => { delete document.documentElement.dataset.themeSwitching; }, 160);
+        return;
+      }
       if (e.data.type === 'selection') {
         // Selection is a tiny editor-only interaction. Do not replace React
         // state (which would redraw the entire preview document) just to move
@@ -223,6 +251,8 @@ export default function BuilderPreview() {
       .b-selected{outline:2px solid var(--primary)!important;outline-offset:2px;border-radius:3px}
       :root[data-preview-mode="fast"] *, :root[data-preview-mode="fast"] *::before, :root[data-preview-mode="fast"] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
       :root[data-preview-mode="fast"] video{visibility:hidden!important}
+      :root[data-theme-switching="true"] body{opacity:.78;transition:opacity 120ms ease-out}
+      body{transition:opacity 120ms ease-out}
     `;
     document.head.appendChild(hoverStyle);
     const badge = document.createElement('div');
@@ -280,7 +310,8 @@ export default function BuilderPreview() {
   // (not the legacy /site route) and the auth buttons render.
   const previewDoc: BuilderDoc = { ...doc, base: siteSlug ? `/s/${siteSlug}` : doc.base, siteId: siteId ?? doc.siteId };
   const page = previewDoc.pages.find((p) => p.id === pageId) ?? previewDoc.pages[0];
-  const theme = previewDoc.themeId && previewDoc.themeId !== 'auto' ? getTheme(previewDoc.themeId) : DEFAULT_THEME;
+  const activeThemeId = themeOverride ?? previewDoc.themeId;
+  const theme = activeThemeId && activeThemeId !== 'auto' ? getTheme(activeThemeId) : DEFAULT_THEME;
 
   return (
     <>

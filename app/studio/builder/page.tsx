@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -259,6 +259,17 @@ const serializeGridItems = (rows: GridItem[]): string =>
     .map((r) => [r.src, r.title, r.subtitle, r.poster, r.srcDark, r.posterDark].join('::').replace(/(::)+$/, '') || '::')
     .join('\n');
 const GRID_IMG_RE = /\.(webp|jpe?g|png|gif|avif|svg)(\?.*)?$/i;
+
+function DebouncedStyleInput({ value, onCommit }: { value: string; onCommit: (value: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => {
+    if (draft === value) return;
+    const timer = window.setTimeout(() => onCommit(draft), 180);
+    return () => window.clearTimeout(timer);
+  }, [draft, value, onCommit]);
+  return <Input value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => onCommit(draft)} className="h-8" />;
+}
 
 // Styling controls available for EVERY element, grouped for quick access.
 const STYLE_GROUPS: { title: string; fields: Field[] }[] = [
@@ -608,6 +619,7 @@ function BuilderEditor() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [device, setDevice] = useState<keyof typeof DEVICE>('full');
   const [tab, setTab] = useState<'pages' | 'blocks' | 'design'>('pages');
+  const [styleGroupOpen, setStyleGroupOpen] = useState<string | null>('Типографика');
   const [previewWidth, setPreviewWidth] = useState(520);
   const [fullscreen, setFullscreen] = useState(false);
   const [previewDark, setPreviewDark] = useState(true);
@@ -870,7 +882,12 @@ function BuilderEditor() {
   // preset) in the iframe without touching the doc; leaving/closing restores.
   const [hoverTheme, setHoverTheme] = useState<string | null>(null);
   const hoverThemeRef = useRef<string | null>(null);
-  useEffect(() => { hoverThemeRef.current = hoverTheme; }, [hoverTheme]);
+  useEffect(() => {
+    hoverThemeRef.current = hoverTheme;
+    // Hovering themes should only swap CSS tokens in the iframe. Avoid a full
+    // document message until the user commits a theme selection.
+    previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', type: 'theme', themeId: hoverTheme ?? doc.themeId }, '*');
+  }, [hoverTheme, doc.themeId]);
   // Coalesced to one postMessage per frame: serializing the full doc for the
   // iframe on every keystroke is the single biggest source of typing jank.
   const postRaf = useRef(0);
@@ -892,7 +909,9 @@ function BuilderEditor() {
     if (postRaf.current) return;
     postRaf.current = requestAnimationFrame(() => {
       postRaf.current = 0;
-      sendState();
+      // Paint after the editor has committed its own interaction update. This
+      // prevents select/slider bursts from competing with input responsiveness.
+      requestAnimationFrame(sendState);
     });
   }, [sendState]);
   useEffect(() => () => { if (postRaf.current) cancelAnimationFrame(postRaf.current); }, []);
@@ -946,6 +965,10 @@ function BuilderEditor() {
   }, []);
   // Push live state to the preview on every change — instant, no save needed.
   useEffect(() => {
+    if (previewPatchedRef.current) {
+      previewPatchedRef.current = false;
+      return;
+    }
     postPreview();
   }, [doc, pageId, previewDark, hoverTheme, postPreview]);
   // Selection is rendered as a lightweight overlay in the iframe. Keep it on a
@@ -1035,6 +1058,7 @@ function BuilderEditor() {
   // element is selected without hunting for it. Latest page via ref so this
   // only runs on selection changes, not on every edit.
   const pageRef = useRef(page);
+  const selectionScrollRef = useRef<number[]>([]);
   useEffect(() => { pageRef.current = page; });
   useEffect(() => {
     if (!selectedId) return;
@@ -1049,13 +1073,22 @@ function BuilderEditor() {
       });
     }
     // Double rAF: wait past the (possible) expand re-render + commit so the row
-    // is in the DOM before scrolling.
-    const raf = requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
+    // is in the DOM before scrolling. Cancel stale work when selection changes
+    // rapidly — otherwise several smooth scrolls fight each other.
+    selectionScrollRef.current.forEach(cancelAnimationFrame);
+    selectionScrollRef.current = [];
+    const first = requestAnimationFrame(() => {
+      const second = requestAnimationFrame(() => {
+        selectionScrollRef.current = [];
         document.querySelector<HTMLElement>(`[data-tree-nid="${CSS.escape(selectedId)}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }),
-    );
-    return () => cancelAnimationFrame(raf);
+      });
+      selectionScrollRef.current.push(second);
+    });
+    selectionScrollRef.current.push(first);
+    return () => {
+      selectionScrollRef.current.forEach(cancelAnimationFrame);
+      selectionScrollRef.current = [];
+    };
     // collapsed intentionally omitted: expansion is derived from selection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
@@ -1090,8 +1123,27 @@ function BuilderEditor() {
     setSelectedId(node.id);
   };
 
-  const patch = (id: string, p: Record<string, string>) => setBlocks((b) => updateProps(b, id, p));
+  const previewPatchedRef = useRef(false);
+  const propsPatchRaf = useRef(0);
+  const pendingPropsPatch = useRef<{ id: string; props: Record<string, string> } | null>(null);
+  const patch = (id: string, p: Record<string, string>) => {
+    // Inspector edits are almost always a props-only mutation. Coalesce rapid
+    // changes to the same element into one iframe message per animation frame.
+    previewPatchedRef.current = true;
+    const pending = pendingPropsPatch.current;
+    pendingPropsPatch.current = pending?.id === id ? { id, props: { ...pending.props, ...p } } : { id, props: p };
+    if (!propsPatchRaf.current) {
+      propsPatchRaf.current = requestAnimationFrame(() => {
+        propsPatchRaf.current = 0;
+        const next = pendingPropsPatch.current;
+        pendingPropsPatch.current = null;
+        if (next) previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', type: 'nodeprops', ...next }, '*');
+      });
+    }
+    setBlocks((b) => updateProps(b, id, p));
+  };
   useEffect(() => { editTextRef.current = (id, prop, value) => patch(id, { [prop]: value }); });
+  useEffect(() => () => { if (propsPatchRaf.current) cancelAnimationFrame(propsPatchRaf.current); }, []);
   // Responsive override management: clear all overrides for a breakpoint, or copy
   // the values from the next-smaller breakpoint into it (empty string = "unset").
   const resetBreakpoint = (id: string, dev: keyof typeof DEVICE) => {
@@ -1120,7 +1172,18 @@ function BuilderEditor() {
     setDoc((d) => ({ ...d, stylePresets: [...(d.stylePresets ?? []), { id: newId('preset'), name, props }] }));
     setMsg(tr('Стиль-пресет сохранён.'));
   };
-  const applyStylePreset = (ps: { props: Record<string, string> }) => { if (selected) patch(selected.id, ps.props); };
+  const styleCommitRaf = useRef(0);
+  const queueStyleCommit = (id: string, props: Record<string, string>) => {
+    if (styleCommitRaf.current) cancelAnimationFrame(styleCommitRaf.current);
+    styleCommitRaf.current = requestAnimationFrame(() => {
+      styleCommitRaf.current = 0;
+      startTransition(() => patch(id, props));
+    });
+  };
+  const applyStylePreset = (ps: { props: Record<string, string> }) => {
+    if (!selected) return;
+    queueStyleCommit(selected.id, ps.props);
+  };
   const deleteStylePreset = (id: string) => setDoc((d) => ({ ...d, stylePresets: (d.stylePresets ?? []).filter((p) => p.id !== id) }));
   // ---- Copy / paste style between elements (feature 4) ----
   const copyStyle = () => {
@@ -2164,7 +2227,7 @@ function BuilderEditor() {
       </details>
 
       <div className="flex min-h-0 flex-1">
-        <aside className={cn('min-w-0 flex-1 overflow-y-auto px-3 pb-3 @container lg:border-r lg:border-border/60', mobileView === 'preview' && 'hidden lg:block')}>
+        <aside className={cn('min-w-0 flex-1 overflow-y-auto px-3 pb-3 [contain:layout_style] [overscroll-behavior:contain] [scrollbar-gutter:stable] @container lg:border-r lg:border-border/60', mobileView === 'preview' && 'hidden lg:block')}>
           {/* Tabs — pinned to the top of the panel so they stay visible while
               the rest of the panel scrolls. Negative margins cancel the aside's
               p-3 so the sticky bar spans full width and reaches the very top. */}
@@ -2646,7 +2709,7 @@ function BuilderEditor() {
                                   return (
                                     <button
                                       key={e.id}
-                                      onClick={() => patch(selected.id, applyEffectPatch(e.id))}
+                                      onClick={() => queueStyleCommit(selected.id, applyEffectPatch(e.id))}
                                       title={`${tr(e.label)} — ${tr('Наведите, чтобы посмотреть')}`}
                                       className={cn(
                                         'fxgrp flex flex-col gap-1 rounded-md border p-1.5 text-[10px] font-medium leading-tight transition-colors',
@@ -2674,9 +2737,11 @@ function BuilderEditor() {
 
                 {/* Styling for every element */}
                 {builderUnlocked && STYLE_GROUPS.map((g) => (
-                  <div key={g.title} className="border-t border-border/60 pt-2.5">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr(g.title)}</p>
-                    <div className="grid grid-cols-2 gap-2">
+                  <div key={g.title} className="border-t border-border/60 pt-2.5 [content-visibility:auto] [contain-intrinsic-size:1px_42px]">
+                    <button type="button" onClick={() => setStyleGroupOpen((current) => current === g.title ? null : g.title)} className="mb-2 flex w-full items-center justify-between text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground">
+                      {tr(g.title)} <ChevronDown className={`h-3.5 w-3.5 transition-transform ${styleGroupOpen === g.title ? 'rotate-180' : ''}`} />
+                    </button>
+                    {styleGroupOpen === g.title && <div className="grid grid-cols-2 gap-2">
                       {g.fields.map((f) => {
                         const isColor = f.k === 'textColor' || f.k === 'bgColor' || f.k === 'borderColor';
                         const responsive = RESP_KEYS.has(f.k);
@@ -2712,7 +2777,7 @@ function BuilderEditor() {
                             ) : f.kind === 'textarea' ? (
                               <Textarea value={selected.props[key] ?? ''} onChange={(e) => patch(selected.id, { [key]: e.target.value })} rows={2} className="min-h-0 font-mono text-[11px] leading-snug" />
                             ) : (
-                              <Input value={val ?? ''} onChange={(e) => patch(selected.id, { [key]: e.target.value })} className="h-8" />
+                              <DebouncedStyleInput value={val ?? ''} onCommit={(value) => patch(selected.id, { [key]: value })} />
                             )}
                             {isColor && (hasEyeDropper || recentColors.length > 0) && (
                               <div className="mt-1 flex flex-wrap items-center gap-1">
@@ -2741,7 +2806,7 @@ function BuilderEditor() {
                           </div>
                         );
                       })}
-                    </div>
+                    </div>}
                   </div>
                 ))}
                 {/* Style presets (feature 3) */}
