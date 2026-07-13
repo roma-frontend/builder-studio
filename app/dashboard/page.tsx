@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Globe, Rocket, Inbox, Users, Pencil, ExternalLink, CircleDashed, Plus, ArrowRight } from 'lucide-react';
+import { Globe, Rocket, Inbox, Users, Pencil, ExternalLink, CircleDashed, Plus, ArrowRight, Crown, ShieldCheck, Activity, Sparkles, Command, HeartPulse, CheckCircle2 } from 'lucide-react';
 import { getCurrentUser, isStaff, isSuperadmin } from '@/lib/auth';
 import { listSitesForUser, statsForUser } from '@/lib/sites';
+import { countPendingMembersForOwner } from '@/lib/site-membership';
 import { platformStats } from '@/lib/admin';
 import { disabledCapabilitiesFor } from '@/lib/access';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,9 @@ export default async function DashboardOverview() {
 
   const d = dashDict(await getLocale());
   const t = d.overview;
+  const c = d.command;
   const stats = statsForUser(user.id);
+  const pendingMembers = isSuperadmin(user) ? 0 : countPendingMembersForOwner(user);
   const sites = listSitesForUser(user.id).slice(0, 4);
   const staff = isStaff(user);
   // Respect the superadmin's role-access matrix: an admin only sees the platform
@@ -35,9 +38,57 @@ export default async function DashboardOverview() {
   const canUsers = staff && !disabled.has('users');
   const canAllSites = staff && !disabled.has('allSites');
   const platform = canUsers || canAllSites ? platformStats() : null;
+  const roleMode = isSuperadmin(user) ? 'superadmin' : user.role === 'admin' ? 'admin' : 'customer';
+  const nextAction = !stats.sites
+    ? { title: 'Создайте первую цифровую точку присутствия', description: 'Запустите сайт — конструктор сразу откроет готовую основу.', href: '/dashboard/sites', label: 'Создать сайт', Icon: Sparkles }
+    : !stats.published
+      ? { title: 'Ваш сайт готов к запуску', description: 'Откройте редактор, проверьте детали и сделайте первый релиз.', href: `/studio/builder?site=${sites[0]?.id}`, label: 'Открыть студию', Icon: Rocket }
+      : { title: stats.submissions ? 'Новые сигналы уже ждут вас' : 'Усильте поток заявок', description: stats.submissions ? 'Откройте входящие и превратите интерес в результат.' : 'Проверьте CTA и форму, затем приведите первых посетителей.', href: '/dashboard/submissions', label: stats.submissions ? 'Открыть входящие' : 'Посмотреть заявки', Icon: Inbox };
+  const launchScore = stats.sites === 0 ? 0 : stats.published === 0 ? 55 : stats.submissions === 0 ? 82 : 100;
+  const launchLabel = launchScore === 100 ? c.thriving : launchScore >= 80 ? c.almost : launchScore >= 50 ? c.foundation : c.starting;
 
   return (
     <>
+      <section className={`relative mb-8 overflow-hidden rounded-3xl border p-6 sm:p-8 ${roleMode === 'superadmin' ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/15 via-card to-card' : roleMode === 'admin' ? 'border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card' : 'border-sky-500/25 bg-gradient-to-br from-sky-500/10 via-card to-card'}`}>
+        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground"><Command className="h-3.5 w-3.5" /> {roleMode === 'superadmin' ? c.modeSuper : roleMode === 'admin' ? c.modeAdmin : c.modeUser}</p>
+            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">{roleMode === 'superadmin' ? c.superTitle : roleMode === 'admin' ? c.adminTitle : c.userTitle.replace('{name}', user.name || t.friend)}</h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{roleMode === 'superadmin' ? c.superDesc : roleMode === 'admin' ? c.adminDesc : c.userDesc}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {roleMode === 'superadmin' && <Link href="/dashboard/control"><Button className="gap-1.5 bg-amber-500 text-black hover:bg-amber-400"><Crown className="h-4 w-4" /> {c.godMode}</Button></Link>}
+            {roleMode === 'admin' && <Link href="/dashboard/members"><Button className="gap-1.5"><ShieldCheck className="h-4 w-4" /> {c.manageTeam}</Button></Link>}
+            {roleMode === 'customer' && <Link href={nextAction.href}><Button className="gap-1.5"><nextAction.Icon className="h-4 w-4" /> {nextAction.label}</Button></Link>}
+          </div>
+        </div>
+      </section>
+
+      {roleMode !== 'superadmin' && (
+        <section className="mb-8 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <div className="rounded-3xl border border-primary/25 bg-card/70 p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">{c.nextAction}</p>
+            <div className="mt-4 flex gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><nextAction.Icon className="h-6 w-6" /></span><div><h2 className="text-xl font-black tracking-tight">{nextAction.title}</h2><p className="mt-1 text-sm text-muted-foreground">{nextAction.description}</p><Link href={nextAction.href}><Button size="sm" className="mt-4 gap-1.5">{nextAction.label}<ArrowRight className="h-3.5 w-3.5" /></Button></Link></div></div>
+          </div>
+          <div className="rounded-3xl border border-border/60 bg-card/50 p-6"><div className="flex items-start justify-between gap-3"><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground"><HeartPulse className="h-4 w-4 text-primary" /> {c.projectPulse}</p><span className="text-right"><strong className="block text-2xl font-black text-primary">{launchScore}%</strong><span className="text-[10px] text-muted-foreground">{launchLabel}</span></span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-gradient-to-r from-primary via-sky-400 to-green-400 transition-all duration-700" style={{ width: `${launchScore}%` }} /></div><div className="mt-5 grid grid-cols-3 gap-3 text-center"><div><p className="text-2xl font-black">{stats.sites}</p><p className="text-[11px] text-muted-foreground">сайтов</p></div><div><p className="text-2xl font-black">{stats.published}</p><p className="text-[11px] text-muted-foreground">в эфире</p></div><div><p className="text-2xl font-black">{stats.submissions}</p><p className="text-[11px] text-muted-foreground">сигналов</p></div></div></div>
+        </section>
+      )}
+
+      {roleMode === 'admin' && (
+        <section className="mb-8 grid gap-4 sm:grid-cols-2">
+          <Link href="/dashboard/members" className="group rounded-3xl border border-border/60 bg-card/50 p-5 transition-all hover:border-primary/40 hover:shadow-md"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{c.teamQueue}</p><p className="mt-3 text-3xl font-black">{pendingMembers}</p><p className="mt-1 text-sm text-muted-foreground">{c.pendingAccess}</p></div><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${pendingMembers ? 'bg-amber-500/15 text-amber-500' : 'bg-green-500/10 text-green-500'}`}>{pendingMembers ? <Users className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}</span></div><p className="mt-4 text-sm font-semibold text-primary">{c.openMembers} <ArrowRight className="inline h-3.5 w-3.5" /></p></Link>
+          <Link href="/dashboard/submissions" className="group rounded-3xl border border-border/60 bg-card/50 p-5 transition-all hover:border-primary/40 hover:shadow-md"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{c.incoming}</p><p className="mt-3 text-3xl font-black">{stats.submissions}</p><p className="mt-1 text-sm text-muted-foreground">{c.submissionsAcrossSites}</p></div><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Inbox className="h-5 w-5" /></span></div><p className="mt-4 text-sm font-semibold text-primary">{c.reviewIncoming} <ArrowRight className="inline h-3.5 w-3.5" /></p></Link>
+        </section>
+      )}
+
+      {roleMode === 'superadmin' && platform && (
+        <section className="mb-8 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <div className="rounded-3xl border border-amber-500/25 bg-card/70 p-6"><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-500"><Activity className="h-4 w-4" /> {c.platformPulse}</p><h2 className="mt-3 text-2xl font-black">{platform.users} {d.overview.statUsers} · {platform.sites} {d.overview.statAllSites} · {platform.submissions} {c.signals}</h2><p className="mt-2 text-sm text-muted-foreground">{c.superDesc}</p><Link href="/dashboard/control"><Button variant="outline" className="mt-4 gap-1.5"><Activity className="h-4 w-4" /> {c.openPulse}</Button></Link></div>
+          <div className="rounded-3xl border border-border/60 bg-card/50 p-6"><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground"><CheckCircle2 className="h-4 w-4 text-green-500" /> {c.decisionInbox}</p><p className="mt-4 text-lg font-black">{stats.submissions + platform.submissions} {c.signals}</p><p className="mt-1 text-sm text-muted-foreground">{c.superDesc}</p><Link href="/dashboard/control"><Button size="sm" variant="ghost" className="mt-3 gap-1.5">{c.openQueue} <ArrowRight className="h-3.5 w-3.5" /></Button></Link></div>
+        </section>
+      )}
+
       <PageHeader
         title={`${t.hi}, ${user.name || t.friend}!`}
         description={t.subtitle}

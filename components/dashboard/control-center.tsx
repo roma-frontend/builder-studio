@@ -219,6 +219,36 @@ export function ControlCenter({ meId, stats, system, activity, sessions, users, 
       {msg && <p className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-500" role="alert">{msg}</p>}
       {notice && <p className="mb-3 rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2 text-sm text-green-600 dark:text-green-400" role="status">{notice}</p>}
 
+      {/* Decision inbox: turns raw platform signals into a short, actionable queue. */}
+      {(() => {
+        const critical = security.counts.critical;
+        const warnings = security.counts.warn;
+        const qualityProblems = quality.totalIssues;
+        const staleBackup = backup.ageHours === null || backup.ageHours > 24 * 7;
+        const attention = critical + warnings + qualityProblems + (staleBackup ? 1 : 0);
+        const state = critical > 0 ? 'critical' : warnings > 0 || staleBackup ? 'attention' : 'healthy';
+        const stateCls = state === 'critical' ? 'border-red-500/30 bg-red-500/[0.08]' : state === 'attention' ? 'border-amber-500/30 bg-amber-500/[0.08]' : 'border-green-500/25 bg-green-500/[0.06]';
+        const stateIcon = state === 'critical' ? ShieldAlert : state === 'attention' ? Flame : ShieldCheck;
+        const StateIcon = stateIcon;
+        const stateLabel = state === 'critical' ? cc.secCritical : state === 'attention' ? cc.secWarn : cc.qualityClean;
+        return (
+          <section className={`mb-6 overflow-hidden rounded-2xl border p-5 ${stateCls}`}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-background/60 shadow-sm"><StateIcon className="h-5 w-5" /></span>
+                <div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Decision inbox</p><h2 className="mt-1 text-xl font-black tracking-tight">{stateLabel}</h2><p className="mt-1 text-sm text-muted-foreground">{attention ? `${attention} сигналов требуют внимания. Сначала разберите самое рискованное.` : 'Платформа выглядит стабильно. Контролируйте ритм, а не тушите пожары.'}</p></div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(critical + warnings) > 0 && <Button size="sm" variant="outline" onClick={() => setTab('security')} className="gap-1.5"><ShieldAlert className="h-3.5 w-3.5" /> {critical + warnings} {cc.tabs.security}</Button>}
+                {qualityProblems > 0 && <Button size="sm" variant="outline" onClick={() => setTab('monitor')} className="gap-1.5"><Gauge className="h-3.5 w-3.5" /> {qualityProblems} {cc.qualityTitle}</Button>}
+                {staleBackup && <Button size="sm" variant="outline" onClick={() => setTab('export')} className="gap-1.5"><ArchiveRestore className="h-3.5 w-3.5" /> {cc.backupTitle}</Button>}
+                {(quality.counts.expiredSessions ?? 0) > 0 && <Button size="sm" variant="outline" disabled={busy === 'cleanup'} onClick={cleanupSessions} className="gap-1.5">{busy === 'cleanup' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eraser className="h-3.5 w-3.5" />} {cc.cleanupExpired}</Button>}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
       {/* Tabs */}
       <div className="mb-6 flex flex-wrap gap-1 rounded-xl border border-border/60 bg-muted/30 p-1">
         {TAB_DEFS.map((tb) => (
@@ -244,6 +274,12 @@ export function ControlCenter({ meId, stats, system, activity, sessions, users, 
             <StatCard label={cc.stSites} value={stats.sites} icon={Globe} hint={cc.stPublished.replace('{n}', String(stats.published))} />
             <StatCard label={cc.stSubmissions} value={stats.submissions} icon={Inbox} />
             <StatCard label={cc.stActiveSessions} value={system.activeSessions} icon={KeyRound} />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <button onClick={() => setTab('security')} className="rounded-2xl border border-border/60 bg-card/50 p-4 text-left transition-colors hover:border-primary/40"><p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Security posture</p><p className={`mt-2 text-2xl font-black ${security.counts.critical ? 'text-red-500' : security.counts.warn ? 'text-amber-500' : 'text-green-500'}`}>{security.counts.critical + security.counts.warn}</p><p className="mt-1 text-xs text-muted-foreground">{security.counts.critical ? cc.secCritical : security.counts.warn ? cc.secWarn : cc.secNone}</p></button>
+            <button onClick={() => setTab('sessions')} className="rounded-2xl border border-border/60 bg-card/50 p-4 text-left transition-colors hover:border-primary/40"><p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Live access</p><p className="mt-2 text-2xl font-black">{users.filter((u) => u.online).length}</p><p className="mt-1 text-xs text-muted-foreground">{cc.stOnline.replace('{n}', String(users.filter((u) => u.online).length))}</p></button>
+            <button onClick={() => setTab('export')} className="rounded-2xl border border-border/60 bg-card/50 p-4 text-left transition-colors hover:border-primary/40"><p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Recovery readiness</p><p className={`mt-2 text-2xl font-black ${backup.ageHours === null || backup.ageHours > 24 * 7 ? 'text-amber-500' : 'text-green-500'}`}>{backup.ageHours === null ? '—' : `${backup.ageHours}h`}</p><p className="mt-1 text-xs text-muted-foreground">{backup.lastAt ? cc.backupLast : cc.backupNever}</p></button>
           </div>
 
           {/* Live pulse */}

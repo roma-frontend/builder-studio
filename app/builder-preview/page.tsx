@@ -30,6 +30,7 @@ interface Incoming {
   pageId: string;
   selectedId: string | null;
   previewDark?: boolean;
+  previewMode?: 'fast' | 'design' | 'live';
   siteSlug?: string;
   siteId?: string;
 }
@@ -81,7 +82,10 @@ export default function BuilderPreview() {
   useEffect(() => {
     if (state?.previewDark === false) document.documentElement.classList.remove('dark');
     else document.documentElement.classList.add('dark');
-  }, [state?.previewDark]);
+    // Fast mode suppresses decorative animations and video paint while editing.
+    // The document remains identical; only the editor canvas becomes lighter.
+    document.documentElement.dataset.previewMode = state?.previewMode ?? 'design';
+  }, [state?.previewDark, state?.previewMode]);
   useEffect(() => {
     document.body.classList.add('builder-edit');
 
@@ -127,11 +131,22 @@ export default function BuilderPreview() {
       hintEl.textContent = ok ? `[data-nid="${d.id}"]{${d.css}:${d.value}!important}` : '';
     };
 
+    let selectedEl: HTMLElement | null = null;
     const onMsg = (e: MessageEvent) => {
       if (e.data?.source !== 'builder-editor') return;
       if (e.data.type === 'dragpoint') { highlightAt(e.data.x as number, e.data.y as number); return; }
       if (e.data.type === 'dropAt') { dropAt(e.data.x as number, e.data.y as number, e.data.nodeType as string); return; }
       if (e.data.type === 'stylehint') { applyHint(e.data); return; }
+      if (e.data.type === 'selection') {
+        // Selection is a tiny editor-only interaction. Do not replace React
+        // state (which would redraw the entire preview document) just to move
+        // the canvas outline.
+        const id = typeof e.data.id === 'string' ? e.data.id : null;
+        if (id && /^[\w-]+$/.test(id)) selectedEl?.classList.remove('b-selected');
+        selectedEl = id ? document.querySelector<HTMLElement>(`[data-nid="${id}"]`) : null;
+        selectedEl?.classList.add('b-selected');
+        return;
+      }
       hintEl.textContent = ''; // the full state carries the committed color
       setState(e.data as Incoming);
     };
@@ -205,6 +220,9 @@ export default function BuilderPreview() {
       .b-hover{outline:1px dashed color-mix(in oklab, var(--primary) 65%, transparent)!important;outline-offset:1px;cursor:pointer}
       .b-hovbadge{position:fixed;z-index:2147483000;pointer-events:none;transform:translateY(-100%);background:var(--primary);color:var(--primary-foreground);font:600 10px/1.5 ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em;padding:1px 6px;border-radius:5px 5px 5px 0;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.28)}
       .b-editing{outline:2px solid var(--primary)!important;outline-offset:2px;border-radius:2px;cursor:text;min-width:1ch}
+      .b-selected{outline:2px solid var(--primary)!important;outline-offset:2px;border-radius:3px}
+      :root[data-preview-mode="fast"] *, :root[data-preview-mode="fast"] *::before, :root[data-preview-mode="fast"] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+      :root[data-preview-mode="fast"] video{visibility:hidden!important}
     `;
     document.head.appendChild(hoverStyle);
     const badge = document.createElement('div');

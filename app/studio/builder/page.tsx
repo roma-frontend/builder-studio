@@ -13,7 +13,7 @@ import {
   ArrowUp, ArrowDown, X, Plus, Save, Loader2, Monitor, Tablet, Smartphone,
   ExternalLink, Trash2, FileText, LayoutTemplate, ChevronRight, Copy, Upload, Wand2, Palette,
   Undo2, Redo2, LayoutGrid, ChevronDown, Maximize2, Minimize2, Sun, Moon, Rocket, Home,
-  ClipboardPaste, CopyPlus, Keyboard, Eye, PanelLeft, RotateCw, Pipette, CornerLeftUp, History,
+  ClipboardPaste, CopyPlus, Keyboard, Eye, PanelLeft, RotateCw, Pipette, CornerLeftUp, History, Zap,
 } from 'lucide-react';
 import seed from '@/data/builder.json';
 import { usePrefs, usePref, setPref } from '@/hooks/use-user-prefs';
@@ -611,6 +611,7 @@ function BuilderEditor() {
   const [previewWidth, setPreviewWidth] = useState(520);
   const [fullscreen, setFullscreen] = useState(false);
   const [previewDark, setPreviewDark] = useState(true);
+  const [previewMode, setPreviewMode] = useState<'fast' | 'design' | 'live'>('design');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [treeQuery, setTreeQuery] = useState('');
   // Clipboard for copy/paste of an element's style props (feature 4).
@@ -859,12 +860,12 @@ function BuilderEditor() {
 
   // Click-to-select coming from the live preview iframe (edit mode).
   const previewRef = useRef<HTMLIFrameElement>(null);
-  const stateRef = useRef({ doc, pageId, selectedId, previewDark, siteSlug: siteMeta?.slug, siteId: siteMeta?.id });
+  const stateRef = useRef({ doc, pageId, selectedId, previewDark, previewMode, siteSlug: siteMeta?.slug, siteId: siteMeta?.id });
   // Mirrored in an effect (declared before the pushing effect below, so the
   // snapshot is always fresh by the time postPreview fires).
   useEffect(() => {
-    stateRef.current = { doc, pageId, selectedId, previewDark, siteSlug: siteMeta?.slug, siteId: siteMeta?.id };
-  }, [doc, pageId, selectedId, previewDark, siteMeta]);
+    stateRef.current = { doc, pageId, selectedId, previewDark, previewMode, siteSlug: siteMeta?.slug, siteId: siteMeta?.id };
+  }, [doc, pageId, selectedId, previewDark, previewMode, siteMeta]);
   // Hovering a theme in the top-bar select live-previews it (with its button
   // preset) in the iframe without touching the doc; leaving/closing restores.
   const [hoverTheme, setHoverTheme] = useState<string | null>(null);
@@ -873,6 +874,8 @@ function BuilderEditor() {
   // Coalesced to one postMessage per frame: serializing the full doc for the
   // iframe on every keystroke is the single biggest source of typing jank.
   const postRaf = useRef(0);
+  const previewReady = useRef(false);
+  const previewDirty = useRef(false);
   // Immediate, uncoalesced send — used for the one-shot 'ready' handshake and
   // iframe onLoad, where a dropped message means the preview never renders.
   const sendState = useCallback(() => {
@@ -880,8 +883,12 @@ function BuilderEditor() {
     const hover = hoverThemeRef.current;
     const previewDoc = hover ? { ...s.doc, themeId: hover, ...(THEME_BTN_PRESETS[hover] ?? {}) } : s.doc;
     previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', ...s, doc: previewDoc }, '*');
+    // Full-state handshake can include a selection, but selection changes after
+    // that travel through the tiny DOM-only message path below.
+    previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', type: 'selection', id: s.selectedId }, '*');
   }, []);
   const postPreview = useCallback(() => {
+    if (!previewReady.current) { previewDirty.current = true; return; }
     if (postRaf.current) return;
     postRaf.current = requestAnimationFrame(() => {
       postRaf.current = 0;
@@ -940,14 +947,21 @@ function BuilderEditor() {
   // Push live state to the preview on every change — instant, no save needed.
   useEffect(() => {
     postPreview();
-  }, [doc, pageId, selectedId, previewDark, hoverTheme, postPreview]);
+  }, [doc, pageId, previewDark, hoverTheme, postPreview]);
+  // Selection is rendered as a lightweight overlay in the iframe. Keep it on a
+  // separate message path so clicking around the canvas does not serialize and
+  // resend the complete BuilderDoc.
+  useEffect(() => {
+    previewRef.current?.contentWindow?.postMessage({ source: 'builder-editor', type: 'selection', id: selectedId }, '*');
+  }, [selectedId]);
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.data?.source !== 'builder-preview') return;
       if (e.data.type === 'ready') {
-        // Authoritative "preview is listening" signal — send the current state
-        // right now, bypassing the rAF coalescing so the handshake is never
-        // swallowed by an earlier (possibly missed) onLoad post.
+        // Authoritative "preview is listening" signal — send the latest state
+        // once. Any edits made while the iframe was loading are coalesced here.
+        previewReady.current = true;
+        previewDirty.current = false;
         if (postRaf.current) { cancelAnimationFrame(postRaf.current); postRaf.current = 0; }
         sendState();
       }
@@ -976,10 +990,19 @@ function BuilderEditor() {
     () => (selectedId && page ? findNode(page.blocks, selectedId) : null),
     [selectedId, page],
   );
+  // Quality analysis walks the whole page tree. Debounce the input so rapid
+  // typing stays entirely local to the editor and never competes with canvas.
+  const [qualityDoc, setQualityDoc] = useState(doc);
+  const [qualityOpen, setQualityOpen] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQualityDoc(doc), 250);
+    return () => window.clearTimeout(timer);
+  }, [doc]);
   const qualityChecks = useMemo(() => {
     const nodes: BuilderNode[] = [];
     const visit = (items: BuilderNode[]) => items.forEach((node) => { nodes.push(node); visit(node.children ?? []); });
-    visit(page?.blocks ?? []);
+    const qualityPage = qualityDoc.pages.find((p) => p.id === pageId) ?? qualityDoc.pages[0];
+    visit(qualityPage?.blocks ?? []);
     const text = nodes.map((node) => Object.values(node.props).filter((value): value is string => typeof value === 'string').join(' ')).join(' ').trim();
     const hasCta = nodes.some((node) => node.type === 'button' || /заказ|купить|связ|начать|запис|order|buy|contact|start|book/i.test(String(node.props.text ?? node.props.label ?? '')));
     const hasImageWithoutAlt = nodes.some((node) => node.type === 'image' && !String(node.props.alt ?? '').trim());
@@ -990,7 +1013,21 @@ function BuilderEditor() {
       { label: tr('Alt-тексты изображений'), ok: !hasImageWithoutAlt, hint: tr('Добавьте описание для каждого изображения.') },
       { label: tr('Мобильная проверка'), ok: device === 'mobile', hint: tr('Переключитесь на мобильный предпросмотр и проверьте страницу.') },
     ];
-  }, [page, device, tr]);
+  }, [qualityDoc, pageId, device, tr]);
+  const performanceChecks = useMemo(() => {
+    const nodes: BuilderNode[] = [];
+    const visit = (items: BuilderNode[]) => items.forEach((node) => { nodes.push(node); visit(node.children ?? []); });
+    visit(qualityDoc.pages.find((p) => p.id === pageId)?.blocks ?? qualityDoc.pages[0]?.blocks ?? []);
+    const media = nodes.filter((node) => node.type === 'image' || node.type === 'video' || Boolean(node.props.bgVideo)).length;
+    const animated = nodes.filter((node) => ['pulse', 'float', 'bounce'].includes(String(node.props.loop ?? '')) || String(node.props.animate ?? '') !== '' || String(node.props.hover ?? '') !== '').length;
+    const deep = nodes.filter((node) => ancestorPath(qualityDoc.pages.find((p) => p.id === pageId)?.blocks ?? [], node.id).length >= 6).length;
+    return [
+      { label: tr('Размер страницы'), value: `${nodes.length} ${tr('блоков')}`, ok: nodes.length <= 80, hint: tr('Сократите количество декоративных блоков на одной странице.') },
+      { label: tr('Медиа-нагрузка'), value: `${media}`, ok: media <= 12, hint: tr('Оставьте до 12 изображений или видео на странице, остальное вынесите в галерею.') },
+      { label: tr('Анимации'), value: `${animated}`, ok: animated <= 8, hint: tr('Сократите постоянные анимации — особенно для мобильных устройств.') },
+      { label: tr('Вложенность DOM'), value: `${deep}`, ok: deep === 0, hint: tr('Упростите слишком глубоко вложенные секции и контейнеры.') },
+    ];
+  }, [qualityDoc, pageId, tr]);
 
   // Reveal the active element in the Structure tree whenever the selection
   // changes (from the canvas or the tree): expand its collapsed ancestors so
@@ -1953,6 +1990,11 @@ function BuilderEditor() {
               );
             })}
           </div>
+          <div className="hidden shrink-0 items-center gap-0.5 rounded-lg border border-border p-0.5 xl:flex" aria-label={tr('Режим предпросмотра')}>
+            {([['fast', 'Fast'], ['design', 'Design'], ['live', 'Live']] as const).map(([mode, label]) => (
+              <button key={mode} onClick={() => setPreviewMode(mode)} className={`rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${previewMode === mode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`} title={mode === 'fast' ? tr('Без видео и анимаций для максимальной скорости') : mode === 'design' ? tr('Полный дизайн-просмотр') : tr('Режим перед публикацией')}>{label}</button>
+            ))}
+          </div>
           <div className="flex shrink-0 items-center gap-1 rounded-lg border border-border p-0.5 lg:ml-auto">
             {(['full', 'tablet', 'mobile'] as const).map((dv) => {
               const Icon = dv === 'full' ? Monitor : dv === 'tablet' ? Tablet : Smartphone;
@@ -2104,16 +2146,21 @@ function BuilderEditor() {
         </div>
       )}
 
-      <details className="border-b border-border/60 bg-card/30 px-3 py-2 sm:px-4">
-        <summary className="cursor-pointer text-sm font-semibold">{tr('Инспектор качества')} · {qualityChecks.filter((check) => check.ok).length}/{qualityChecks.length}</summary>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+      <details className="border-b border-border/60 bg-card/30 px-3 py-2 sm:px-4" open={qualityOpen} onToggle={(e) => setQualityOpen((e.currentTarget as HTMLDetailsElement).open)}>
+        <summary className="flex cursor-pointer list-none items-center gap-3 text-sm font-semibold">
+          <span>{tr('Инспектор качества')}</span>
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-black text-primary">{Math.round((qualityChecks.filter((check) => check.ok).length / qualityChecks.length) * 100)}%</span>
+          <span className="text-xs font-normal text-muted-foreground">{qualityChecks.filter((check) => check.ok).length}/{qualityChecks.length}</span>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-black ${performanceChecks.every((check) => check.ok) ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>Performance {Math.round((performanceChecks.filter((check) => check.ok).length / performanceChecks.length) * 100)}%</span>
+        </summary>
+        {qualityOpen && <><div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {qualityChecks.map((check) => (
             <div key={check.label} className={`rounded-lg border px-3 py-2 text-xs ${check.ok ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
               <p className="font-semibold">{check.ok ? '✓' : '!' } {check.label}</p>
               {!check.ok && <p className="mt-1 text-muted-foreground">{check.hint}</p>}
             </div>
           ))}
-        </div>
+        </div><div className="mt-3 border-t border-border/60 pt-3"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr('Performance Doctor')}</p><div className="flex gap-1.5"><Button size="sm" variant="outline" onClick={() => setPreviewMode('fast')} className="h-7 gap-1 px-2 text-[11px]"><Zap className="h-3.5 w-3.5" /> Fast</Button><Button size="sm" variant="outline" onClick={() => setDevice('mobile')} className="h-7 gap-1 px-2 text-[11px]"><Smartphone className="h-3.5 w-3.5" /> {tr('Мобильный')}</Button></div></div><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">{performanceChecks.map((check) => <div key={check.label} className={`rounded-lg border px-3 py-2 text-xs ${check.ok ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}><div className="flex items-center justify-between gap-2"><p className="font-semibold">{check.label}</p><strong>{check.value}</strong></div>{!check.ok && <p className="mt-1 text-muted-foreground">{check.hint}</p>}</div>)}</div></div></>}
       </details>
 
       <div className="flex min-h-0 flex-1">

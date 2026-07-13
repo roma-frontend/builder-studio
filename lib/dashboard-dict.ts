@@ -105,6 +105,14 @@ export type DashDict = {
     members: string;
     invite: string;
   };
+  command: {
+    modeSuper: string; modeAdmin: string; modeUser: string; superTitle: string; adminTitle: string; userTitle: string; superDesc: string; adminDesc: string; userDesc: string;
+    godMode: string; manageTeam: string; nextAction: string; projectPulse: string; sites: string; live: string; signals: string;
+    platformPulse: string; decisionInbox: string; openPulse: string; openQueue: string; teamQueue: string; incoming: string;
+    pendingAccess: string; submissionsAcrossSites: string; openMembers: string; reviewIncoming: string;
+    launchPath: string; idea: string; design: string; launch: string; inProgress: string; nextStep: string; draftTip: string;
+    readiness: string; starting: string; foundation: string; almost: string; thriving: string;
+  };
   overview: {
     metaTitle: string;
     hi: string;
@@ -355,6 +363,9 @@ const ru: DashDict = {
     review: 'Рассмотреть →',
     members: 'Пользователи',
     invite: 'Пригласить',
+  },
+  command: {
+    modeSuper: 'Командный центр платформы', modeAdmin: 'Центр управления организацией', modeUser: 'Личный импульс', superTitle: 'Платформа под контролем.', adminTitle: 'Организация в фокусе.', userTitle: 'Вперёд, {name}.', superDesc: 'Видьте пульс системы, замечайте риски раньше остальных и управляйте изменениями осознанно.', adminDesc: 'Соберите команду, контент и входящий поток в одном спокойном рабочем ритме.', userDesc: 'Один ясный следующий шаг — и ваш проект становится реальностью.', godMode: 'Открыть God Mode', manageTeam: 'Управлять командой', nextAction: 'Следующее лучшее действие', projectPulse: 'Ритм проекта', sites: 'сайтов', live: 'в эфире', signals: 'сигналов', platformPulse: 'Пульс платформы', decisionInbox: 'Очередь решений', openPulse: 'Смотреть живой пульс', openQueue: 'Открыть очередь', teamQueue: 'Очередь команды', incoming: 'Входящие сигналы', pendingAccess: 'ожидают решения по доступу', submissionsAcrossSites: 'заявок со всех ваших сайтов', openMembers: 'Открыть участников', reviewIncoming: 'Разобрать входящие', launchPath: 'Путь к запуску', idea: 'Идея', design: 'Дизайн', launch: 'Запуск', inProgress: 'В работе', nextStep: 'Следующий шаг:', draftTip: 'проверьте главную страницу и опубликуйте проект, когда будете готовы.', readiness: 'Готовность к запуску', starting: 'Начинаем путь', foundation: 'Фундамент готов', almost: 'Почти на старте', thriving: 'Проект в ритме',
   },
   overview: {
     metaTitle: 'Обзор',
@@ -646,6 +657,9 @@ const en: DashDict = {
     members: 'Users',
     invite: 'Invite',
   },
+  command: {
+    modeSuper: 'Platform Command Center', modeAdmin: 'Organization Mission Control', modeUser: 'Personal Momentum', superTitle: 'Platform under control.', adminTitle: 'Organization in focus.', userTitle: 'Let’s go, {name}.', superDesc: 'See the system pulse, spot risks early, and manage change deliberately.', adminDesc: 'Bring your team, content, and inbound flow into one calm operating rhythm.', userDesc: 'One clear next step turns your project into reality.', godMode: 'Open God Mode', manageTeam: 'Manage team', nextAction: 'Next best action', projectPulse: 'Project pulse', sites: 'sites', live: 'live', signals: 'signals', platformPulse: 'Platform pulse', decisionInbox: 'Decision inbox', openPulse: 'View live pulse', openQueue: 'Open queue', teamQueue: 'Team queue', incoming: 'Incoming signals', pendingAccess: 'awaiting an access decision', submissionsAcrossSites: 'submissions across all your sites', openMembers: 'Open members', reviewIncoming: 'Review inbox', launchPath: 'Launch path', idea: 'Idea', design: 'Design', launch: 'Launch', inProgress: 'In progress', nextStep: 'Next step:', draftTip: 'review the homepage and publish the project when you are ready.', readiness: 'Launch readiness', starting: 'Starting the path', foundation: 'Foundation ready', almost: 'Almost live', thriving: 'Project in rhythm',
+  },
   overview: {
     metaTitle: 'Overview',
     hi: 'Hi',
@@ -935,6 +949,9 @@ const hy: DashDict = {
     review: 'Դիտել →',
     members: 'Օգտատերեր',
     invite: 'Հրավիրել',
+  },
+  command: {
+    modeSuper: 'Հարթակի հրամանատարական կենտրոն', modeAdmin: 'Կազմակերպության կառավարման կենտրոն', modeUser: 'Անձնական խթան', superTitle: 'Հարթակը վերահսկողության տակ է։', adminTitle: 'Կազմակերպությունը ուշադրության կենտրոնում է։', userTitle: 'Առաջ, {name}։', superDesc: 'Տեսեք համակարգի զարկերակը, շուտ նկատեք ռիսկերը և գիտակցված կառավարեք փոփոխությունները։', adminDesc: 'Միավորեք թիմը, բովանդակությունը և մուտքային հոսքը մեկ հանգիստ աշխատանքային ռիթմում։', userDesc: 'Մեկ հստակ հաջորդ քայլը ձեր նախագիծը կվերածի իրականության։', godMode: 'Բացել God Mode-ը', manageTeam: 'Կառավարել թիմը', nextAction: 'Հաջորդ լավագույն քայլը', projectPulse: 'Նախագծի ռիթմ', sites: 'կայք', live: 'ուղիղ եթերում', signals: 'ազդանշան', platformPulse: 'Հարթակի զարկերակ', decisionInbox: 'Որոշումների հերթ', openPulse: 'Դիտել կենդանի զարկերակը', openQueue: 'Բացել հերթը', teamQueue: 'Թիմի հերթ', incoming: 'Մուտքային ազդանշաններ', pendingAccess: 'սպասում են մուտքի որոշմանը', submissionsAcrossSites: 'հայտ ձեր բոլոր կայքերից', openMembers: 'Բացել մասնակիցներին', reviewIncoming: 'Դիտարկել մուտքայինները', launchPath: 'Գործարկման ուղի', idea: 'Գաղափար', design: 'Դիզայն', launch: 'Գործարկում', inProgress: 'Ընթացքի մեջ', nextStep: 'Հաջորդ քայլը՝', draftTip: 'ստուգեք գլխավոր էջը և հրապարակեք նախագիծը, երբ պատրաստ լինեք։', readiness: 'Գործարկման պատրաստվածություն', starting: 'Սկսում ենք ուղին', foundation: 'Հիմքը պատրաստ է', almost: 'Գրեթե գործարկված է', thriving: 'Նախագիծը ռիթմի մեջ է',
   },
   overview: {
     metaTitle: 'Ընդհանուր',

@@ -175,7 +175,13 @@ export default function StudioPage() {
     finally { setLandingBusy(false); }
   };
   const [openingBuilder, setOpeningBuilder] = useState(false);
-  const openLandingInBuilder = async () => {
+  const openBuilder = async () => {
+    // A tenant admin should always enter their own site directly; the platform
+    // landing is reserved for the superadmin Studio mode.
+    if (isTenant && ctx?.tenant?.id) {
+      window.location.href = `/studio/builder?site=${encodeURIComponent(ctx.tenant.id)}`;
+      return;
+    }
     setOpeningBuilder(true);
     try {
       const res = await fetch('/api/landing-site', { method: 'POST' });
@@ -191,6 +197,7 @@ export default function StudioPage() {
       setOpeningBuilder(false);
     }
   };
+  const openLandingInBuilder = openBuilder;
 
   // Step 2 — the generated prompt + section metadata
   const [prompt, setPrompt] = useState('');
