@@ -31,6 +31,8 @@ jobs:
         run: npm run build
       - name: JavaScript performance budget
         run: npm run perf:budget
+      - name: Lighthouse budgets
+        run: npm run perf:lighthouse
 
   e2e:
     name: E2E (Playwright)

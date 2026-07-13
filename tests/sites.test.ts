@@ -8,6 +8,9 @@ import {
   getSiteBySlug,
   getSiteByHostname,
   saveDraft,
+  createSiteVersion,
+  listSiteVersions,
+  getSiteVersion,
   publishSite,
   unpublishSite,
   parseDoc,
@@ -146,6 +149,45 @@ describe('draft/publish lifecycle', () => {
     reloaded = getSiteBySlug('pub')!;
     expect(reloaded.publishedDoc).toBeNull();
     expect(reloaded.publishedAt).toBeNull();
+  });
+});
+
+describe('site version history', () => {
+  it('stores versions newest-first and omits document bodies from the list', () => {
+    const u = owner();
+    const s = createSite(u.id, 'History');
+    const first = parseDoc(s.draftDoc)!;
+    first.brand = 'First';
+    createSiteVersion(s.id, u.id, first, 'Autosave');
+    const second = { ...first, brand: 'Second' };
+    createSiteVersion(s.id, u.id, second, 'Before restore');
+
+    const versions = listSiteVersions(s.id);
+    expect(versions).toHaveLength(2);
+    expect(versions.map((version) => version.label)).toEqual(expect.arrayContaining(['Autosave', 'Before restore']));
+    expect(versions[0]).not.toHaveProperty('doc');
+    const restored = versions.map((version) => parseDoc(getSiteVersion(s.id, version.id)?.doc ?? null)?.brand);
+    expect(restored).toEqual(expect.arrayContaining(['First', 'Second']));
+  });
+
+  it('does not expose a version through another site', () => {
+    const u = owner();
+    const first = createSite(u.id, 'First site');
+    const second = createSite(u.id, 'Second site');
+    createSiteVersion(first.id, u.id, parseDoc(first.draftDoc)!, 'Autosave');
+    const version = listSiteVersions(first.id)[0];
+
+    expect(listSiteVersions(second.id)).toEqual([]);
+    expect(getSiteVersion(second.id, version.id)).toBeNull();
+  });
+
+  it('retains only the latest 50 versions for a site', () => {
+    const u = owner();
+    const s = createSite(u.id, 'Retention');
+    const doc = parseDoc(s.draftDoc)!;
+    for (let i = 0; i < 55; i++) createSiteVersion(s.id, u.id, { ...doc, brand: `Version ${i}` }, 'Autosave');
+
+    expect(listSiteVersions(s.id)).toHaveLength(50);
   });
 });
 

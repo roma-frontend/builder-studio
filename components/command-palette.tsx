@@ -105,8 +105,15 @@ export function CommandPalette({
         else openPalette();
       }
     };
+    // Dashboard and account menus use this event so every entry point opens
+    // the same palette instead of mounting competing Ctrl/⌘K dialogs.
+    const onOpen = () => openPalette();
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('cwk:open-palette', onOpen);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('cwk:open-palette', onOpen);
+    };
   }, [openPalette]);
 
   // While open: focus the input, keep keyboard focus in the dialog and lock scrolling.

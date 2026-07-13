@@ -13,7 +13,7 @@ import {
   ArrowUp, ArrowDown, X, Plus, Save, Loader2, Monitor, Tablet, Smartphone,
   ExternalLink, Trash2, FileText, LayoutTemplate, ChevronRight, Copy, Upload, Wand2, Palette,
   Undo2, Redo2, LayoutGrid, ChevronDown, Maximize2, Minimize2, Sun, Moon, Rocket, Home,
-  ClipboardPaste, CopyPlus, Keyboard, Eye, PanelLeft, RotateCw, Pipette, CornerLeftUp,
+  ClipboardPaste, CopyPlus, Keyboard, Eye, PanelLeft, RotateCw, Pipette, CornerLeftUp, History,
 } from 'lucide-react';
 import seed from '@/data/builder.json';
 import { usePrefs, usePref, setPref } from '@/hooks/use-user-prefs';
@@ -562,6 +562,36 @@ interface SiteMeta {
   published: boolean;
 }
 
+type SiteVersionMeta = {
+  id: string;
+  label: string;
+  createdAt: string;
+};
+
+type VersionComparison = {
+  added: string[];
+  removed: string[];
+  changed: string[];
+};
+
+function pageLabel(page: BuilderPage): string {
+  return page.path ? `/${page.path}` : '/';
+}
+
+function compareDocs(current: BuilderDoc, version: BuilderDoc): VersionComparison {
+  const currentPages = new Map(current.pages.map((page) => [page.path, page]));
+  const versionPages = new Map(version.pages.map((page) => [page.path, page]));
+  const added = [...versionPages].filter(([path]) => !currentPages.has(path)).map(([, page]) => pageLabel(page));
+  const removed = [...currentPages].filter(([path]) => !versionPages.has(path)).map(([, page]) => pageLabel(page));
+  const changed = [...versionPages]
+    .filter(([path, versionPage]) => {
+      const currentPage = currentPages.get(path);
+      return currentPage && JSON.stringify(currentPage) !== JSON.stringify(versionPage);
+    })
+    .map(([, page]) => pageLabel(page));
+  return { added, removed, changed };
+}
+
 function BuilderEditor() {
   const router = useRouter();
   const locale = useLocale().locale;
@@ -663,6 +693,11 @@ function BuilderEditor() {
   const dirtyRef = useRef(false);
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
   const [msg, setMsg] = useState('');
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [versionsBusy, setVersionsBusy] = useState(false);
+  const [versions, setVersions] = useState<SiteVersionMeta[]>([]);
+  const [versionPreview, setVersionPreview] = useState<{ id: string; doc: BuilderDoc } | null>(null);
+  const versionComparison = versionPreview ? compareDocs(doc, versionPreview.doc) : null;
   const [newTitle, setNewTitle] = useState('');
   const [newPath, setNewPath] = useState('');
 
@@ -1491,6 +1526,66 @@ function BuilderEditor() {
   const addNavLink = () => setDoc((d) => ({ ...d, nav: [...d.nav, { label: 'Пункт', href: '/site' }] }));
   const removeNavLink = (i: number) => setDoc((d) => ({ ...d, nav: d.nav.filter((_, j) => j !== i) }));
 
+  const loadVersions = async () => {
+    if (!siteId) return;
+    setVersionsBusy(true);
+    try {
+      const res = await fetch(`/api/builder/versions?site=${encodeURIComponent(siteId)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || tr('Ошибка'));
+      setVersions(Array.isArray(data.versions) ? data.versions : []);
+    } catch (error) {
+      setMsg(error instanceof Error ? error.message : tr('Не удалось загрузить историю версий.'));
+    } finally {
+      setVersionsBusy(false);
+    }
+  };
+
+  const openVersions = () => {
+    setVersionsOpen(true);
+    setVersionPreview(null);
+    void loadVersions();
+  };
+
+  const previewVersion = async (versionId: string) => {
+    if (!siteId) return;
+    setVersionsBusy(true);
+    try {
+      const res = await fetch(`/api/builder/versions?site=${encodeURIComponent(siteId)}&version=${encodeURIComponent(versionId)}`);
+      const data = await res.json();
+      if (!res.ok || !data.version?.doc) throw new Error(data.error || tr('Ошибка'));
+      setVersionPreview({ id: versionId, doc: data.version.doc as BuilderDoc });
+    } catch (error) {
+      setMsg(error instanceof Error ? error.message : tr('Не удалось загрузить версию.'));
+    } finally {
+      setVersionsBusy(false);
+    }
+  };
+
+  const restoreVersion = async (versionId: string) => {
+    if (!siteId) return;
+    const accepted = await confirm({ title: tr('Восстановить версию?'), description: tr('Текущий черновик будет сохранён в истории перед восстановлением.'), confirmLabel: tr('Восстановить') });
+    if (!accepted) return;
+    setVersionsBusy(true);
+    try {
+      const res = await fetch(`/api/builder/versions?site=${encodeURIComponent(siteId)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ versionId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.doc) throw new Error(data.error || tr('Ошибка'));
+      skipHistory.current = true;
+      setDoc(data.doc as BuilderDoc);
+      setDirty(false);
+      setVersionPreview(null);
+      setMsg(tr('Версия восстановлена.'));
+      await loadVersions();
+    } catch (error) {
+      setMsg(error instanceof Error ? error.message : tr('Не удалось восстановить версию.'));
+    } finally {
+      setVersionsBusy(false);
+    }
+  };
+
   // Save the draft to the tenant site. Always sends the latest doc (via
   // stateRef) and only clears `dirty` if no edit happened while the request
   // was in flight. Returns true on success so publish can chain on top of it.
@@ -1753,6 +1848,36 @@ function BuilderEditor() {
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-background">
       {confirmDialog}
+      {versionsOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={tr('История версий')}>
+          <Card className="max-h-[85vh] w-full max-w-2xl overflow-y-auto p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="flex items-center gap-2 text-lg font-semibold"><History className="h-5 w-5 text-primary" /> {tr('История версий')}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{tr('Сохранения создаются автоматически перед изменением черновика. Хранится до 50 версий.')}</p>
+              </div>
+              <button onClick={() => setVersionsOpen(false)} className="rounded-md p-1 text-muted-foreground hover:bg-muted" aria-label={tr('Закрыть')}><X className="h-5 w-5" /></button>
+            </div>
+            {versionPreview && (
+              <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+                <p className="font-medium">{tr('Сравнение с текущим черновиком')}</p>
+                <p className="mt-1 text-muted-foreground">{tr('Страниц: текущая {current}, версия {version}.').replace('{current}', String(doc.pages.length)).replace('{version}', String(versionPreview.doc.pages.length))}</p>
+                {versionComparison && <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+                  <div className="rounded-md bg-emerald-500/10 p-2 text-emerald-700 dark:text-emerald-300"><strong>{tr('Добавлено')}: {versionComparison.added.length}</strong>{versionComparison.added.length > 0 && <p className="mt-1 break-words">{versionComparison.added.join(', ')}</p>}</div>
+                  <div className="rounded-md bg-amber-500/10 p-2 text-amber-700 dark:text-amber-300"><strong>{tr('Изменено')}: {versionComparison.changed.length}</strong>{versionComparison.changed.length > 0 && <p className="mt-1 break-words">{versionComparison.changed.join(', ')}</p>}</div>
+                  <div className="rounded-md bg-rose-500/10 p-2 text-rose-700 dark:text-rose-300"><strong>{tr('Удалено')}: {versionComparison.removed.length}</strong>{versionComparison.removed.length > 0 && <p className="mt-1 break-words">{versionComparison.removed.join(', ')}</p>}</div>
+                </div>}
+                <div className="mt-3 flex gap-2"><Button size="sm" onClick={() => void restoreVersion(versionPreview.id)} disabled={versionsBusy}>{versionsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{tr('Восстановить')}</Button><Button size="sm" variant="outline" onClick={() => setVersionPreview(null)}>{tr('Скрыть сравнение')}</Button></div>
+              </div>
+            )}
+            <div className="mt-4 space-y-2">
+              {versionsBusy && !versions.length ? <p className="py-6 text-center text-sm text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />{tr('Загрузка…')}</p> : null}
+              {!versionsBusy && !versions.length ? <p className="py-6 text-center text-sm text-muted-foreground">{tr('Сохранённых версий пока нет.')}</p> : null}
+              {versions.map((version) => <div key={version.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3"><div className="min-w-0 flex-1"><p className="font-medium">{tr(version.label || 'Автосохранение')}</p><p className="text-xs text-muted-foreground">{new Date(version.createdAt).toLocaleString()}</p></div><Button size="sm" variant="outline" onClick={() => void previewVersion(version.id)} disabled={versionsBusy}>{tr('Сравнить')}</Button><Button size="sm" onClick={() => void restoreVersion(version.id)} disabled={versionsBusy}>{tr('Восстановить')}</Button></div>)}
+            </div>
+          </Card>
+        </div>
+      )}
       {/* Toolbar */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[120rem] items-center gap-1.5 px-2 sm:gap-2 sm:px-4 xl:gap-3">
@@ -1851,6 +1976,7 @@ function BuilderEditor() {
               </>
             )}
           </div>
+          <button onClick={openVersions} disabled={versionsBusy} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label={tr('История версий')} title={tr('История версий')}><History className="h-4 w-4" /></button>
           <button onClick={undo} disabled={!canUndo} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label={tr('Отменить')} title={tr('Отменить (Ctrl+Z)')}><Undo2 className="h-4 w-4" /></button>
           <button onClick={redo} disabled={!canRedo} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted disabled:opacity-30" aria-label={tr('Повторить')} title={tr('Повторить (Ctrl+Shift+Z)')}><Redo2 className="h-4 w-4" /></button>
           <Button size="sm" onClick={save} disabled={busy || pubBusy} className="relative shrink-0 gap-1.5 px-2 md:px-3" title={dirty ? tr('Есть несохранённые изменения (автосохранение через пару секунд)') : tr('Всё сохранено')} aria-label={tr('Сохранить')}>

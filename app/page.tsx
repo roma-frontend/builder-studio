@@ -56,6 +56,19 @@ export const dynamic = 'force-dynamic';
  * pulls those items (with per-theme dark variants) out of the builder document.
  * Text on / stays dictionary-driven, so publishing edits never breaks i18n.
  */
+function landingHeroProps(doc: BuilderDoc | null): Record<string, string> {
+  if (!doc) return {};
+  const findHero = (nodes: BuilderNode[]): BuilderNode | null => {
+    for (const node of nodes) {
+      if (node.type === 'landingHero') return node;
+      const nested = findHero(node.children ?? []);
+      if (nested) return nested;
+    }
+    return null;
+  };
+  return findHero(doc.pages.flatMap((page) => page.blocks))?.props ?? {};
+}
+
 async function landingGridEntries(doc: BuilderDoc, locale: Locale): Promise<MediaEntry[]> {
   let grid: BuilderNode | null = null;
   const walk = (n: BuilderNode) => {
@@ -111,13 +124,28 @@ export default async function Home() {
   const examples = (gridEntries.length ? gridEntries : media).slice(0, 6);
   const L = getLanding(locale);
   const dict = ui(locale);
+  // A published Builder landing may customize the visual hero. Only use its
+  // fields when present; the localized coded landing remains the fallback.
+  const publishedHero = landingHeroProps(landingDoc);
+  const heroCopy = {
+    badge: publishedHero.badge || L.hero.badge,
+    title: publishedHero.title || L.hero.title,
+    subtitle: publishedHero.subtitle || L.hero.subtitle,
+    primaryLabel: publishedHero.ctaPrimaryLabel || L.hero.ctaPrimaryLabel,
+    primaryHref: publishedHero.ctaPrimaryHref || L.hero.ctaPrimaryHref,
+    secondaryLabel: publishedHero.ctaSecondaryLabel || L.hero.ctaSecondaryLabel,
+    secondaryHref: publishedHero.ctaSecondaryHref || L.hero.ctaSecondaryHref,
+    microcopy: publishedHero.microcopy || '',
+    previewUrl: publishedHero.previewUrl || '',
+    previewPublish: publishedHero.previewPublish || '',
+  };
 
   // When a platform user is signed in, the marketing "sign up" CTAs make no
   // sense — point them at the dashboard instead and relabel accordingly.
   const me = await getCurrentUser();
   const heroPrimary = me
     ? { label: dict.actions.openDashboard, href: '/dashboard' }
-    : { label: L.hero.ctaPrimaryLabel, href: L.hero.ctaPrimaryHref };
+    : { label: heroCopy.primaryLabel, href: heroCopy.primaryHref };
   const finalPrimary = me
     ? { label: dict.actions.openDashboard, href: '/dashboard' }
     : { label: L.finalCta.ctaPrimaryLabel, href: L.finalCta.ctaPrimaryHref };
@@ -129,8 +157,8 @@ export default async function Home() {
 
   // Extra copy + derived data for the effects-rich sections.
   const extra = landingExtra(locale);
-  const heroSecondary = { label: L.hero.ctaSecondaryLabel, href: L.hero.ctaSecondaryHref };
-  const microItems = extra.cta.microcopy.split('·').map((s) => s.trim()).filter(Boolean);
+  const heroSecondary = { label: heroCopy.secondaryLabel, href: heroCopy.secondaryHref };
+  const microItems = (heroCopy.microcopy || extra.cta.microcopy).split('·').map((s) => s.trim()).filter(Boolean);
   const swatches = THEMES.slice(0, 4).map((t) => ({
     id: t.id,
     label: t.label,
@@ -155,13 +183,16 @@ export default async function Home() {
 
 
       <LandingHero
-        badge={L.hero.badge}
-        title={L.hero.title}
-        subtitle={L.hero.subtitle}
+        badge={heroCopy.badge}
+        title={heroCopy.title}
+        subtitle={heroCopy.subtitle}
         primary={heroPrimary}
         secondary={heroSecondary}
         microItems={microItems}
-        previewLabels={extra.heroPreviewLabels}
+        previewLabels={{
+          url: heroCopy.previewUrl || extra.heroPreviewLabels.url,
+          publish: heroCopy.previewPublish || extra.heroPreviewLabels.publish,
+        }}
         swatches={swatches}
         heroVideo={{
           src: mediaUrl('/generated/hero/hero-landing.webm'),

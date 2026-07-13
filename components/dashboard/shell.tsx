@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
-import { CommandPalette, type Command } from '@/components/dashboard/command-palette';
 import { IdleTimeout } from '@/components/dashboard/idle-timeout';
 import { ActivityTracker } from '@/components/dashboard/activity-tracker';
 import { OrgRequestsBadge } from '@/components/dashboard/org-requests-badge';
@@ -152,15 +151,6 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
     router.push('/login');
     router.refresh();
   };
-
-  const commands: Command[] = [
-    ...visible.map((i) => ({ label: t.nav[i.key], hint: t.cmd.section, icon: i.icon, run: () => router.push(i.href) })),
-    { label: t.cmd.createSite, hint: t.cmd.action, icon: Plus, run: () => router.push('/dashboard/sites') },
-    { label: t.cmd.openSite, hint: t.cmd.link, icon: ExternalLink, run: () => window.open('/', '_blank') },
-    { label: t.cmd.studio, hint: t.cmd.goto, icon: Film, run: () => router.push('/studio') },
-    { label: t.cmd.builder, hint: t.cmd.goto, icon: Film, run: () => router.push('/studio/builder') },
-    { label: t.cmd.logout, hint: t.cmd.action, icon: LogOut, run: logout },
-  ];
 
   const renderSidebar = (col: boolean) => {
     const q = col ? '' : query.trim().toLowerCase();
@@ -408,7 +398,6 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
 
   return (
     <div data-app-shell className="fixed inset-0 flex overflow-hidden bg-background">
-      <CommandPalette commands={commands} />
       <IdleTimeout onLogout={logout} />
       {isStaff && <ActivityTracker />}      {/* Desktop sidebar */}
       <aside className={`hidden shrink-0 flex-col border-r border-border/60 bg-muted/30 transition-[width] duration-300 lg:flex ${collapsed ? 'w-[4.75rem]' : 'w-64'}`}>
