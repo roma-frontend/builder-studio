@@ -17,10 +17,12 @@ describe('auto-translate', () => {
     vi.restoreAllMocks();
   });
 
-  it('returns the source unchanged for the ru locale (no MT call)', async () => {
+  it('keeps text already written in the target language unchanged', async () => {
     const fetchSpy = mockFetchOk();
     vi.stubGlobal('fetch', fetchSpy);
     expect(await translateAuto('Привет', 'ru')).toBe('Привет');
+    expect(await translateAuto('Hello', 'en')).toBe('Hello');
+    expect(await translateAuto('Բարև', 'hy')).toBe('Բարև');
     expect(await translateAuto('', 'en')).toBe('');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -34,10 +36,14 @@ describe('auto-translate', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('machine-translates a Russian atom', async () => {
-    vi.stubGlobal('fetch', mockFetchOk('Hi there'));
-    const out = await translateAuto('Необычная фраза для перевода', 'en');
-    expect(out).toBe('Hi there');
+  it('machine-translates arbitrary source languages into the active locale', async () => {
+    const fetchSpy = mockFetchOk('Hi there');
+    vi.stubGlobal('fetch', fetchSpy);
+    expect(await translateAuto('Необычная фраза для перевода', 'en')).toBe('Hi there');
+    expect(await translateAuto('Custom heading', 'ru')).toBe('Hi there');
+    const calls = (fetchSpy as ReturnType<typeof vi.fn>).mock.calls;
+    expect(String(calls[0]?.[0])).toContain('sl=auto');
+    expect(String(calls[1]?.[0])).toContain('tl=ru');
   });
 
   it('translates newline lists, "::" pairs and "Label|url" socials', async () => {
@@ -75,8 +81,8 @@ describe('auto-translate', () => {
     expect(out.props.align).toBe('center');      // non-text prop untouched
     expect(out.children?.[0].props.text).toBe('T');
 
-    // ru locale returns the node reference unchanged
-    expect(await translateNodeAuto(node, 'ru')).toBe(node);
+    // Content already written in Russian remains unchanged for the ru locale.
+    expect(await translateNodeAuto(node, 'ru')).toEqual(node);
   });
 
   it('translates a page (title, description, blocks)', async () => {
@@ -95,7 +101,7 @@ describe('auto-translate', () => {
     expect(out.description).toBe('P');
     expect(out.blocks[0].props.text).toBe('P');
 
-    expect(await translatePageAuto(page, 'ru')).toBe(page);
+    expect(await translatePageAuto(page, 'ru')).toEqual(page);
   });
 
   it('translates the site chrome (nav, footer, CTA, page titles) but keeps brand & hrefs', async () => {
@@ -119,7 +125,7 @@ describe('auto-translate', () => {
     expect(out.headerCtaText).toBe('C');                 // CTA translated
     expect(out.pages[0].title).toBe('C');                // page title (footer auto-links)
 
-    // ru locale returns the doc reference unchanged (no MT call)
-    expect(await translateDocChrome(doc, 'ru')).toBe(doc);
+    // Russian chrome stays unchanged for the Russian locale.
+    expect(await translateDocChrome(doc, 'ru')).toEqual(doc);
   });
 });

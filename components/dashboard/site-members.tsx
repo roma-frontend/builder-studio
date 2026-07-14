@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Check, X, Ban, Clock, Plus, Trash2, Users, Library, ShieldCheck, GraduationCap, ChevronRight, ChevronLeft, Eye, EyeOff, Upload, FileType, LifeBuoy, Send, ArrowLeft, Megaphone, UserPlus, Pencil, KeyRound, Download, Copy, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { SITE_MEMBERS_SEEN_EVENT } from '@/components/dashboard/site-members-badge';
 import { useLocale } from '@/hooks/use-locale';
 import { dashDict } from '@/lib/dashboard-dict';
@@ -37,7 +38,7 @@ async function post(body: Record<string, unknown>) {
 type TabId = 'settings' | 'members' | 'materials' | 'courses' | 'documents' | 'tickets' | 'announcements';
 const TAB_SETTINGS_LABEL: Record<string, string> = { ru: 'Настройки', en: 'Settings', hy: 'Կարգավորումներ' };
 
-export function SiteMembers({ siteId, memberApproval, settings }: { siteId: string; memberApproval: boolean; settings?: React.ReactNode }) {
+export function SiteMembers({ siteId, memberApproval, settings, initialTab }: { siteId: string; memberApproval: boolean; settings?: React.ReactNode; initialTab?: TabId }) {
   const locale = useLocale().locale;
   const d = dashDict(locale);
   const t = d.members;
@@ -48,7 +49,7 @@ export function SiteMembers({ siteId, memberApproval, settings }: { siteId: stri
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[] | null>(null);
   const [approval, setApproval] = useState(memberApproval);
-  const [tab, setTab] = useState<TabId>(settings ? 'settings' : 'members');
+  const [tab, setTab] = useState<TabId>(initialTab ?? (settings ? 'settings' : 'members'));
 
   // Horizontal tab carousel: show scroll arrows when the strip overflows so
   // every tool stays reachable on narrow screens (no hidden, unscrollable tabs).
@@ -123,12 +124,12 @@ export function SiteMembers({ siteId, memberApproval, settings }: { siteId: stri
             <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-[5] w-10 rounded-l-2xl bg-gradient-to-r from-background to-transparent" />
           </>
         )}
-        <div ref={scrollerRef} className="flex gap-1 overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div ref={scrollerRef} role="tablist" aria-label={t.membersTitle} className="flex gap-1 overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map((tb) => {
             const on = tab === tb.id;
             const Icon = tb.icon;
             return (
-              <button key={tb.id} data-tab={tb.id} type="button" onClick={() => setTab(tb.id)}
+              <button key={tb.id} id={`org-tab-${tb.id}`} data-tab={tb.id} type="button" role="tab" aria-selected={on} tabIndex={on ? 0 : -1} onClick={() => setTab(tb.id)}
                 className={`flex flex-none items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${on ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                 <Icon className="h-4 w-4" />
                 <span>{tb.label}</span>
@@ -158,7 +159,7 @@ export function SiteMembers({ siteId, memberApproval, settings }: { siteId: stri
               <span className="flex items-center gap-2 text-sm font-medium"><ShieldCheck className="h-4 w-4" /> {t.approvalTitle}</span>
               <span className="mt-0.5 block text-xs text-muted-foreground">{t.approvalDesc}</span>
             </span>
-            <button type="button" role="switch" aria-checked={approval} onClick={() => toggleApproval(!approval)}
+            <button type="button" role="switch" aria-label={t.approvalTitle} aria-checked={approval} onClick={() => toggleApproval(!approval)}
               className={`relative h-6 w-11 flex-none rounded-full transition-colors ${approval ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
               <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${approval ? 'left-0.5 translate-x-5' : 'left-0.5'}`} />
             </button>
@@ -217,9 +218,12 @@ function MembersManager({ siteId, members, reload }: { siteId: string; members: 
   const locale = useLocale().locale;
   const t = dashDict(locale).members;
   const m = MM[locale] ?? MM.en;
+  const { confirm, confirmDialog } = useConfirm();
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
   const [panel, setPanel] = useState<'add' | 'import' | null>(null);
+  const [statusChange, setStatusChange] = useState<{ member: Member; status: 'rejected' | 'suspended'; reason: string } | null>(null);
   const [cred, setCred] = useState<{ title: string; items: { email: string; password: string }[] } | null>(null);
   // add form
   const [email, setEmail] = useState('');
@@ -232,12 +236,23 @@ function MembersManager({ siteId, members, reload }: { siteId: string; members: 
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
 
-  const act = async (memberId: string, status: string) => {
-    let reason = '';
-    if (status === 'rejected' || status === 'suspended') reason = window.prompt(t.reasonPrompt) ?? '';
+  const act = async (memberId: string, status: string, reason = '') => {
+    setError('');
     setBusy(memberId);
-    await postJson({ action: 'set-status', siteId, memberId, status, reason });
-    setBusy(''); reload();
+    const result = await postJson({ action: 'set-status', siteId, memberId, status, reason });
+    setBusy('');
+    if (result.error) setError(result.error);
+    else reload();
+  };
+
+  const requestStatusChange = (member: Member, status: 'rejected' | 'suspended') => {
+    setStatusChange({ member, status, reason: '' });
+  };
+
+  const submitStatusChange = async () => {
+    if (!statusChange) return;
+    await act(statusChange.member.id, statusChange.status, statusChange.reason.trim());
+    setStatusChange(null);
   };
 
   const addMember = async () => {
@@ -249,12 +264,13 @@ function MembersManager({ siteId, members, reload }: { siteId: string; members: 
       setCred({ title: m.credAdded, items: [{ email: r.member.email, password: r.password }] });
       setEmail(''); setName(''); setPanel(null); reload();
     } else {
-      window.alert(r.error || 'Error');
+      setError(r.error || 'Error');
     }
   };
 
   const resetPwd = async (member: Member) => {
-    if (!window.confirm(m.resetConfirm)) return;
+    if (!(await confirm({ title: m.resetConfirm, description: member.email, confirmLabel: m.resetPwd, cancelLabel: m.cancel, tone: 'warning' }))) return;
+    setError('');
     setBusy(member.id);
     const r = await postJson({ action: 'member-reset-password', siteId, memberId: member.id });
     setBusy('');
@@ -262,10 +278,13 @@ function MembersManager({ siteId, members, reload }: { siteId: string; members: 
   };
 
   const del = async (member: Member) => {
-    if (!window.confirm(m.delConfirm)) return;
+    if (!(await confirm({ title: m.delConfirm, description: member.email, confirmLabel: m.del, cancelLabel: m.cancel, tone: 'danger' }))) return;
+    setError('');
     setBusy(member.id);
-    await postJson({ action: 'member-delete', siteId, memberId: member.id });
-    setBusy(''); reload();
+    const result = await postJson({ action: 'member-delete', siteId, memberId: member.id });
+    setBusy('');
+    if (result.error) setError(result.error);
+    else reload();
   };
 
   const startEdit = (member: Member) => { setEditId(member.id); setEditName(member.name); setEditEmail(member.email); };
@@ -273,7 +292,7 @@ function MembersManager({ siteId, members, reload }: { siteId: string; members: 
     setBusy(editId);
     const r = await postJson({ action: 'member-update', siteId, memberId: editId, name: editName, email: editEmail });
     setBusy('');
-    if (r.ok) { setEditId(''); reload(); } else { window.alert(r.error || 'Error'); }
+    if (r.ok) { setError(''); setEditId(''); reload(); } else { setError(r.error || 'Error'); }
   };
 
   const runImport = async () => {
@@ -327,6 +346,22 @@ function MembersManager({ siteId, members, reload }: { siteId: string; members: 
 
   return (
     <section className="space-y-4">
+      {confirmDialog}
+      {error && <p role="alert" className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
+      {statusChange && (
+        <div role="dialog" aria-modal="true" aria-labelledby="member-status-title" className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-2xl">
+            <h3 id="member-status-title" className="font-semibold">{statusChange.status === 'rejected' ? t.reject : t.suspend}: {statusChange.member.name || statusChange.member.email}</h3>
+            <label htmlFor="member-status-reason" className="mt-4 block text-sm font-medium">{t.reasonPrompt}</label>
+            <textarea id="member-status-reason" autoFocus value={statusChange.reason} onChange={(e) => setStatusChange({ ...statusChange, reason: e.target.value })} rows={4}
+              className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-primary" />
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setStatusChange(null)}>{m.cancel}</Button>
+              <Button variant="destructive" disabled={busy === statusChange.member.id} onClick={submitStatusChange}>{busy === statusChange.member.id ? <Loader2 className="h-4 w-4 animate-spin" /> : statusChange.status === 'rejected' ? t.reject : t.suspend}</Button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-0 flex-1">
@@ -376,7 +411,7 @@ function MembersManager({ siteId, members, reload }: { siteId: string; members: 
                 <Button size="sm" className="gap-1.5 bg-green-600 text-white hover:bg-green-700" disabled={busy === mm.id} onClick={() => act(mm.id, 'approved')}>
                   {busy === mm.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t.approve}
                 </Button>
-                <Button size="sm" variant="outline" className="gap-1.5 border-red-500/40 text-red-500 hover:bg-red-500/10" disabled={busy === mm.id} onClick={() => act(mm.id, 'rejected')}>
+                <Button size="sm" variant="outline" className="gap-1.5 border-red-500/40 text-red-500 hover:bg-red-500/10" disabled={busy === mm.id} onClick={() => requestStatusChange(mm, 'rejected')}>
                   <X className="h-4 w-4" /> {t.reject}
                 </Button>
                 {rowActions(mm)}
@@ -404,7 +439,7 @@ function MembersManager({ siteId, members, reload }: { siteId: string; members: 
                   </div>
                   <span className={`flex-none rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{t.status[mm.status as keyof typeof t.status] ?? mm.status}</span>
                   {mm.status === 'approved' ? (
-                    <Button size="sm" variant="outline" className="gap-1.5 border-red-500/40 text-red-500 hover:bg-red-500/10" disabled={busy === mm.id} onClick={() => act(mm.id, 'suspended')}>
+                    <Button size="sm" variant="outline" className="gap-1.5 border-red-500/40 text-red-500 hover:bg-red-500/10" disabled={busy === mm.id} onClick={() => requestStatusChange(mm, 'suspended')}>
                       <Ban className="h-4 w-4" /> {t.suspend}
                     </Button>
                   ) : (

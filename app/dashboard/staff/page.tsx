@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { Users, LayoutList, ScrollText } from 'lucide-react';
+import { Users, LayoutList, ScrollText, Wallet } from 'lucide-react';
 import { getCurrentUser, isStaff } from '@/lib/auth';
 import { isCapabilityEnabled } from '@/lib/access';
 import { getLocale } from '@/lib/i18n';
@@ -24,6 +24,7 @@ export default async function StaffHubPage() {
     { href: '/dashboard/users', key: 'users', icon: Users },
     { href: '/dashboard/all-sites', key: 'allSites', icon: LayoutList },
     { href: '/dashboard/audit', key: 'audit', icon: ScrollText },
+    { href: '/dashboard/revenue', key: 'revenue', icon: Wallet },
   ] as const;
 
   const cards: HubCard[] = all

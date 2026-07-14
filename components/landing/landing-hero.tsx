@@ -67,7 +67,7 @@ export function LandingHero({
       </div>
       <Spotlight size={560} strength={26} />
 
-      <div className="mx-auto grid max-w-[var(--container-max)] items-center gap-12 px-6 py-24 sm:px-10 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
+      <div className="mx-auto grid max-w-[var(--container-max)] items-center gap-12 px-6 py-16 sm:px-10 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
         {/* Copy column — CSS entrance (painted + animated on first frame, no
             hydration wait, so there's no flash of the empty themed background). */}
         <div>
@@ -90,22 +90,24 @@ export function LandingHero({
             {subtitle}
           </p>
 
-          <div className="hero-rise mt-8 flex flex-wrap items-center gap-3" style={{ animationDelay: '240ms' }}>
-            <Magnetic>
-              <Link href={primary.href}>
-                <Button size="lg" className="b-shimmer gap-2 shadow-xl shadow-primary/25">
-                  <Sparkles className="h-5 w-5" /> {primary.label}
+          <div className="hero-rise mt-8 grid gap-3 sm:flex sm:flex-wrap sm:items-center" style={{ animationDelay: '240ms' }}>
+            <div className="w-full sm:w-auto">
+              <Magnetic>
+                <Button asChild size="lg" className="b-shimmer w-full gap-2 shadow-xl shadow-primary/25 sm:w-auto">
+                  <Link href={primary.href}>
+                    <Sparkles className="h-5 w-5" /> {primary.label}
+                  </Link>
                 </Button>
-              </Link>
-            </Magnetic>
-            <Link href={secondary.href}>
-              <Button size="lg" variant="outline" className="gap-2 backdrop-blur">
+              </Magnetic>
+            </div>
+            <Button asChild size="lg" variant="outline" className="w-full gap-2 backdrop-blur sm:w-auto">
+              <Link href={secondary.href}>
                 {secondary.label} <ArrowRight className="h-5 w-5" />
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
 
-          <ul className="hero-rise mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground" style={{ animationDelay: '320ms' }}>
+          <ul className="hero-rise mt-7 grid gap-2 text-sm text-muted-foreground sm:flex sm:flex-wrap sm:gap-x-6" style={{ animationDelay: '320ms' }}>
             {microItems.map((m) => (
               <li key={m} className="flex items-center gap-1.5">
                 <Check className="h-4 w-4 text-primary" /> {m}

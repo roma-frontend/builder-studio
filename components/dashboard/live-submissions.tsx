@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+
 // Subscribes to the live submissions SSE stream and refreshes the server
 // component list when a new lead arrives. Shows a small "live" indicator and a
 // transient "new submission" pill. Degrades silently if EventSource/stream is

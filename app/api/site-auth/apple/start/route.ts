@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { getDb, sites } from '@/lib/db';
+import { APP_HOST, getSiteByHostname } from '@/lib/sites';
 import { getAppleConfig, buildAppleAuthUrl, getSiteAppleRedirectUri } from '@/lib/apple-auth';
 import { platformBase } from '@/lib/google-auth';
 
@@ -25,13 +26,22 @@ export async function GET(request: Request) {
 
   if (!getAppleConfig().configured) return fail('apple_not_configured');
   if (!siteId) return fail('apple_bad_request');
-  const site = getDb().select({ id: sites.id }).from(sites).where(eq(sites.id, siteId)).get();
+  const site = getDb().select({ id: sites.id, slug: sites.slug }).from(sites).where(eq(sites.id, siteId)).get();
   if (!site) return fail('apple_bad_request');
 
+  // Bind the return URL to this exact tenant so OAuth handoff tokens can never
+  // be redirected to an arbitrary HTTP(S) origin.
   let next = '';
   try {
     const u = new URL(nextParam);
-    if (u.protocol === 'http:' || u.protocol === 'https:') next = u.toString();
+    const appHostname = APP_HOST.split(':')[0];
+    const sitePath = `/s/${encodeURIComponent(site.slug)}`;
+    const pathSite = u.hostname === appHostname && (u.pathname === sitePath || u.pathname.startsWith(`${sitePath}/`));
+    const subdomainSite = u.hostname.endsWith(`.${appHostname}`) && u.hostname.slice(0, -(appHostname.length + 1)) === site.slug;
+    const customDomainSite = getSiteByHostname(u.hostname)?.id === siteId;
+    if ((u.protocol === 'http:' || u.protocol === 'https:') && (pathSite || subdomainSite || customDomainSite)) {
+      next = u.toString();
+    }
   } catch { /* invalid */ }
   if (!next) return fail('apple_bad_request');
 

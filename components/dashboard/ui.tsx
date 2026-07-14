@@ -18,7 +18,7 @@ export function StatCard({
   label: string; value: string | number; icon: React.ComponentType<{ className?: string }>; hint?: string; href?: string;
 }) {
   const inner = (
-    <div className="rounded-2xl border border-border/60 bg-card/50 p-5 backdrop-blur transition-colors hover:border-primary/40">
+    <div className="rounded-2xl border border-border/60 bg-card/50 p-5 backdrop-blur transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md motion-reduce:hover:translate-y-0">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -29,7 +29,7 @@ export function StatCard({
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
-  return href ? <Link href={href}>{inner}</Link> : inner;
+  return href ? <Link href={href} className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">{inner}</Link> : inner;
 }
 
 export function EmptyState({ icon: Icon, title, description, action, hint }: {

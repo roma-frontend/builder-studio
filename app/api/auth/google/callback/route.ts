@@ -36,7 +36,7 @@ export async function GET(request: Request) {
   jar.delete(GOOGLE_STATE_COOKIE);
   const [expectedState, storedNext] = stored.split('|');
   if (!expectedState || expectedState !== state) return fail('google_state_mismatch');
-  const next = storedNext && storedNext.startsWith('/') ? storedNext : '/dashboard';
+  const next = storedNext && storedNext.startsWith('/') && !storedNext.startsWith('//') ? storedNext : '/dashboard';
 
   const exchange = await exchangeGoogleCode(code);
   if (!exchange.ok) return fail(`google_${exchange.error}`);

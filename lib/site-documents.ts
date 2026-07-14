@@ -30,7 +30,8 @@ export async function storeDocument(
   const id = newId('doc');
   const clean = safeName(file.fileName);
   const key = `sites/${siteId}/documents/${id}-${clean}`;
-  const contentType = file.contentType || contentTypeFor(clean);
+  // Do not trust arbitrary browser-supplied MIME types when persisting files.
+  const contentType = contentTypeFor(clean);
 
   let url: string;
   if (r2Configured()) {

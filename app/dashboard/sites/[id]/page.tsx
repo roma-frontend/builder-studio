@@ -32,11 +32,12 @@ export async function generateMetadata() {
 }
 export const dynamic = 'force-dynamic';
 
-export default async function SiteSettingsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SiteSettingsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/dashboard');
 
   const { id } = await params;
+  const requestedTab = (await searchParams).tab;
   // Owner sees their own site; a superadmin may open ANY org to manage its data
   // (the underlying APIs already allow superadmin via requireSiteOwner).
   let site: Site | null = getSiteForUser(user.id, id);
@@ -150,7 +151,7 @@ export default async function SiteSettingsPage({ params }: { params: Promise<{ i
         </section>
       )}
       <SitePlans siteId={site.id} initial={listPlansForAdmin(site.id)} />
-      <SiteMembers siteId={site.id} memberApproval={site.memberApproval} settings={settings} />
+      <SiteMembers siteId={site.id} memberApproval={site.memberApproval} settings={settings} initialTab={requestedTab === 'members' ? 'members' : undefined} />
       <TourLauncher tour="site-content" />
     </div>
   );

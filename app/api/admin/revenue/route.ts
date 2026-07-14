@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSuperadmin } from '@/lib/auth';
+import { requireCapability } from '@/lib/api-guard';
 import { listOrgsRevenue, orgBilling, recordPayout, listPayouts, platformFeePercent } from '@/lib/org-billing';
 import { recordAudit } from '@/lib/audit';
 import { getLocale } from '@/lib/i18n';
@@ -12,9 +13,8 @@ export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   const t = apiErrors(await getLocale());
-  const me = await getCurrentUser();
-  if (!me) return NextResponse.json({ error: t.unauthorizedDot }, { status: 401 });
-  if (!isSuperadmin(me)) return NextResponse.json({ error: t.forbidden }, { status: 403 });
+  const me = await requireCapability('revenue');
+  if (!me) return NextResponse.json({ error: t.forbidden }, { status: 403 });
 
   const siteId = new URL(request.url).searchParams.get('site') ?? '';
   if (siteId) {

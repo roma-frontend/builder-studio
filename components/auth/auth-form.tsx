@@ -333,7 +333,7 @@ function RegisterWizard() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error || t.genericError); setCode(''); setBusy(false); return; }
       const next = new URLSearchParams(window.location.search).get('next');
-      window.location.assign(next?.startsWith('/') ? next : '/dashboard');
+      window.location.assign(next?.startsWith('/') ? next : '/dashboard?welcome=1');
     } catch { setError(t.networkError); setBusy(false); }
   };
 

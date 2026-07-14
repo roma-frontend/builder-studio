@@ -127,17 +127,27 @@ export default async function Home() {
   // A published Builder landing may customize the visual hero. Only use its
   // fields when present; the localized coded landing remains the fallback.
   const publishedHero = landingHeroProps(landingDoc);
+  const [heroBadge, heroTitle, heroSubtitle, heroPrimaryLabel, heroSecondaryLabel, heroMicrocopy, heroPreviewUrl, heroPreviewPublish] = await Promise.all([
+    translateAuto(publishedHero.badge || L.hero.badge, locale),
+    translateAuto(publishedHero.title || L.hero.title, locale),
+    translateAuto(publishedHero.subtitle || L.hero.subtitle, locale),
+    translateAuto(publishedHero.ctaPrimaryLabel || L.hero.ctaPrimaryLabel, locale),
+    translateAuto(publishedHero.ctaSecondaryLabel || L.hero.ctaSecondaryLabel, locale),
+    publishedHero.microcopy ? translateAuto(publishedHero.microcopy, locale) : Promise.resolve(''),
+    publishedHero.previewUrl ? translateAuto(publishedHero.previewUrl, locale) : Promise.resolve(''),
+    publishedHero.previewPublish ? translateAuto(publishedHero.previewPublish, locale) : Promise.resolve(''),
+  ]);
   const heroCopy = {
-    badge: publishedHero.badge || L.hero.badge,
-    title: publishedHero.title || L.hero.title,
-    subtitle: publishedHero.subtitle || L.hero.subtitle,
-    primaryLabel: publishedHero.ctaPrimaryLabel || L.hero.ctaPrimaryLabel,
+    badge: heroBadge,
+    title: heroTitle,
+    subtitle: heroSubtitle,
+    primaryLabel: heroPrimaryLabel,
     primaryHref: publishedHero.ctaPrimaryHref || L.hero.ctaPrimaryHref,
-    secondaryLabel: publishedHero.ctaSecondaryLabel || L.hero.ctaSecondaryLabel,
+    secondaryLabel: heroSecondaryLabel,
     secondaryHref: publishedHero.ctaSecondaryHref || L.hero.ctaSecondaryHref,
-    microcopy: publishedHero.microcopy || '',
-    previewUrl: publishedHero.previewUrl || '',
-    previewPublish: publishedHero.previewPublish || '',
+    microcopy: heroMicrocopy,
+    previewUrl: heroPreviewUrl,
+    previewPublish: heroPreviewPublish,
   };
 
   // When a platform user is signed in, the marketing "sign up" CTAs make no
@@ -174,7 +184,9 @@ export default async function Home() {
   ];
 
   return (
-    <main className="min-h-dvh">
+    <>
+      <a href="#main-content" className="skip-link">{dict.a11y.skipContent}</a>
+      <main id="main-content" className="min-h-dvh">
       <ThemeStyle theme={theme} />
       <ThemeFX />
       <CursorGlow />
@@ -352,6 +364,7 @@ export default async function Home() {
 
       {/* Footer */}
       <SiteFooter />
-    </main>
+      </main>
+    </>
   );
 }

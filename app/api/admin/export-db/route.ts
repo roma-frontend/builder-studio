@@ -47,11 +47,11 @@ export async function GET(request: Request) {
 
   // DATABASE_FILE is an operator-provided runtime path. It must not become a
   // build-time NFT root; the default stays statically scoped to ./data.
-  const defaultDbFile = path.join(/* turbopackIgnore: true */ process.cwd(), 'data', 'app.db');
+  const defaultDbFile = path.join(process.cwd(), 'data', 'app.db');
   const dbFile = process.env.DATABASE_FILE || defaultDbFile;
   let buf: Buffer;
   try {
-    buf = await readFile(dbFile);
+    buf = await readFile(/* turbopackIgnore: true */ dbFile);
   } catch {
     return NextResponse.json({ error: t.dbFileNotFound }, { status: 404 });
   }

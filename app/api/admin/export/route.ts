@@ -8,6 +8,7 @@ import { getDb, users, sites, sessions, submissions, audit } from '@/lib/db';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
 import { exportDict, type ExportDict } from '@/lib/export-dict';
+import { spreadsheetSafeCell, spreadsheetSafeRows } from '@/lib/spreadsheet-safe';
 
 export const runtime = 'nodejs';
 
@@ -16,9 +17,9 @@ export const runtime = 'nodejs';
 // XLSX (default) is styled (brand header, zebra, autofilter); CSV is
 // Excel-friendly: UTF-8 BOM, quoted cells, CRLF rows.
 
-const csvCell = (v: unknown): string => `"${String(v ?? '').replace(/"/g, '""')}"`;
+const csvCell = (v: unknown): string => `"${String(spreadsheetSafeCell(v)).replace(/"/g, '""')}"`;
 const toCsv = (header: string[], rows: unknown[][]): string =>
-  '﻿' + [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
+  '﻿' + [header, ...spreadsheetSafeRows(rows)].map((r) => r.map(csvCell).join(',')).join('\r\n');
 const when = (d: Date) => d.toISOString().replace('T', ' ').slice(0, 19);
 
 function buildExport(type: string, x: ExportDict): { title: string; header: string[]; rows: unknown[][] } | null {

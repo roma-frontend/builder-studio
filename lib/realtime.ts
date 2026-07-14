@@ -14,6 +14,7 @@ export interface SubmissionEvent {
   siteId: string;
   siteName?: string;
   formId: string;
+  first?: boolean;
   at: string; // ISO timestamp
 }
 
@@ -30,7 +31,7 @@ export function publishSubmission(evt: SubmissionEvent): void {
   try {
     bus.emit(EVENT, evt);
     // Also fan out to the unified notification channel (header bell).
-    publishNotify({ kind: 'submission', siteId: evt.siteId, at: evt.at });
+    publishNotify({ kind: 'submission', siteId: evt.siteId, siteName: evt.siteName, first: evt.first, at: evt.at });
   } catch {
     /* best-effort */
   }
@@ -56,6 +57,8 @@ export interface NotifyEvent {
   /** Owner-scoped events carry the site id; the stream forwards it only to the
    *  site's owner. */
   siteId?: string;
+  siteName?: string;
+  first?: boolean;
   /** Platform-wide events (e.g. a new org request) go to every superadmin. */
   superadmin?: boolean;
   at: string; // ISO timestamp

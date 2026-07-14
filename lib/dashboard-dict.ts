@@ -13,6 +13,7 @@ export type DashDict = {
     users: string;
     allSites: string;
     organizations: string;
+    revenue: string;
     database: string;
     control: string;
     studio: string;
@@ -49,6 +50,7 @@ export type DashDict = {
       allSites: string;
       audit: string;
       organizations: string;
+      revenue: string;
       database: string;
       access: string;
       activity: string;
@@ -112,6 +114,8 @@ export type DashDict = {
     pendingAccess: string; submissionsAcrossSites: string; openMembers: string; reviewIncoming: string;
     launchPath: string; idea: string; design: string; launch: string; inProgress: string; nextStep: string; draftTip: string;
     readiness: string; starting: string; foundation: string; almost: string; thriving: string;
+    createFirstTitle: string; createFirstDesc: string; createSite: string; readyTitle: string; readyDesc: string; openStudio: string;
+    signalsWaitingTitle: string; strengthenFlowTitle: string; openInboxDesc: string; improveCtaDesc: string; openInbox: string; viewSubmissions: string;
   };
   overview: {
     metaTitle: string;
@@ -272,6 +276,7 @@ const ru: DashDict = {
     users: 'Пользователи',
     allSites: 'Все сайты',
     organizations: 'Организации',
+    revenue: 'Выручка организаций',
     database: 'База данных',
     control: 'Центр контроля',
     studio: 'Студия',
@@ -308,6 +313,7 @@ const ru: DashDict = {
       allSites: 'Все сайты платформы в одном списке.',
       audit: 'История действий и событий безопасности.',
       organizations: 'Организации, их данные и назначение администраторов.',
+      revenue: 'Выручка организаций и доступные остатки к выплате.',
       database: 'Просмотр и обслуживание таблиц базы данных.',
       access: 'Матрица доступа ролей к разделам дашборда.',
       activity: 'Активность персонала в реальном времени.',
@@ -365,7 +371,7 @@ const ru: DashDict = {
     invite: 'Пригласить',
   },
   command: {
-    modeSuper: 'Командный центр платформы', modeAdmin: 'Центр управления организацией', modeUser: 'Личный импульс', superTitle: 'Платформа под контролем.', adminTitle: 'Организация в фокусе.', userTitle: 'Вперёд, {name}.', superDesc: 'Видьте пульс системы, замечайте риски раньше остальных и управляйте изменениями осознанно.', adminDesc: 'Соберите команду, контент и входящий поток в одном спокойном рабочем ритме.', userDesc: 'Один ясный следующий шаг — и ваш проект становится реальностью.', godMode: 'Открыть God Mode', manageTeam: 'Управлять командой', nextAction: 'Следующее лучшее действие', projectPulse: 'Ритм проекта', sites: 'сайтов', live: 'в эфире', signals: 'сигналов', platformPulse: 'Пульс платформы', decisionInbox: 'Очередь решений', openPulse: 'Смотреть живой пульс', openQueue: 'Открыть очередь', teamQueue: 'Очередь команды', incoming: 'Входящие сигналы', pendingAccess: 'ожидают решения по доступу', submissionsAcrossSites: 'заявок со всех ваших сайтов', openMembers: 'Открыть участников', reviewIncoming: 'Разобрать входящие', launchPath: 'Путь к запуску', idea: 'Идея', design: 'Дизайн', launch: 'Запуск', inProgress: 'В работе', nextStep: 'Следующий шаг:', draftTip: 'проверьте главную страницу и опубликуйте проект, когда будете готовы.', readiness: 'Готовность к запуску', starting: 'Начинаем путь', foundation: 'Фундамент готов', almost: 'Почти на старте', thriving: 'Проект в ритме',
+    modeSuper: 'Командный центр платформы', modeAdmin: 'Центр управления организацией', modeUser: 'Личный импульс', superTitle: 'Платформа под контролем.', adminTitle: 'Организация в фокусе.', userTitle: 'Вперёд, {name}.', superDesc: 'Видьте пульс системы, замечайте риски раньше остальных и управляйте изменениями осознанно.', adminDesc: 'Соберите команду, контент и входящий поток в одном спокойном рабочем ритме.', userDesc: 'Один ясный следующий шаг — и ваш проект становится реальностью.', godMode: 'Открыть God Mode', manageTeam: 'Управлять командой', nextAction: 'Следующее лучшее действие', projectPulse: 'Ритм проекта', sites: 'сайтов', live: 'в эфире', signals: 'сигналов', platformPulse: 'Пульс платформы', decisionInbox: 'Очередь решений', openPulse: 'Смотреть живой пульс', openQueue: 'Открыть очередь', teamQueue: 'Очередь команды', incoming: 'Входящие сигналы', pendingAccess: 'ожидают решения по доступу', submissionsAcrossSites: 'заявок со всех ваших сайтов', openMembers: 'Открыть участников', reviewIncoming: 'Разобрать входящие', launchPath: 'Путь к запуску', idea: 'Идея', design: 'Дизайн', launch: 'Запуск', inProgress: 'В работе', nextStep: 'Следующий шаг:', draftTip: 'проверьте главную страницу и опубликуйте проект, когда будете готовы.', readiness: 'Готовность к запуску', starting: 'Начинаем путь', foundation: 'Фундамент готов', almost: 'Почти на старте', thriving: 'Проект в ритме', createFirstTitle: 'Создайте первую цифровую точку присутствия', createFirstDesc: 'Запустите сайт — конструктор сразу откроет готовую основу.', createSite: 'Создать сайт', readyTitle: 'Ваш сайт готов к запуску', readyDesc: 'Откройте редактор, проверьте детали и сделайте первый релиз.', openStudio: 'Открыть студию', signalsWaitingTitle: 'Новые сигналы уже ждут вас', strengthenFlowTitle: 'Усильте поток заявок', openInboxDesc: 'Откройте входящие и превратите интерес в результат.', improveCtaDesc: 'Проверьте CTA и форму, затем приведите первых посетителей.', openInbox: 'Открыть входящие', viewSubmissions: 'Посмотреть заявки',
   },
   overview: {
     metaTitle: 'Обзор',
@@ -565,6 +571,7 @@ const en: DashDict = {
     users: 'Users',
     allSites: 'All sites',
     organizations: 'Organizations',
+    revenue: 'Organization revenue',
     database: 'Database',
     control: 'Control center',
     studio: 'Studio',
@@ -601,6 +608,7 @@ const en: DashDict = {
       allSites: 'Every site on the platform in one list.',
       audit: 'History of actions and security events.',
       organizations: 'Organizations, their data and admin assignment.',
+      revenue: 'Organization revenue and balances available for payout.',
       database: 'Browse and maintain database tables.',
       access: 'Role access matrix for dashboard sections.',
       activity: 'Real-time staff activity.',
@@ -658,7 +666,7 @@ const en: DashDict = {
     invite: 'Invite',
   },
   command: {
-    modeSuper: 'Platform Command Center', modeAdmin: 'Organization Mission Control', modeUser: 'Personal Momentum', superTitle: 'Platform under control.', adminTitle: 'Organization in focus.', userTitle: 'Let’s go, {name}.', superDesc: 'See the system pulse, spot risks early, and manage change deliberately.', adminDesc: 'Bring your team, content, and inbound flow into one calm operating rhythm.', userDesc: 'One clear next step turns your project into reality.', godMode: 'Open God Mode', manageTeam: 'Manage team', nextAction: 'Next best action', projectPulse: 'Project pulse', sites: 'sites', live: 'live', signals: 'signals', platformPulse: 'Platform pulse', decisionInbox: 'Decision inbox', openPulse: 'View live pulse', openQueue: 'Open queue', teamQueue: 'Team queue', incoming: 'Incoming signals', pendingAccess: 'awaiting an access decision', submissionsAcrossSites: 'submissions across all your sites', openMembers: 'Open members', reviewIncoming: 'Review inbox', launchPath: 'Launch path', idea: 'Idea', design: 'Design', launch: 'Launch', inProgress: 'In progress', nextStep: 'Next step:', draftTip: 'review the homepage and publish the project when you are ready.', readiness: 'Launch readiness', starting: 'Starting the path', foundation: 'Foundation ready', almost: 'Almost live', thriving: 'Project in rhythm',
+    modeSuper: 'Platform Command Center', modeAdmin: 'Organization Mission Control', modeUser: 'Personal Momentum', superTitle: 'Platform under control.', adminTitle: 'Organization in focus.', userTitle: 'Let’s go, {name}.', superDesc: 'See the system pulse, spot risks early, and manage change deliberately.', adminDesc: 'Bring your team, content, and inbound flow into one calm operating rhythm.', userDesc: 'One clear next step turns your project into reality.', godMode: 'Open God Mode', manageTeam: 'Manage team', nextAction: 'Next best action', projectPulse: 'Project pulse', sites: 'sites', live: 'live', signals: 'signals', platformPulse: 'Platform pulse', decisionInbox: 'Decision inbox', openPulse: 'View live pulse', openQueue: 'Open queue', teamQueue: 'Team queue', incoming: 'Incoming signals', pendingAccess: 'awaiting an access decision', submissionsAcrossSites: 'submissions across all your sites', openMembers: 'Open members', reviewIncoming: 'Review inbox', launchPath: 'Launch path', idea: 'Idea', design: 'Design', launch: 'Launch', inProgress: 'In progress', nextStep: 'Next step:', draftTip: 'review the homepage and publish the project when you are ready.', readiness: 'Launch readiness', starting: 'Starting the path', foundation: 'Foundation ready', almost: 'Almost live', thriving: 'Project in rhythm', createFirstTitle: 'Create your first digital presence', createFirstDesc: 'Launch a site — the builder opens with a ready-made foundation.', createSite: 'Create site', readyTitle: 'Your site is ready to launch', readyDesc: 'Open the editor, check the details, and make your first release.', openStudio: 'Open studio', signalsWaitingTitle: 'New signals are waiting for you', strengthenFlowTitle: 'Grow your submission flow', openInboxDesc: 'Open your inbox and turn interest into results.', improveCtaDesc: 'Check the CTA and form, then bring in your first visitors.', openInbox: 'Open inbox', viewSubmissions: 'View submissions',
   },
   overview: {
     metaTitle: 'Overview',
@@ -858,6 +866,7 @@ const hy: DashDict = {
     users: 'Օգտատերեր',
     allSites: 'Բոլոր կայքերը',
     organizations: 'Կազմակերպություններ',
+    revenue: 'Կազմակերպությունների եկամուտ',
     database: 'Տվյալների բազա',
     control: 'Կառավարման կենտրոն',
     studio: 'Ստուդիա',
@@ -894,6 +903,7 @@ const hy: DashDict = {
       allSites: 'Հարթակի բոլոր կայքերը մեկ ցանկում։',
       audit: 'Գործողությունների և անվտանգության իրադարձությունների պատմություն։',
       organizations: 'Կազմակերպությունները, դրանց տվյալները և ադմինի նշանակումը։',
+      revenue: 'Կազմակերպությունների եկամուտը և վճարման հասանելի մնացորդները։',
       database: 'Տվյալների բազայի աղյուսակների դիտում և սպասարկում։',
       access: 'Դերերի հասանելիության մատրից՝ վահանակի բաժինների համար։',
       activity: 'Անձնակազմի ակտիվությունն իրական ժամանակում։',
@@ -951,7 +961,7 @@ const hy: DashDict = {
     invite: 'Հրավիրել',
   },
   command: {
-    modeSuper: 'Հարթակի հրամանատարական կենտրոն', modeAdmin: 'Կազմակերպության կառավարման կենտրոն', modeUser: 'Անձնական խթան', superTitle: 'Հարթակը վերահսկողության տակ է։', adminTitle: 'Կազմակերպությունը ուշադրության կենտրոնում է։', userTitle: 'Առաջ, {name}։', superDesc: 'Տեսեք համակարգի զարկերակը, շուտ նկատեք ռիսկերը և գիտակցված կառավարեք փոփոխությունները։', adminDesc: 'Միավորեք թիմը, բովանդակությունը և մուտքային հոսքը մեկ հանգիստ աշխատանքային ռիթմում։', userDesc: 'Մեկ հստակ հաջորդ քայլը ձեր նախագիծը կվերածի իրականության։', godMode: 'Բացել God Mode-ը', manageTeam: 'Կառավարել թիմը', nextAction: 'Հաջորդ լավագույն քայլը', projectPulse: 'Նախագծի ռիթմ', sites: 'կայք', live: 'ուղիղ եթերում', signals: 'ազդանշան', platformPulse: 'Հարթակի զարկերակ', decisionInbox: 'Որոշումների հերթ', openPulse: 'Դիտել կենդանի զարկերակը', openQueue: 'Բացել հերթը', teamQueue: 'Թիմի հերթ', incoming: 'Մուտքային ազդանշաններ', pendingAccess: 'սպասում են մուտքի որոշմանը', submissionsAcrossSites: 'հայտ ձեր բոլոր կայքերից', openMembers: 'Բացել մասնակիցներին', reviewIncoming: 'Դիտարկել մուտքայինները', launchPath: 'Գործարկման ուղի', idea: 'Գաղափար', design: 'Դիզայն', launch: 'Գործարկում', inProgress: 'Ընթացքի մեջ', nextStep: 'Հաջորդ քայլը՝', draftTip: 'ստուգեք գլխավոր էջը և հրապարակեք նախագիծը, երբ պատրաստ լինեք։', readiness: 'Գործարկման պատրաստվածություն', starting: 'Սկսում ենք ուղին', foundation: 'Հիմքը պատրաստ է', almost: 'Գրեթե գործարկված է', thriving: 'Նախագիծը ռիթմի մեջ է',
+    modeSuper: 'Հարթակի հրամանատարական կենտրոն', modeAdmin: 'Կազմակերպության կառավարման կենտրոն', modeUser: 'Անձնական խթան', superTitle: 'Հարթակը վերահսկողության տակ է։', adminTitle: 'Կազմակերպությունը ուշադրության կենտրոնում է։', userTitle: 'Առաջ, {name}։', superDesc: 'Տեսեք համակարգի զարկերակը, շուտ նկատեք ռիսկերը և գիտակցված կառավարեք փոփոխությունները։', adminDesc: 'Միավորեք թիմը, բովանդակությունը և մուտքային հոսքը մեկ հանգիստ աշխատանքային ռիթմում։', userDesc: 'Մեկ հստակ հաջորդ քայլը ձեր նախագիծը կվերածի իրականության։', godMode: 'Բացել God Mode-ը', manageTeam: 'Կառավարել թիմը', nextAction: 'Հաջորդ լավագույն քայլը', projectPulse: 'Նախագծի ռիթմ', sites: 'կայք', live: 'ուղիղ եթերում', signals: 'ազդանշան', platformPulse: 'Հարթակի զարկերակ', decisionInbox: 'Որոշումների հերթ', openPulse: 'Դիտել կենդանի զարկերակը', openQueue: 'Բացել հերթը', teamQueue: 'Թիմի հերթ', incoming: 'Մուտքային ազդանշաններ', pendingAccess: 'սպասում են մուտքի որոշմանը', submissionsAcrossSites: 'հայտ ձեր բոլոր կայքերից', openMembers: 'Բացել մասնակիցներին', reviewIncoming: 'Դիտարկել մուտքայինները', launchPath: 'Գործարկման ուղի', idea: 'Գաղափար', design: 'Դիզայն', launch: 'Գործարկում', inProgress: 'Ընթացքի մեջ', nextStep: 'Հաջորդ քայլը՝', draftTip: 'ստուգեք գլխավոր էջը և հրապարակեք նախագիծը, երբ պատրաստ լինեք։', readiness: 'Գործարկման պատրաստվածություն', starting: 'Սկսում ենք ուղին', foundation: 'Հիմքը պատրաստ է', almost: 'Գրեթե գործարկված է', thriving: 'Նախագիծը ռիթմի մեջ է', createFirstTitle: 'Ստեղծեք ձեր առաջին թվային ներկայությունը', createFirstDesc: 'Գործարկեք կայքը․ կառուցապատիչն անմիջապես կբացի պատրաստի հիմքը։', createSite: 'Ստեղծել կայք', readyTitle: 'Ձեր կայքը պատրաստ է գործարկման', readyDesc: 'Բացեք խմբագրիչը, ստուգեք մանրամասները և կատարեք առաջին թողարկումը։', openStudio: 'Բացել ստուդիան', signalsWaitingTitle: 'Նոր ազդանշաններն արդեն սպասում են ձեզ', strengthenFlowTitle: 'Ավելացրեք հայտերի հոսքը', openInboxDesc: 'Բացեք մուտքայինները և հետաքրքրությունը վերածեք արդյունքի։', improveCtaDesc: 'Ստուգեք CTA-ն ու ձևը, ապա բերեք առաջին այցելուներին։', openInbox: 'Բացել մուտքայինները', viewSubmissions: 'Դիտել հայտերը',
   },
   overview: {
     metaTitle: 'Ընդհանուր',

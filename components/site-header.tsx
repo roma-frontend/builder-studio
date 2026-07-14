@@ -183,6 +183,19 @@ export function SiteHeader({ initialUser }: { initialUser?: HeaderUser | null })
   // a skeleton), `null` = guest. Only probe the API when not seeded server-side.
   const [user, setUser] = useState<HeaderUser | null | undefined>(initialUser);
   const [logoutBusy, setLogoutBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setOpen(false);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   useEffect(() => {
     if (initialUser !== undefined) return; // already known from the server
     let alive = true;
@@ -213,12 +226,12 @@ export function SiteHeader({ initialUser }: { initialUser?: HeaderUser | null })
 
   const guestActions = (
     <>
-      <Link href="/login">
-        <Button variant="ghost" size="sm" className="gap-1.5"><LogIn className="h-4 w-4" /> {t.actions.login}</Button>
-      </Link>
-      <Link href="/register">
-        <Button size="sm" className="gap-1.5 shadow-lg"><Sparkles className="h-4 w-4" /> {t.actions.start}</Button>
-      </Link>
+      <Button asChild variant="ghost" size="sm" className="gap-1.5">
+        <Link href="/login"><LogIn className="h-4 w-4" /> {t.actions.login}</Link>
+      </Button>
+      <Button asChild size="sm" className="gap-1.5 shadow-lg">
+        <Link href="/register"><Sparkles className="h-4 w-4" /> {t.actions.start}</Link>
+      </Button>
     </>
   );
 
@@ -274,10 +287,12 @@ export function SiteHeader({ initialUser }: { initialUser?: HeaderUser | null })
           <LanguageSwitcher />
           <ThemeToggle />
           <button
+            type="button"
             onClick={() => setOpen((o) => !o)}
             aria-label={open ? t.a11y.closeMenu : t.a11y.openMenu}
             aria-expanded={open}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card/60 text-foreground"
+            aria-controls="mobile-navigation"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card/60 text-foreground transition-colors hover:border-primary/40 hover:bg-muted"
           >
             <AnimatePresence mode="wait" initial={false}>
               <motion.span
@@ -299,6 +314,7 @@ export function SiteHeader({ initialUser }: { initialUser?: HeaderUser | null })
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
+            id="mobile-navigation"
             key="mobile-panel"
             variants={mobileContainerV}
             initial="hidden"
@@ -330,9 +346,9 @@ export function SiteHeader({ initialUser }: { initialUser?: HeaderUser | null })
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Link href="/dashboard" onClick={() => setOpen(false)} className="flex-1">
-                      <Button variant="outline" size="sm" className="w-full gap-1.5"><LayoutDashboard className="h-4 w-4" /> {t.actions.dashboard}</Button>
-                    </Link>
+                    <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
+                      <Link href="/dashboard" onClick={() => setOpen(false)}><LayoutDashboard className="h-4 w-4" /> {t.actions.dashboard}</Link>
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={logout} disabled={logoutBusy} className="flex-1 gap-1.5 text-red-500 hover:bg-red-500/10 hover:text-red-500">
                       {logoutBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} {t.actions.logout}
                     </Button>
@@ -340,12 +356,12 @@ export function SiteHeader({ initialUser }: { initialUser?: HeaderUser | null })
                 </motion.div>
               ) : (
                 <motion.div variants={mobileRowV} className="mt-2 flex gap-2 border-t border-border/60 pt-3">
-                  <Link href="/login" onClick={() => setOpen(false)} className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full gap-1.5"><LogIn className="h-4 w-4" /> {t.actions.login}</Button>
-                  </Link>
-                  <Link href="/register" onClick={() => setOpen(false)} className="flex-1">
-                    <Button size="sm" className="w-full gap-1.5"><Sparkles className="h-4 w-4" /> {t.actions.start}</Button>
-                  </Link>
+                  <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
+                    <Link href="/login" onClick={() => setOpen(false)}><LogIn className="h-4 w-4" /> {t.actions.login}</Link>
+                  </Button>
+                  <Button asChild size="sm" className="flex-1 gap-1.5">
+                    <Link href="/register" onClick={() => setOpen(false)}><Sparkles className="h-4 w-4" /> {t.actions.start}</Link>
+                  </Button>
                 </motion.div>
               )}
             </motion.nav>

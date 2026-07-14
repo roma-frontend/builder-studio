@@ -13,6 +13,7 @@ import { OnboardingVideoTour } from '@/components/dashboard/onboarding-video-tou
 import { getLocale } from '@/lib/i18n';
 import { dashDict } from '@/lib/dashboard-dict';
 import { TourLauncher } from '@/components/tour/tour-launcher';
+import { WelcomeAutomation } from '@/components/dashboard/welcome-automation';
 
 export async function generateMetadata() {
   const t = dashDict(await getLocale());
@@ -20,10 +21,11 @@ export async function generateMetadata() {
 }
 export const dynamic = 'force-dynamic';
 
-export default async function DashboardOverview() {
+export default async function DashboardOverview({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/dashboard');
 
+  const welcome = (await searchParams).welcome === '1';
   const d = dashDict(await getLocale());
   const t = d.overview;
   const c = d.command;
@@ -40,15 +42,16 @@ export default async function DashboardOverview() {
   const platform = canUsers || canAllSites ? platformStats() : null;
   const roleMode = isSuperadmin(user) ? 'superadmin' : user.role === 'admin' ? 'admin' : 'customer';
   const nextAction = !stats.sites
-    ? { title: 'Создайте первую цифровую точку присутствия', description: 'Запустите сайт — конструктор сразу откроет готовую основу.', href: '/dashboard/sites', label: 'Создать сайт', Icon: Sparkles }
+    ? { title: c.createFirstTitle, description: c.createFirstDesc, href: '/dashboard/sites', label: c.createSite, Icon: Sparkles }
     : !stats.published
-      ? { title: 'Ваш сайт готов к запуску', description: 'Откройте редактор, проверьте детали и сделайте первый релиз.', href: `/studio/builder?site=${sites[0]?.id}`, label: 'Открыть студию', Icon: Rocket }
-      : { title: stats.submissions ? 'Новые сигналы уже ждут вас' : 'Усильте поток заявок', description: stats.submissions ? 'Откройте входящие и превратите интерес в результат.' : 'Проверьте CTA и форму, затем приведите первых посетителей.', href: '/dashboard/submissions', label: stats.submissions ? 'Открыть входящие' : 'Посмотреть заявки', Icon: Inbox };
+      ? { title: c.readyTitle, description: c.readyDesc, href: `/studio/builder?site=${sites[0]?.id}`, label: c.openStudio, Icon: Rocket }
+      : { title: stats.submissions ? c.signalsWaitingTitle : c.strengthenFlowTitle, description: stats.submissions ? c.openInboxDesc : c.improveCtaDesc, href: '/dashboard/submissions', label: stats.submissions ? c.openInbox : c.viewSubmissions, Icon: Inbox };
   const launchScore = stats.sites === 0 ? 0 : stats.published === 0 ? 55 : stats.submissions === 0 ? 82 : 100;
   const launchLabel = launchScore === 100 ? c.thriving : launchScore >= 80 ? c.almost : launchScore >= 50 ? c.foundation : c.starting;
 
   return (
     <>
+      {welcome && !isSuperadmin(user) && <WelcomeAutomation name={user.name} />}
       <section className={`relative mb-8 overflow-hidden rounded-3xl border p-6 sm:p-8 ${roleMode === 'superadmin' ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/15 via-card to-card' : roleMode === 'admin' ? 'border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card' : 'border-sky-500/25 bg-gradient-to-br from-sky-500/10 via-card to-card'}`}>
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -182,7 +185,7 @@ export default async function DashboardOverview() {
           ))}
         </div>
       )}
-      <TourLauncher tour="dashboard-overview" />
+      <TourLauncher tour="dashboard-overview" autoStart={!welcome} />
     </>
   );
 }

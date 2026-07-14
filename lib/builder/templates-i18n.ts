@@ -970,6 +970,9 @@ export function trc(s: string, locale: Locale): string {
 export const TEXT_PROPS = new Set([
   'text', 'alt', 'label', 'placeholder', 'submitText', 'successMsg', 'quote',
   'role', 'author', 'plan', 'cta', 'period', 'price', 'features', 'items', 'tabs', 'links', 'value',
+  // Effect-rich landing hero fields are ordinary user-authored copy too.
+  'badge', 'title', 'subtitle', 'ctaPrimaryLabel', 'ctaSecondaryLabel', 'microcopy',
+  'previewUrl', 'previewPublish',
 ]);
 
 /** Deep-clone a node tree translating known text-bearing props. */

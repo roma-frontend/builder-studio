@@ -8,6 +8,7 @@ import { LANDING_SLUG } from '@/lib/landing-site';
 import { notifySitePublished } from '@/lib/notify';
 import { getLocale } from '@/lib/i18n';
 import { apiErrors } from '@/lib/api-errors-dict';
+import { auditSiteReadiness } from '@/lib/site-readiness';
 
 export const runtime = 'nodejs';
 
@@ -55,7 +56,8 @@ export async function POST(_req: Request, { params }: Params) {
   publishSite(site);
   if (site.slug === LANDING_SLUG) await syncLandingTheme(doc.themeId);
   else if (firstPublish) notifySitePublished({ name: site.name, slug: site.slug, ownerEmail: user.email });
-  return NextResponse.json({ ok: true, publishedAt: new Date().toISOString() });
+  const readiness = auditSiteReadiness(doc);
+  return NextResponse.json({ ok: true, publishedAt: new Date().toISOString(), readiness });
 }
 
 export async function DELETE(_req: Request, { params }: Params) {

@@ -13,11 +13,13 @@ import { Rocket, Copy, Check, ExternalLink, Download, Share2, X, QrCode as QrIco
 import { Button } from '@/components/ui/button';
 import { useLocale } from '@/hooks/use-locale';
 import { usePrefersReducedMotion } from '@/hooks/use-media-query';
+import type { ReadinessIssueCode, ReadinessReport } from '@/lib/site-readiness';
 
 type Copy = {
   title: string; subtitle: string; landingTitle: string; landingSubtitle: string;
   open: string; copy: string; copied: string; download: string; share: string;
-  scan: string; close: string; shareText: string;
+  scan: string; close: string; shareText: string; readiness: string; checksPassed: string;
+  issues: Record<ReadinessIssueCode, string>;
 };
 
 const COPY: Record<'ru' | 'en' | 'hy', Copy> = {
@@ -28,7 +30,8 @@ const COPY: Record<'ru' | 'en' | 'hy', Copy> = {
     landingSubtitle: 'Главная страница «/» обновлена и доступна всем. Поделитесь:',
     open: 'Открыть сайт', copy: 'Копировать ссылку', copied: 'Скопировано', download: 'Скачать QR', share: 'Поделиться',
     scan: 'Наведите камеру телефона, чтобы открыть', close: 'Закрыть',
-    shareText: 'Смотрите мой новый сайт:',
+    shareText: 'Смотрите мой новый сайт:', readiness: 'Готовность к продвижению', checksPassed: 'проверок пройдено',
+    issues: { 'page-title': 'Добавьте понятный заголовок страницы', 'page-description': 'Заполните SEO-описание страницы', 'page-h1': 'Оставьте один главный H1 на странице', 'image-alt': 'Добавьте alt-текст изображениям', 'no-cta': 'Добавьте заметную кнопку действия', 'no-form': 'Добавьте форму для сбора заявок' },
   },
   en: {
     title: 'Your site is live! 🎉',
@@ -37,7 +40,8 @@ const COPY: Record<'ru' | 'en' | 'hy', Copy> = {
     landingSubtitle: 'Your home page “/” is updated and live. Share it:',
     open: 'Open site', copy: 'Copy link', copied: 'Copied', download: 'Download QR', share: 'Share',
     scan: 'Point your phone camera to open', close: 'Close',
-    shareText: 'Check out my new site:',
+    shareText: 'Check out my new site:', readiness: 'Marketing readiness', checksPassed: 'checks passed',
+    issues: { 'page-title': 'Add a clear page title', 'page-description': 'Add an SEO page description', 'page-h1': 'Keep exactly one primary H1 per page', 'image-alt': 'Add alt text to images', 'no-cta': 'Add a prominent call to action', 'no-form': 'Add a lead capture form' },
   },
   hy: {
     title: 'Ձեր կայքը եթերում է! 🎉',
@@ -46,24 +50,30 @@ const COPY: Record<'ru' | 'en' | 'hy', Copy> = {
     landingSubtitle: 'Գլխավոր «/» էջը թարմացվեց և հասանելի է բոլորին։ Կիսվեք՝',
     open: 'Բացել կայքը', copy: 'Պատճենել հղումը', copied: 'Պատճենվեց', download: 'Ներբեռնել QR', share: 'Կիսվել',
     scan: 'Ուղղեք հեռախոսի տեսախցիկը՝ բացելու համար', close: 'Փակել',
-    shareText: 'Տեսեք իմ նոր կայքը՝',
+    shareText: 'Տեսեք իմ նոր կայքը՝', readiness: 'Մարքեթինգային պատրաստվածություն', checksPassed: 'ստուգում անցած է',
+    issues: { 'page-title': 'Ավելացրեք հասկանալի էջի վերնագիր', 'page-description': 'Լրացրեք էջի SEO նկարագրությունը', 'page-h1': 'Թողեք մեկ հիմնական H1 էջում', 'image-alt': 'Ավելացրեք alt տեքստ պատկերներին', 'no-cta': 'Ավելացրեք գործողության նկատելի կոճակ', 'no-form': 'Ավելացրեք հայտերի ձև' },
   },
 };
 
 const CONFETTI_COLORS = ['#6366f1', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#38bdf8'];
 
 function Confetti() {
-  // ~48 lightweight pieces bursting from the top-center; pure framer, GPU-cheap.
+  // Deterministic pseudo-random layout keeps the burst lively while preserving
+  // render purity and stable hydration.
   const pieces = useMemo(
-    () => Array.from({ length: 48 }, (_, i) => ({
-      id: i,
-      x: (Math.random() - 0.5) * 520,
-      rot: Math.random() * 720 - 360,
-      delay: Math.random() * 0.25,
-      dur: 1.6 + Math.random() * 1.2,
-      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      size: 6 + Math.random() * 6,
-    })),
+    () => Array.from({ length: 48 }, (_, i) => {
+      const wave = (i * 73 + 19) % 101;
+      const spin = (i * 137 + 41) % 181;
+      return {
+        id: i,
+        x: (wave / 100 - 0.5) * 520,
+        rot: spin * 4 - 360,
+        delay: ((i * 17) % 25) / 100,
+        dur: 1.6 + ((i * 29) % 120) / 100,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        size: 6 + ((i * 11) % 60) / 10,
+      };
+    }),
     [],
   );
   return (
@@ -82,9 +92,9 @@ function Confetti() {
 }
 
 export function PublishCelebration({
-  open, onClose, liveUrl, isLanding = false,
+  open, onClose, liveUrl, isLanding = false, readiness,
 }: {
-  open: boolean; onClose: () => void; liveUrl: string; isLanding?: boolean;
+  open: boolean; onClose: () => void; liveUrl: string; isLanding?: boolean; readiness?: ReadinessReport;
 }) {
   const { locale } = useLocale();
   const c = COPY[(locale as 'ru' | 'en' | 'hy')] ?? COPY.en;
@@ -138,7 +148,7 @@ export function PublishCelebration({
         >
           <button className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-label={c.close} onClick={onClose} />
           <motion.div
-            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-border/70 bg-background/95 p-6 shadow-2xl backdrop-blur-xl"
+            className="relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-border/70 bg-background/95 p-6 shadow-2xl backdrop-blur-xl"
             initial={{ opacity: 0, y: 24, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 300, damping: 26 }}
           >
@@ -163,6 +173,17 @@ export function PublishCelebration({
                   {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
                 </button>
               </div>
+
+              {readiness && (
+                <div className="mt-4 w-full rounded-2xl border border-border bg-card/60 p-4 text-left">
+                  <div className="flex items-center justify-between gap-3">
+                    <div><p className="text-sm font-bold">{c.readiness}</p><p className="text-xs text-muted-foreground">{readiness.passed}/{readiness.total} {c.checksPassed}</p></div>
+                    <strong className={`text-2xl font-black ${readiness.score >= 80 ? 'text-emerald-500' : readiness.score >= 60 ? 'text-amber-500' : 'text-red-500'}`}>{readiness.score}%</strong>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${readiness.score >= 80 ? 'bg-emerald-500' : readiness.score >= 60 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${readiness.score}%` }} /></div>
+                  {readiness.issues.length > 0 && <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">{readiness.issues.slice(0, 3).map((issue, i) => <li key={`${issue.code}-${issue.page}-${i}`} className="flex gap-2"><span className="text-amber-500">•</span><span>{c.issues[issue.code]} — {issue.page}</span></li>)}</ul>}
+                </div>
+              )}
 
               {/* QR */}
               <div className="mt-4 rounded-2xl border border-border bg-white p-3 shadow-sm">

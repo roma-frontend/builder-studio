@@ -12,10 +12,11 @@ export async function generateMetadata() {
 }
 export const dynamic = 'force-dynamic';
 
-export default async function SitesPage() {
+export default async function SitesPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/dashboard/sites');
 
+  const autoCreate = (await searchParams).new === '1';
   const owned = listSitesForUser(user.id);
   const pending = pendingCountsBySite(owned.map((s) => s.id));
   const sites = owned.map((s) => ({
@@ -28,5 +29,5 @@ export default async function SitesPage() {
     liveUrl: siteUrl(s.slug),
   }));
 
-  return <DashboardClient initialSites={sites} canInvite={!isSuperadmin(user)} />;
+  return <DashboardClient initialSites={sites} canInvite={!isSuperadmin(user)} autoCreate={autoCreate} userName={user.name} />;
 }

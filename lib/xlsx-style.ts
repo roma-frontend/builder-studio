@@ -4,13 +4,14 @@
 
 import 'server-only';
 import XLSX from 'xlsx-js-style';
+import { spreadsheetSafeCell, spreadsheetSafeRows } from '@/lib/spreadsheet-safe';
 
 const BRAND = '4F46E5'; // header fill, close to the platform primary (oklch 0.55 0.18 265)
 const BORDER = 'D9DEE8';
 const ZEBRA = 'F5F7FB';
 
 export function buildStyledWorkbook(sheetName: string, header: string[], rows: unknown[][]): Buffer {
-  const data = [header, ...rows.map((r) => r.map((v) => v ?? ''))];
+  const data = [header.map((v) => String(spreadsheetSafeCell(v))), ...spreadsheetSafeRows(rows)];
   const ws = XLSX.utils.aoa_to_sheet(data);
   const range = XLSX.utils.decode_range(ws['!ref']!);
   const thin = { style: 'thin', color: { rgb: BORDER } };

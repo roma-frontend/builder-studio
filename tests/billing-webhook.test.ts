@@ -74,10 +74,16 @@ describe('renderInvoicePdf', () => {
   });
 });
 
+const WEBHOOK_SECRET = 'whsec_test_only';
+
 async function postStripeEvent(event: Record<string, unknown>) {
+  const payload = JSON.stringify(event);
+  const timestamp = Math.floor(Date.now() / 1000);
+  process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
   return billingWebhook(new Request('http://localhost/api/billing/webhook', {
     method: 'POST',
-    body: JSON.stringify(event),
+    headers: { 'stripe-signature': sign(payload, WEBHOOK_SECRET, timestamp) },
+    body: payload,
   }));
 }
 
@@ -91,6 +97,21 @@ async function seedTenantBilling() {
 }
 
 describe('Stripe webhook tenant member subscriptions', () => {
+  it('fails closed when the webhook secret is not configured', async () => {
+    const previous = process.env.STRIPE_WEBHOOK_SECRET;
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    try {
+      const res = await billingWebhook(new Request('http://localhost/api/billing/webhook', {
+        method: 'POST',
+        body: JSON.stringify({ id: 'evt_unsigned', type: 'invoice.paid', data: { object: {} } }),
+      }));
+      expect(res.status).toBe(503);
+    } finally {
+      if (previous === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
+      else process.env.STRIPE_WEBHOOK_SECRET = previous;
+    }
+  });
+
   it('activates a member subscription and records org revenue from checkout.session.completed', async () => {
     const { site, member, plan } = await seedTenantBilling();
     const res = await postStripeEvent({

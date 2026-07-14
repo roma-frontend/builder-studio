@@ -43,8 +43,6 @@ export default async function MembersRouterPage() {
   if (isSuperadmin(user)) redirect('/dashboard/organizations');
 
   const owned = listSitesForUser(user.id);
-  // Straight to the members list when there's exactly one organization.
-  if (owned.length === 1) redirect(`/dashboard/sites/${owned[0].id}#members`);
 
   const locale = await getLocale();
   const t = COPY[locale] ?? COPY.en;
@@ -76,7 +74,7 @@ export default async function MembersRouterPage() {
             return (
               <li key={s.id}>
                 <Link
-                  href={`/dashboard/sites/${s.id}#members`}
+                  href={`/dashboard/sites/${s.id}?tab=members`}
                   className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/50 px-4 py-3 transition hover:border-primary/40 hover:bg-muted/40"
                 >
                   <span className="flex min-w-0 items-center gap-3">

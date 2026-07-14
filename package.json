@@ -11,6 +11,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "verify:quick": "npm run lint && npm run typecheck",
+    "verify": "npm run verify:quick && npm run test:coverage && npm run build && npm run perf:budget",
     "media": "node scripts/media-pipeline/run.mjs",
     "media:list": "node scripts/media-pipeline/list.mjs",
     "onboarding:video": "node scripts/onboarding-video.mjs",

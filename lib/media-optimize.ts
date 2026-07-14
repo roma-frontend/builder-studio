@@ -5,7 +5,8 @@ import 'server-only';
 // bundled ffmpeg (ffmpeg-static) — the same engine the media pipeline uses:
 //   images → .webp (quality 80, max 1600px)
 //   videos → .webm (VP9 CRF 34, max 1280px) + a JPG poster
-// SVG is passed through untouched (already a compact vector).
+// Active formats such as SVG are rejected by the API: serving an attacker-
+// controlled SVG from our own origin can become stored XSS when opened directly.
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -47,7 +48,7 @@ async function finalize(localAbsPath: string, name: string): Promise<string> {
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska'];
-export const ACCEPTED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES, 'image/svg+xml'];
+export const ACCEPTED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES];
 
 async function resolveFfmpeg(): Promise<string> {
   try {

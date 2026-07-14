@@ -2,15 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the auth layer so we don't need a live request/cookie context.
 const getCurrentUser = vi.fn();
+const capabilityEnabled = vi.fn();
 vi.mock('@/lib/auth', () => ({
   getCurrentUser: () => getCurrentUser(),
   isStaff: (u: { role?: string } | null) => u?.role === 'admin' || u?.role === 'superadmin',
+  isSuperadmin: (u: { role?: string } | null) => u?.role === 'superadmin',
+}));
+vi.mock('@/lib/access', () => ({
+  isCapabilityEnabled: (...args: unknown[]) => capabilityEnabled(...args),
 }));
 
-import { unauthorized, forbidden, requireUser, requireStaff } from '@/lib/api-guard';
+import { unauthorized, forbidden, requireUser, requireStaff, requireCapability } from '@/lib/api-guard';
 
 beforeEach(() => {
   getCurrentUser.mockReset();
+  capabilityEnabled.mockReset();
+  capabilityEnabled.mockReturnValue(true);
 });
 
 describe('response helpers', () => {
@@ -49,5 +56,23 @@ describe('requireStaff', () => {
   it('rejects signed out', async () => {
     getCurrentUser.mockResolvedValue(null);
     expect(await requireStaff()).toBeNull();
+  });
+});
+
+describe('requireCapability', () => {
+  it('returns staff when the capability is enabled', async () => {
+    getCurrentUser.mockResolvedValue({ id: 'u1', role: 'admin' });
+    expect(await requireCapability('organizations')).toEqual({ id: 'u1', role: 'admin' });
+    expect(capabilityEnabled).toHaveBeenCalledWith('admin', 'organizations');
+  });
+
+  it('rejects disabled capabilities and non-staff users', async () => {
+    getCurrentUser.mockResolvedValue({ id: 'u1', role: 'admin' });
+    capabilityEnabled.mockReturnValue(false);
+    expect(await requireCapability('revenue')).toBeNull();
+
+    getCurrentUser.mockResolvedValue({ id: 'u2', role: 'customer' });
+    capabilityEnabled.mockReturnValue(true);
+    expect(await requireCapability('revenue')).toBeNull();
   });
 });

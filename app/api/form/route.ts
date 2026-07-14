@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSiteBySlug, getSiteByHostname, addSubmission, APP_HOST, getSite } from '@/lib/sites';
+import { getSiteBySlug, getSiteByHostname, addSubmission, submissionCount, APP_HOST, getSite } from '@/lib/sites';
 import { getSiteUser } from '@/lib/site-auth';
 import { getDb, users } from '@/lib/db';
 import { getLocale } from '@/lib/i18n';
@@ -98,9 +98,10 @@ export async function POST(request: Request) {
     const siteId = resolveSiteId(request);
     // Attach the logged-in end-user (if any) so it shows up in their account history.
     const siteUserId = siteId ? (await getSiteUser(siteId))?.id ?? null : null;
+    const first = siteId ? submissionCount(siteId) === 0 : false;
     addSubmission(siteId, formId, payload, siteUserId);
     // Real-time: notify the owner's open dashboard tabs (best-effort, in-process).
-    if (siteId) publishSubmission({ siteId, formId, at: new Date().toISOString() });
+    if (siteId) publishSubmission({ siteId, siteName: getSite(siteId)?.name, formId, first, at: new Date().toISOString() });
     if (siteId) await emailSiteOwner(siteId, formId, payload);
     // Telegram: notify the platform owner of a new lead (best-effort, gated).
     notifySubmission({ siteName: siteId ? getSite(siteId)?.name : undefined, formId, fields: payload });

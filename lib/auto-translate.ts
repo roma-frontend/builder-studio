@@ -26,6 +26,9 @@ import type { BuilderDoc, BuilderNode, BuilderPage } from '@/lib/builder/types';
  */
 
 const CYRILLIC = /[А-Яа-яЁё]/;
+const ARMENIAN = /[Ա-Ֆա-ֆև]/;
+const LATIN = /[A-Za-z]/;
+const URL_OR_EMAIL = /^(?:https?:\/\/|mailto:|tel:|\/|#)|^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 const MT_TIMEOUT_MS = 8000;
 
 function keyFor(locale: Locale, source: string): string {
@@ -56,10 +59,9 @@ function cacheSet(id: string, locale: Locale, source: string, translated: string
   }
 }
 
-/** Free, keyless machine translation via Google's public gtx endpoint. */
+/** Free, keyless machine translation with automatic source-language detection. */
 async function machineTranslate(text: string, locale: Locale): Promise<string | null> {
-  const tl = locale === 'en' ? 'en' : 'hy';
-  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${locale}&dt=t&q=${encodeURIComponent(text)}`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(MT_TIMEOUT_MS) });
     if (!res.ok) return null;
@@ -84,8 +86,12 @@ async function translateAtom(s: string, locale: Locale): Promise<string> {
   const dict = trc(t, locale);
   if (dict !== t) return s.replace(t, dict);
 
-  // Skip non-Russian / numeric-symbol strings (urls, prices, "24/7", …).
-  if (!CYRILLIC.test(t) || NUMERIC.test(t)) return s;
+  // Skip values that are not prose and text already written in the target script.
+  if (NUMERIC.test(t) || URL_OR_EMAIL.test(t)) return s;
+  if (locale === 'ru' && CYRILLIC.test(t) && !ARMENIAN.test(t)) return s;
+  if (locale === 'hy' && ARMENIAN.test(t)) return s;
+  if (locale === 'en' && LATIN.test(t) && !CYRILLIC.test(t) && !ARMENIAN.test(t)) return s;
+  if (!CYRILLIC.test(t) && !ARMENIAN.test(t) && !LATIN.test(t)) return s;
 
   // 2. persistent cache
   const id = keyFor(locale, t);
@@ -104,7 +110,7 @@ async function translateAtom(s: string, locale: Locale): Promise<string> {
  * lists, "Q::A" pairs, "Label|url" socials) but with the MT+cache fallback.
  */
 export async function translateAuto(s: string, locale: Locale): Promise<string> {
-  if (locale === 'ru' || !s) return s;
+  if (!s) return s;
   if (s.includes('\n')) {
     const lines = await Promise.all(s.split('\n').map((l) => translateAuto(l, locale)));
     return lines.join('\n');
@@ -126,7 +132,6 @@ export async function translateAuto(s: string, locale: Locale): Promise<string> 
 
 /** Deep-clone a node tree, auto-translating known text-bearing props. */
 export async function translateNodeAuto(node: BuilderNode, locale: Locale): Promise<BuilderNode> {
-  if (locale === 'ru') return node;
   const props: Record<string, string> = {};
   await Promise.all(
     Object.entries(node.props ?? {}).map(async ([k, v]) => {
@@ -145,7 +150,6 @@ export async function translateNodeAuto(node: BuilderNode, locale: Locale): Prom
 
 /** Deep-clone a page, auto-translating its title, description and block tree. */
 export async function translatePageAuto(page: BuilderPage, locale: Locale): Promise<BuilderPage> {
-  if (locale === 'ru') return page;
   const [title, description, blocks] = await Promise.all([
     translateAuto(page.title, locale),
     page.description ? translateAuto(page.description, locale) : Promise.resolve(page.description),
@@ -163,7 +167,6 @@ export async function translatePageAuto(page: BuilderPage, locale: Locale): Prom
  * with the translatable strings replaced; hrefs, styles and ids are preserved.
  */
 export async function translateDocChrome(doc: BuilderDoc, locale: Locale): Promise<BuilderDoc> {
-  if (locale === 'ru') return doc;
   const [nav, footerText, footerLinks, headerCtaText, pages] = await Promise.all([
     Promise.all(doc.nav.map(async (l) => ({ ...l, label: await translateAuto(l.label, locale) }))),
     translateAuto(doc.footer.text, locale),

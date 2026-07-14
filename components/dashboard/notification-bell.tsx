@@ -15,6 +15,8 @@ import { playChime } from '@/components/dashboard/chime';
 import { usePref } from '@/hooks/use-user-prefs';
 import { useLocale } from '@/hooks/use-locale';
 import { dashDict } from '@/lib/dashboard-dict';
+import { FirstLeadCelebration } from '@/components/dashboard/first-lead-celebration';
+import type { NotifyEvent } from '@/lib/realtime';
 
 const SUBMISSIONS_PATH = '/dashboard/submissions';
 
@@ -24,6 +26,7 @@ export function NotificationBell({ initialCount }: { initialCount: number }) {
   const t = dashDict(useLocale().locale);
   // Total events the client knows about (server snapshot + live bumps).
   const [count, setCount] = useState(initialCount);
+  const [firstLead, setFirstLead] = useState<string | null>(null);
   // DB-backed "seen up to this total". Fallback = initialCount so a first-ever
   // load never blinks for historical items — only genuinely new ones do.
   const [seen, setSeen] = usePref<number>('notif-seen', initialCount);
@@ -39,7 +42,11 @@ export function NotificationBell({ initialCount }: { initialCount: number }) {
     let es: EventSource | null = null;
     try {
       es = new EventSource('/api/notifications/stream');
-      es.addEventListener('notify', () => {
+      es.addEventListener('notify', (event) => {
+        try {
+          const data = JSON.parse((event as MessageEvent<string>).data) as NotifyEvent;
+          if (data.kind === 'submission' && data.first) setFirstLead(data.siteName || 'Website');
+        } catch { /* malformed event: the counter still updates */ }
         setCount((c) => {
           const next = c + 1;
           if (next > seenRef.current) playChime();
@@ -69,6 +76,7 @@ export function NotificationBell({ initialCount }: { initialCount: number }) {
   const label = t.nav.notifications ?? 'Notifications';
 
   return (
+    <>
     <button
       type="button"
       onClick={onClick}
@@ -86,5 +94,7 @@ export function NotificationBell({ initialCount }: { initialCount: number }) {
         </span>
       )}
     </button>
+    {firstLead && <FirstLeadCelebration siteName={firstLead} onClose={() => setFirstLead(null)} />}
+    </>
   );
 }

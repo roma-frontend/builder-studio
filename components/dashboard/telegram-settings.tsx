@@ -66,7 +66,10 @@ export function TelegramSettings() {
       setLoading(false);
     }
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const flash = (t: Toast) => { setToast(t); if (t) setTimeout(() => setToast(null), 4000); };
 

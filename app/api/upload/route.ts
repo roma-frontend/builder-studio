@@ -16,6 +16,12 @@ export async function POST(request: Request) {
   // Uploads burn ffmpeg CPU and disk — signed-in platform users only.
   if (!(await requireUser())) return unauthorized();
   const t = apiErrors(await getLocale());
+  const declaredLength = Number(request.headers.get('content-length') || 0);
+  // Reject oversized multipart bodies before buffering them in memory. Leave a
+  // small allowance for multipart boundaries and field headers.
+  if (Number.isFinite(declaredLength) && declaredLength > MAX + 1024 * 1024) {
+    return NextResponse.json({ error: t.fileTooLarge }, { status: 413 });
+  }
 
   let file: File | null = null;
   try {
@@ -29,7 +35,7 @@ export async function POST(request: Request) {
   if (!ACCEPTED_TYPES.includes(file.type)) {
     return NextResponse.json({ error: t.unsupportedFormat }, { status: 400 });
   }
-  if (file.size > MAX) return NextResponse.json({ error: t.fileTooLarge }, { status: 400 });
+  if (file.size > MAX) return NextResponse.json({ error: t.fileTooLarge }, { status: 413 });
 
   try {
     const result = await optimizeUpload(file);

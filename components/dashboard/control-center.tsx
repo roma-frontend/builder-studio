@@ -250,10 +250,14 @@ export function ControlCenter({ meId, stats, system, activity, sessions, users, 
       })()}
 
       {/* Tabs */}
-      <div className="mb-6 flex flex-wrap gap-1 rounded-xl border border-border/60 bg-muted/30 p-1">
+      <div role="tablist" aria-label={cc.title} className="mb-6 flex flex-wrap gap-1 rounded-xl border border-border/60 bg-muted/30 p-1">
         {TAB_DEFS.map((tb) => (
           <button
             key={tb.id}
+            id={`control-tab-${tb.id}`}
+            role="tab"
+            aria-selected={tab === tb.id}
+            tabIndex={tab === tb.id ? 0 : -1}
             onClick={() => setTab(tb.id)}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${tab === tb.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >

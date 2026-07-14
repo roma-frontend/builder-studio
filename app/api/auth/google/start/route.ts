@@ -21,7 +21,9 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const nextParam = url.searchParams.get('next');
-  const next = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard';
+  // Reject protocol-relative URLs (`//evil.example`), which URL resolves as an
+  // external host even when a trusted base URL is supplied.
+  const next = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/dashboard';
 
   const state = randomBytes(16).toString('base64url');
   const jar = await cookies();

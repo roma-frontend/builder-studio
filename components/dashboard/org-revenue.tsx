@@ -36,7 +36,7 @@ async function api(method: 'GET' | 'POST', body?: Record<string, unknown>, qs = 
   return res.json().catch(() => ({}));
 }
 
-export function OrgRevenue() {
+export function OrgRevenue({ canEdit = true }: { canEdit?: boolean }) {
   const locale = useLocale().locale as keyof typeof DICT;
   const t = DICT[locale] ?? DICT.en;
   const [orgs, setOrgs] = useState<OrgBilling[]>([]);
@@ -53,7 +53,10 @@ export function OrgRevenue() {
     if (typeof d.feePercent === 'number') setFeePercent(d.feePercent);
     setLoading(false);
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   const money = (cents: number, cur: string) =>
     new Intl.NumberFormat(locale === 'hy' ? 'hy-AM' : locale, { style: 'currency', currency: cur.toUpperCase(), maximumFractionDigits: 2 }).format(cents / 100);
@@ -106,7 +109,7 @@ export function OrgRevenue() {
                   <td className="py-2.5 px-3 text-muted-foreground">{money(o.paidOutCents, o.currency)}</td>
                   <td className="py-2.5 px-3 font-semibold">{money(o.balanceCents, o.currency)}</td>
                   <td className="py-2.5 pl-3 text-right">
-                    <Button size="sm" variant="outline" disabled={o.balanceCents <= 0} onClick={() => openPay(o)} className="gap-1.5">{t.pay}</Button>
+                    {canEdit && <Button size="sm" variant="outline" disabled={o.balanceCents <= 0} onClick={() => openPay(o)} className="gap-1.5">{t.pay}</Button>}
                   </td>
                 </tr>
               ))}
@@ -115,7 +118,7 @@ export function OrgRevenue() {
         </div>
       )}
 
-      {payFor && (
+      {canEdit && payFor && (
         <div className="mt-5 space-y-3 rounded-xl border border-border bg-background/60 p-4">
           <p className="text-sm font-semibold">{t.payTitle} — {payFor.siteName}</p>
           <div className="flex flex-wrap gap-3">

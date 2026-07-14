@@ -6,6 +6,7 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isStaff, isSuperadmin } from '@/lib/auth';
+import { isCapabilityEnabled, type CapabilityKey } from '@/lib/access';
 import type { User } from '@/lib/db';
 
 export function unauthorized(): NextResponse {
@@ -35,4 +36,10 @@ export async function requireStaff(): Promise<User | null> {
 export async function requireSuperadmin(): Promise<User | null> {
   const user = await getCurrentUser();
   return user && isSuperadmin(user) ? user : null;
+}
+
+/** Staff member with an enabled delegated capability, or null. */
+export async function requireCapability(capability: CapabilityKey): Promise<User | null> {
+  const user = await getCurrentUser();
+  return user && isStaff(user) && isCapabilityEnabled(user.role, capability) ? user : null;
 }

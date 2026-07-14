@@ -29,7 +29,7 @@ import { LanguageSwitcher } from '../language-switcher';
 export type Role = 'customer' | 'admin' | 'superadmin';
 export interface ShellUser { name: string; email: string; role: Role; handle?: string }
 
-type NavKey = 'overview' | 'sites' | 'organization' | 'submissions' | 'account' | 'users' | 'allSites' | 'audit' | 'organizations' | 'database' | 'access' | 'activity' | 'control' | 'studio' | 'trash' | 'billing' | 'billingAdmin' | 'notifications' | 'themes' | 'presets' | 'members';
+type NavKey = 'overview' | 'sites' | 'organization' | 'submissions' | 'account' | 'users' | 'allSites' | 'audit' | 'organizations' | 'revenue' | 'database' | 'access' | 'activity' | 'control' | 'studio' | 'trash' | 'billing' | 'billingAdmin' | 'notifications' | 'themes' | 'presets' | 'members';
 interface NavItem { href: string; key: NavKey; icon: React.ComponentType<{ className?: string }>; staff?: boolean; super?: boolean; external?: boolean; notSuper?: boolean }
 
 const NAV: NavItem[] = [
@@ -47,6 +47,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard/users', key: 'users', icon: Users, staff: true },
   { href: '/dashboard/all-sites', key: 'allSites', icon: LayoutList, staff: true },
   { href: '/dashboard/audit', key: 'audit', icon: ScrollText, staff: true },
+  { href: '/dashboard/revenue', key: 'revenue', icon: CreditCard, staff: true },
   { href: '/dashboard/organizations', key: 'organizations', icon: Building2, super: true },
   { href: '/dashboard/database', key: 'database', icon: Database, super: true },
   { href: '/dashboard/access', key: 'access', icon: KeyRound, super: true },
@@ -446,12 +447,12 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
           <div className="ml-auto flex items-center gap-2">
             {!gated && (
               <>
-                <Link href="/dashboard/sites">
-                  <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> <span className="hidden sm:inline">{t.newSite}</span></Button>
-                </Link>
-                <Link href="/" target="_blank" className="hidden sm:block">
-                  <Button size="sm" variant="outline" className="gap-1.5">{t.site} <ExternalLink className="h-4 w-4" /></Button>
-                </Link>
+                <Button asChild size="sm" className="gap-1.5">
+                  <Link href="/dashboard/sites?new=1"><Plus className="h-4 w-4" /> <span className="hidden sm:inline">{t.newSite}</span></Link>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="hidden gap-1.5 sm:inline-flex">
+                  <Link href="/" target="_blank">{t.site} <ExternalLink className="h-4 w-4" /></Link>
+                </Button>
               </>
             )}
             <LanguageSwitcher />
@@ -461,7 +462,7 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
           {banner}
           <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
             {/* Smooth content reveal on every sidebar navigation. Keyed by the

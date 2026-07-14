@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSuperadmin } from '@/lib/auth';
+import { requireCapability } from '@/lib/api-guard';
 import { listAllSiteUsers, assignSiteUserOrg, setSiteUserStatus, listAllSites } from '@/lib/admin';
 import { recordAudit } from '@/lib/audit';
 import { getLocale } from '@/lib/i18n';
@@ -11,8 +12,8 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   const t = apiErrors(await getLocale());
-  const me = await getCurrentUser();
-  if (!me || !isSuperadmin(me)) return NextResponse.json({ error: t.forbidden }, { status: 403 });
+  const me = await requireCapability('tenantUsers');
+  if (!me) return NextResponse.json({ error: t.forbidden }, { status: 403 });
   return NextResponse.json({
     users: listAllSiteUsers(),
     organizations: listAllSites().map((s) => ({ id: s.id, name: s.name, slug: s.slug })),

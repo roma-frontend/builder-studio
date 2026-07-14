@@ -47,7 +47,7 @@ export function LanguageSwitcher() {
         title={t.a11y.language}
         className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card/60 px-2.5 text-xs font-bold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
       >
-        <Globe className="h-4 w-4" />
+        <Globe aria-hidden className="h-4 w-4" />
         {META[locale].short}
       </button>
 
@@ -71,7 +71,7 @@ export function LanguageSwitcher() {
             >
               <span className="text-base leading-none">{META[l].flag}</span>
               <span className="flex-1 text-left">{META[l].name}</span>
-              {l === locale && <Check className="h-3.5 w-3.5 text-primary" />}
+              {l === locale && <Check aria-hidden className="h-3.5 w-3.5 text-primary" />}
             </button>
           ))}
         </div>

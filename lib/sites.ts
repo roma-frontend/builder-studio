@@ -269,6 +269,15 @@ export function addSubmission(siteId: string | null, formId: string, data: Recor
     .run();
 }
 
+export function submissionCount(siteId: string): number {
+  const row = getDb()
+    .select({ n: sql<number>`count(*)` })
+    .from(submissions)
+    .where(eq(submissions.siteId, siteId))
+    .get();
+  return Number(row?.n ?? 0);
+}
+
 export function listSubmissions(siteId: string, limit = 200) {
   return getDb()
     .select()

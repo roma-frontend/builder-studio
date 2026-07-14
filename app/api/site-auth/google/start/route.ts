@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { getDb, sites } from '@/lib/db';
+import { APP_HOST, getSiteByHostname } from '@/lib/sites';
 import { getGoogleConfig, buildGoogleAuthUrl, getSiteGoogleRedirectUri, platformBase } from '@/lib/google-auth';
 
 export const runtime = 'nodejs';
@@ -27,14 +28,22 @@ export async function GET(request: Request) {
   if (!getGoogleConfig().configured) return fail('google_not_configured');
   if (!siteId) return fail('google_bad_request');
 
-  const site = getDb().select({ id: sites.id }).from(sites).where(eq(sites.id, siteId)).get();
+  const site = getDb().select({ id: sites.id, slug: sites.slug }).from(sites).where(eq(sites.id, siteId)).get();
   if (!site) return fail('google_bad_request');
 
-  // Only allow returning to an absolute http(s) URL (the tenant site page).
+  // Bind the return URL to this exact tenant. Merely requiring HTTP(S) would
+  // allow an attacker-controlled host to receive the one-time handoff token.
   let next = '';
   try {
     const u = new URL(nextParam);
-    if (u.protocol === 'http:' || u.protocol === 'https:') next = u.toString();
+    const appHostname = APP_HOST.split(':')[0];
+    const sitePath = `/s/${encodeURIComponent(site.slug)}`;
+    const pathSite = u.hostname === appHostname && (u.pathname === sitePath || u.pathname.startsWith(`${sitePath}/`));
+    const subdomainSite = u.hostname.endsWith(`.${appHostname}`) && u.hostname.slice(0, -(appHostname.length + 1)) === site.slug;
+    const customDomainSite = getSiteByHostname(u.hostname)?.id === siteId;
+    if ((u.protocol === 'http:' || u.protocol === 'https:') && (pathSite || subdomainSite || customDomainSite)) {
+      next = u.toString();
+    }
   } catch { /* invalid */ }
   if (!next) return fail('google_bad_request');
 

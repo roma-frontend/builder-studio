@@ -49,6 +49,9 @@ ENV DATABASE_FILE=/data/app.db
 EXPOSE 3000
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh \
+  && mkdir -p /data \
+  && chown -R node:node /app /data /docker-entrypoint.sh
+USER node
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["npm", "run", "start"]

@@ -18,6 +18,12 @@ export const CAPABILITIES = [
   { key: 'users', kind: 'nav' },
   { key: 'allSites', kind: 'nav' },
   { key: 'audit', kind: 'nav' },
+  // Read-only operational areas. Mutating actions remain superadmin-only in
+  // their API routes even when a delegated admin can view the section.
+  { key: 'organizations', kind: 'nav' },
+  { key: 'tenantUsers', kind: 'permission' },
+  { key: 'sessions', kind: 'permission' },
+  { key: 'revenue', kind: 'nav' },
 ] as const;
 
 export type CapabilityKey = (typeof CAPABILITIES)[number]['key'];

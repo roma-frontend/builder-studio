@@ -22,6 +22,7 @@ import { THEMES, getTheme, themeCss } from '@/lib/themes';
 import { RenderNode } from '@/components/builder/render-node';
 import { TourLauncher } from '@/components/tour/tour-launcher';
 import { PublishCelebration } from '@/components/dashboard/publish-celebration';
+import type { ReadinessReport } from '@/lib/site-readiness';
 import { RevealDisabled } from '@/components/builder/reveal';
 import { Header as ChromeHeader, Footer as ChromeFooter, HEADER_VARIANTS, FOOTER_VARIANTS } from '@/components/builder/site-chrome';
 import { TEMPLATES, LANDINGS, SECTION_PRESETS, isPristineStarter, buildTemplatePage, buildSubpages, buildSection, tplText } from '@/lib/builder/templates';
@@ -1815,7 +1816,7 @@ function BuilderEditor() {
   }, [siteId]);
 
   const [pubBusy, setPubBusy] = useState(false);
-  const [celebrate, setCelebrate] = useState<{ url: string; isLanding: boolean } | null>(null);
+  const [celebrate, setCelebrate] = useState<{ url: string; isLanding: boolean; readiness?: ReadinessReport } | null>(null);
   const publish = async () => {
     if (!siteId) return;
     setPubBusy(true);
@@ -1830,7 +1831,7 @@ function BuilderEditor() {
         // Celebrate: landing publishes to "/", a normal site to /s/<slug>.
         const isLanding = siteMeta?.slug === '__landing__';
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
-        setCelebrate({ url: isLanding ? `${origin}/` : `${origin}/s/${siteMeta?.slug ?? ''}`, isLanding });
+        setCelebrate({ url: isLanding ? `${origin}/` : `${origin}/s/${siteMeta?.slug ?? ''}`, isLanding, readiness: data.readiness });
       } else if (res.status === 403) {
         // Value-first: publishing is a paid moment — send free users to pricing.
         window.location.href = '/pricing';
@@ -3219,7 +3220,7 @@ function BuilderEditor() {
         </div>
       )}
       <TourLauncher tour="studio-builder" />
-      <PublishCelebration open={!!celebrate} liveUrl={celebrate?.url ?? ''} isLanding={celebrate?.isLanding} onClose={() => setCelebrate(null)} />
+      <PublishCelebration open={!!celebrate} liveUrl={celebrate?.url ?? ''} isLanding={celebrate?.isLanding} readiness={celebrate?.readiness} onClose={() => setCelebrate(null)} />
     </main>
   );
 }

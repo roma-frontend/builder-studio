@@ -231,13 +231,14 @@ export function Faq({
               <div className="overflow-hidden rounded-2xl border border-border bg-card/50 backdrop-blur">
                 <button
                   onClick={() => setOpen(isOpen ? null : i)}
-                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/40"
                   aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${i}`}
                 >
                   <span className="font-semibold">{f.q}</span>
-                  <Plus className={`h-5 w-5 shrink-0 text-primary transition-transform duration-300 ${isOpen ? 'rotate-45' : ''}`} />
+                  <Plus aria-hidden className={`h-5 w-5 shrink-0 text-primary transition-transform duration-300 ${isOpen ? 'rotate-45' : ''}`} />
                 </button>
-                <div className={`grid transition-all duration-300 ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                <div id={`faq-answer-${i}`} className={`grid transition-all duration-300 ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                   <div className="overflow-hidden">
                     <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
                   </div>

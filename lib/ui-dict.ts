@@ -30,7 +30,7 @@ export type UiDict = {
   };
   roles: { superadmin: string; admin: string };
   header: { tagline: string; noName: string };
-  a11y: { openMenu: string; closeMenu: string; language: string };
+  a11y: { openMenu: string; closeMenu: string; language: string; skipContent: string; toggleTheme: string };
   palette: {
     open: string;
     placeholder: string;
@@ -106,7 +106,7 @@ const ru: UiDict = {
   },
   roles: { superadmin: 'Суперадмин', admin: 'Админ' },
   header: { tagline: 'ИИ-конструктор сайтов', noName: 'Без имени' },
-  a11y: { openMenu: 'Открыть меню', closeMenu: 'Закрыть меню', language: 'Язык' },
+  a11y: { openMenu: 'Открыть меню', closeMenu: 'Закрыть меню', language: 'Язык', skipContent: 'Перейти к содержимому', toggleTheme: 'Переключить тему' },
   palette: {
     open: 'Командное меню',
     placeholder: 'Команда или поиск…',
@@ -186,7 +186,7 @@ const en: UiDict = {
   },
   roles: { superadmin: 'Superadmin', admin: 'Admin' },
   header: { tagline: 'AI website builder', noName: 'No name' },
-  a11y: { openMenu: 'Open menu', closeMenu: 'Close menu', language: 'Language' },
+  a11y: { openMenu: 'Open menu', closeMenu: 'Close menu', language: 'Language', skipContent: 'Skip to content', toggleTheme: 'Toggle theme' },
   palette: {
     open: 'Command menu',
     placeholder: 'Type a command or search…',
@@ -266,7 +266,7 @@ const hy: UiDict = {
   },
   roles: { superadmin: 'Գերադմին', admin: 'Ադմին' },
   header: { tagline: 'AI կայքերի կառուցիչ', noName: 'Առանց անվան' },
-  a11y: { openMenu: 'Բացել ընտրացանկը', closeMenu: 'Փակել ընտրացանկը', language: 'Լեզու' },
+  a11y: { openMenu: 'Բացել ընտրացանկը', closeMenu: 'Փակել ընտրացանկը', language: 'Լեզու', skipContent: 'Անցնել բովանդակությանը', toggleTheme: 'Փոխել թեման' },
   palette: {
     open: 'Հրամանների ընտրացանկ',
     placeholder: 'Հրաման կամ որոնում…',

@@ -49,4 +49,10 @@ describe('buildStyledWorkbook', () => {
     const ws = wb.Sheets[wb.SheetNames[0]];
     expect(ws.A1.v).toBe('Only');
   });
+
+  it('exports formula-like user input as plain text', () => {
+    const buf = buildStyledWorkbook('Safe', ['Value'], [['=HYPERLINK("https://example.com")']]);
+    const wb = XLSX.read(buf, { type: 'buffer' });
+    expect(wb.Sheets.Safe.A2.v).toBe("'=HYPERLINK(\"https://example.com\")");
+  });
 });

@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   jar.delete(APPLE_STATE_COOKIE);
   const [expectedState, storedNext] = stored.split('|');
   if (!expectedState || expectedState !== state) return fail('apple_state_mismatch');
-  const next = storedNext && storedNext.startsWith('/') ? storedNext : '/dashboard';
+  const next = storedNext && storedNext.startsWith('/') && !storedNext.startsWith('//') ? storedNext : '/dashboard';
 
   const exchange = await exchangeAppleCode(code);
   if (!exchange.ok) return fail(`apple_${exchange.error}`);

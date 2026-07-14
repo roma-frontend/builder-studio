@@ -20,7 +20,8 @@ export async function GET(request: Request) {
   }
   const url = new URL(request.url);
   const nextParam = url.searchParams.get('next');
-  const next = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard';
+  // A leading `//` is protocol-relative and would allow an external redirect.
+  const next = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/dashboard';
 
   const state = randomBytes(16).toString('base64url');
   const prod = process.env.NODE_ENV === 'production';

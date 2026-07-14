@@ -45,11 +45,14 @@ export async function POST(request: Request) {
   const raw = await request.text();
   const sig = request.headers.get('stripe-signature') ?? '';
 
-  // When a webhook secret is configured, require a valid signature.
-  if (secret) {
-    if (!verifyStripeSignature(raw, sig, secret)) {
-      return NextResponse.json({ error: 'invalid signature' }, { status: 400 });
-    }
+  // Fail closed: an unsigned request must never be able to grant plans or
+  // record payments, including when production was misconfigured.
+  if (!secret) {
+    console.error('[billing webhook] STRIPE_WEBHOOK_SECRET is not configured');
+    return NextResponse.json({ error: 'webhook not configured' }, { status: 503 });
+  }
+  if (!verifyStripeSignature(raw, sig, secret)) {
+    return NextResponse.json({ error: 'invalid signature' }, { status: 400 });
   }
 
   let event: { id?: string; type?: string; data?: { object?: Record<string, unknown> } };

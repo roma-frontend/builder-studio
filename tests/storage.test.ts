@@ -31,14 +31,15 @@ describe('storage mode (no R2 env in tests)', () => {
 });
 
 describe('accepted upload types', () => {
-  it('includes the expected image/video/svg types', () => {
-    for (const t of ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'video/mp4', 'video/webm']) {
+  it('includes safe image and video types', () => {
+    for (const t of ['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'video/webm']) {
       expect(ACCEPTED_TYPES).toContain(t);
     }
   });
 
-  it('rejects unexpected types', () => {
+  it('rejects unexpected and active-content types', () => {
     expect(ACCEPTED_TYPES).not.toContain('application/pdf');
     expect(ACCEPTED_TYPES).not.toContain('text/html');
+    expect(ACCEPTED_TYPES).not.toContain('image/svg+xml');
   });
 });
