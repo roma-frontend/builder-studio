@@ -9,16 +9,24 @@ import { getUserPrefs, patchUserPrefs } from '@/lib/user-prefs';
 export const runtime = 'nodejs';
 
 export async function GET() {
-  const user = await requireUser();
-  if (!user) return unauthorized();
-  // Never cache the prefs snapshot: it's per-user state that the client relies
-  // on to decide one-time UI (e.g. onboarding tours). A stale browser-cached
-  // response would re-trigger "seen once" flows on every reload even though the
-  // flag is already persisted in the DB.
-  return NextResponse.json(
-    { prefs: getUserPrefs(user.id) },
-    { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } },
-  );
+  try {
+    const user = await requireUser();
+    if (!user) return unauthorized();
+    // Never cache the prefs snapshot: it's per-user state that the client relies
+    // on to decide one-time UI (e.g. onboarding tours). A stale browser-cached
+    // response would re-trigger "seen once" flows on every reload even though the
+    // flag is already persisted in the DB.
+    return NextResponse.json(
+      { prefs: getUserPrefs(user.id) },
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } },
+    );
+  } catch (error) {
+    console.error('Failed to load user preferences.', error);
+    return NextResponse.json(
+      { prefs: {} },
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } },
+    );
+  }
 }
 
 export async function PATCH(request: Request) {
