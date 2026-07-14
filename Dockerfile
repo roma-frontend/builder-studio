@@ -7,7 +7,7 @@ FROM node:20-slim
 
 # better-sqlite3 may need to compile if no prebuilt binary matches the platform.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
+  && apt-get install -y --no-install-recommends python3 make g++ ca-certificates gosu \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -52,6 +52,8 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh \
   && mkdir -p /data \
   && chown -R node:node /app /data /docker-entrypoint.sh
-USER node
+# Fly mounts /data after the image is built, so its ownership must be repaired
+# by the entrypoint before the process drops privileges to the node user.
+USER root
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["npm", "run", "start"]

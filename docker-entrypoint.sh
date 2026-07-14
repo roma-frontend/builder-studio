@@ -5,7 +5,15 @@
 # while user data survives restarts/redeploys.
 set -e
 
-mkdir -p /data/uploads
+# A Fly volume is mounted after image build and can retain root-owned files from
+# an earlier deployment. SQLite needs write access to both the database and its
+# parent directory for WAL/SHM files.
+if [ "$(id -u)" = "0" ]; then
+  mkdir -p /data/uploads
+  chown -R node:node /data
+else
+  mkdir -p /data/uploads
+fi
 
 # Point /uploads at the persistent volume (Next serves it as a static path).
 if [ ! -L /app/public/uploads ]; then
@@ -13,4 +21,7 @@ if [ ! -L /app/public/uploads ]; then
 fi
 ln -sfn /data/uploads /app/public/uploads
 
+if [ "$(id -u)" = "0" ]; then
+  exec gosu node "$@"
+fi
 exec "$@"
