@@ -148,7 +148,7 @@ export function PublishCelebration({
         >
           <button className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-label={c.close} onClick={onClose} />
           <motion.div
-            className="relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-border/70 bg-background/95 p-6 shadow-2xl backdrop-blur-xl"
+            className="relative max-h-[92dvh] w-full max-w-md overflow-y-auto overflow-x-clip scrollbar-none rounded-3xl border border-border/70 bg-background/95 p-6 shadow-2xl backdrop-blur-xl"
             initial={{ opacity: 0, y: 24, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 300, damping: 26 }}
           >

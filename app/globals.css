@@ -133,6 +133,10 @@
 
 }
 
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
 /* Keyboard users can bypass the marketing navigation immediately. */
 .skip-link {
   position: fixed;
