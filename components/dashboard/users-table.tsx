@@ -169,8 +169,8 @@ export function UsersTable({ users, canEdit, meId }: { users: Row[]; canEdit: bo
         <span className="hidden text-xs text-muted-foreground sm:inline">{f.shown}: {filtered.length}/{rows.length}</span>
         <div className="ml-auto"><SavedViews route="users" current={{ search, role: roleFilter, status: statusFilter }} onApply={applyView} /></div>
       </div>
-      <div className="overflow-hidden rounded-2xl border border-border/60">
-        <table className="w-full text-sm">
+      <div className="max-w-full overflow-x-auto rounded-2xl border border-border/60">
+        <table className="w-full min-w-[42rem] text-sm">
           <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-semibold">{t.colUser}</th>

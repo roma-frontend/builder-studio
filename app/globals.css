@@ -261,6 +261,27 @@
   animation: scrollPulse 2s ease-in-out infinite;
 }
 
+/* Dashboard responsive safety net. Data-heavy views may add columns at runtime,
+   so every direct table container must remain independently scrollable rather
+   than widening the fixed application shell. */
+[data-app-shell] main :where(div, section):has(> table) {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+[data-app-shell] main table {
+  min-width: max-content;
+}
+[data-app-shell] main :where(.grid, .flex) > * {
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  [data-app-shell] main table :where(th, td) {
+    padding-inline: 0.75rem;
+  }
+}
+
 /* Hide scrollbar on mobile while keeping scroll functional */
 @media (max-width: 1023px) {
   * {
