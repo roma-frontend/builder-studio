@@ -128,7 +128,7 @@ export function BillingAdminClient({
             value={grantEmail}
             onChange={(e) => setGrantEmail(e.target.value)}
             placeholder="user@email.com"
-            className="h-9 min-w-56 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+            className="h-9 min-w-0 basis-full flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40 sm:min-w-56 sm:basis-auto"
           />
           <select value={grantPlan} onChange={(e) => setGrantPlan(e.target.value as PlanId)} className="h-9 rounded-lg border border-border bg-background px-3 text-sm">
             {PLAN_IDS.map((p) => (

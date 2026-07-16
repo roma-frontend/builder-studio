@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Film, Blocks, LayoutDashboard, Globe, Inbox, UserCircle, Users, UsersRound, LayoutList,
   LogOut, Menu, X, ExternalLink, Crown, ShieldCheck, Plus, Search, Building2, Database,
@@ -406,21 +406,48 @@ export function DashboardShell({ user, banner, gated, orgRequests = 0, siteMembe
       </aside>
 
       {/* Mobile slide-over */}
-      {open && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
-          <aside ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label={t.menu} className="absolute left-0 top-0 flex h-full w-72 flex-col border-r border-border/60 bg-background shadow-2xl">
-            <button onClick={() => setOpen(false)} aria-label={t.close} className="absolute right-3 top-4 rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
-              <X className="h-5 w-5" />
-            </button>
-            {renderSidebar(false)}
-          </aside>
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="fixed inset-0 z-50 lg:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
+            <motion.button
+              type="button"
+              aria-label={t.close}
+              className="absolute inset-0 h-full w-full cursor-default bg-black/50"
+              onClick={() => setOpen(false)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            />
+            <motion.aside
+              ref={mobileMenuRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t.menu}
+              className="absolute left-0 top-0 flex h-full w-[min(18rem,calc(100vw-2rem))] flex-col border-r border-border/60 bg-background shadow-2xl will-change-transform"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', stiffness: 360, damping: 34, mass: 0.8 }}
+            >
+              <button onClick={() => setOpen(false)} aria-label={t.close} className="absolute right-3 top-4 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted">
+                <X className="h-5 w-5" />
+              </button>
+              {renderSidebar(false)}
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md sm:px-6">
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-1.5 border-b border-border/60 bg-background/80 px-2 backdrop-blur-md sm:gap-3 sm:px-6">
           <button
             ref={mobileMenuButtonRef}
             onClick={() => setOpen(true)}

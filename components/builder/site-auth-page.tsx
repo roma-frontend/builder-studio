@@ -274,14 +274,14 @@ function RegisterWizard({ siteId, base, brand }: Omit<Props, 'mode'>) {
   const pwScore = useMemo(() => passwordScore(form.password), [form.password]);
   // Arrived via an org invite (QR / link) → show a friendly, org-named banner
   // and carry the signed token so the server auto-approves this member.
-  const [invited, setInvited] = useState(false);
+  const [invited] = useState(false);
   const [inviteToken, setInviteToken] = useState('');
   const [plans, setPlans] = useState<PublicPlan[]>([]);
   useEffect(() => {
     try {
       const p = new URLSearchParams(window.location.search);
       const tok = p.get('invite');
-      if (tok) { setInvited(true); setInviteToken(tok); }
+      if (tok) { setInviteToken(tok); }
     } catch { /* no window */ }
   }, []);
   useEffect(() => {

@@ -52,6 +52,11 @@ export default async function DashboardOverview({ searchParams }: { searchParams
   return (
     <>
       {welcome && !isSuperadmin(user) && <WelcomeAutomation name={user.name} />}
+      <PageHeader
+        title={`${t.hi}, ${user.name || t.friend}!`}
+        description={t.subtitle}
+        action={<Link href="/dashboard/sites"><Button className="gap-1.5"><Plus className="h-4 w-4" /> {d.newSite}</Button></Link>}
+      />
       <section className={`relative mb-8 overflow-hidden rounded-3xl border p-6 sm:p-8 ${roleMode === 'superadmin' ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/15 via-card to-card' : roleMode === 'admin' ? 'border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card' : 'border-sky-500/25 bg-gradient-to-br from-sky-500/10 via-card to-card'}`}>
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -91,12 +96,6 @@ export default async function DashboardOverview({ searchParams }: { searchParams
           <div className="rounded-3xl border border-border/60 bg-card/50 p-6"><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground"><CheckCircle2 className="h-4 w-4 text-green-500" /> {c.decisionInbox}</p><p className="mt-4 text-lg font-black">{stats.submissions + platform.submissions} {c.signals}</p><p className="mt-1 text-sm text-muted-foreground">{c.superDesc}</p><Link href="/dashboard/control"><Button size="sm" variant="ghost" className="mt-3 gap-1.5">{c.openQueue} <ArrowRight className="h-3.5 w-3.5" /></Button></Link></div>
         </section>
       )}
-
-      <PageHeader
-        title={`${t.hi}, ${user.name || t.friend}!`}
-        description={t.subtitle}
-        action={<Link href="/dashboard/sites"><Button className="gap-1.5"><Plus className="h-4 w-4" /> {d.newSite}</Button></Link>}
-      />
 
       {!isSuperadmin(user) && (
         <>

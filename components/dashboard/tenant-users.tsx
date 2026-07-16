@@ -27,6 +27,7 @@ export function TenantUsers() {
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
   const [draftOrg, setDraftOrg] = useState<Record<string, string>>({});
 
   const load = useCallback(() => {
@@ -38,9 +39,20 @@ export function TenantUsers() {
     const target = draftOrg[u.id] ?? u.siteId;
     if (target === u.siteId) return;
     setBusy(u.id);
-    const res = await fetch('/api/admin/tenant-users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign-org', userId: u.id, targetSiteId: target }) });
-    if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || t.error); }
-    setBusy(''); load();
+    setError('');
+    try {
+      const res = await fetch('/api/admin/tenant-users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign-org', userId: u.id, targetSiteId: target }) });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || t.error);
+        return;
+      }
+      load();
+    } catch {
+      setError(t.error);
+    } finally {
+      setBusy('');
+    }
   };
   const setStatus = async (u: TUser, status: string) => {
     setBusy(u.id);
@@ -54,6 +66,7 @@ export function TenantUsers() {
 
   return (
     <div className="space-y-4">
+      {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
       <div className="relative max-w-md">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.search} className="h-10 pl-10" />
@@ -71,7 +84,7 @@ export function TenantUsers() {
             return (
               <div key={u.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3">
                 <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">{(u.name || u.email).charAt(0).toUpperCase()}</div>
-                <div className="min-w-[220px] flex-1">
+                <div className="min-w-0 basis-full flex-1 sm:min-w-[220px] sm:basis-auto">
                   <p className="truncate text-sm font-medium">{u.name || t.noName} <span className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${meta.cls}`}>{meta.label}</span></p>
                   <p className="truncate text-xs text-muted-foreground">{u.email} · {t.now} {u.siteName} (/s/{u.siteSlug})</p>
                 </div>

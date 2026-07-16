@@ -164,7 +164,7 @@ export function DbBrowser({ tables }: { tables: { name: string; count: number }[
   // studio, so they live in one render tree parametrized by `full`.
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card/80 p-2 shadow-sm backdrop-blur-xl">
-      <div className="relative min-w-[220px] flex-1">
+      <div className="relative min-w-0 basis-full flex-1 sm:min-w-[220px] sm:basis-auto">
         <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
         <Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder={t.searchIn.replace('{table}', active)} className="h-10 border-transparent bg-muted/60 pl-10 shadow-inner focus-visible:bg-background" />
       </div>
@@ -299,7 +299,7 @@ export function DbBrowser({ tables }: { tables: { name: string; count: number }[
             <Button variant="outline" size="sm" onClick={() => setFull(false)} className="h-9 gap-1.5"><Minimize2 className="h-4 w-4" />{t.exitFullscreen}</Button>
           </div>
         </header>
-        <div className="grid min-h-0 flex-1 gap-5 overflow-hidden p-5 lg:grid-cols-[280px_1fr]">
+        <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 sm:gap-5 sm:p-5 lg:grid-cols-[280px_minmax(0,1fr)] lg:overflow-hidden">
           {tablesPanel(true)}
           {rowsPanel}
         </div>
@@ -393,7 +393,7 @@ function Modal({ children, onClose, t, wide = false }: { children: React.ReactNo
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
-      <div className={`relative w-full overflow-hidden rounded-3xl border border-border bg-background shadow-2xl ${wide ? 'max-w-4xl' : 'max-w-lg p-6'}`}>
+      <div className={`relative max-h-[calc(100dvh-2rem)] w-full overflow-auto rounded-3xl border border-border bg-background shadow-2xl ${wide ? 'max-w-4xl' : 'max-w-lg p-6'}`}>
         <button onClick={onClose} className="absolute right-3 top-3 rounded-lg p-1.5 text-muted-foreground hover:bg-muted" aria-label={t.close}><X className="h-5 w-5" /></button>
         {children}
       </div>
@@ -469,7 +469,7 @@ function RowModal({ mode, table, columns, row, onClose, onSubmit, t }: {
             {step < reviewStep ? <div className="grid gap-5 sm:grid-cols-2">{currentColumns.map((c) => { const fieldErr = errors[c.name]; const long = /json|data|doc|body|description/i.test(c.name) || String(form[c.name] ?? '').length > 60; return <div key={c.name} className={`space-y-2 ${long ? 'sm:col-span-2' : ''}`}><label className="flex items-center gap-2 text-xs font-bold"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 font-mono text-[10px] text-primary">{kindOf(c.type) === 'text' ? 'T' : '#'}</span>{c.name}<span className="ml-auto text-[9px] uppercase tracking-wider text-muted-foreground">{c.type || 'ANY'}{c.notnull ? ' · required' : ''}</span></label><textarea autoFocus={c === currentColumns[0]} value={String(form[c.name] ?? '')} onChange={(e) => setForm((f) => ({ ...f, [c.name]: e.target.value }))} rows={long ? 5 : 1} placeholder={c.pk ? t.hintAuto : ''} className={`w-full resize-y rounded-xl border bg-muted/20 px-3 py-2.5 font-mono text-sm outline-none transition-all focus:bg-background focus:ring-4 ${fieldErr ? 'border-red-500 focus:ring-red-500/10' : 'border-border focus:border-primary focus:ring-primary/10'}`} /><p className={`text-[10px] ${fieldErr ? 'font-medium text-red-500' : 'text-muted-foreground'}`}>{fieldErr || fieldHint(c, t)}</p></div>; })}</div> : <div className="space-y-3">{mode === 'edit' && changed.length === 0 ? <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">No fields were changed.</div> : (mode === 'edit' ? changed : editableColumns).map((c) => <div key={c.name} className="grid gap-2 rounded-2xl border border-border/60 bg-muted/20 p-4 sm:grid-cols-[160px_1fr]"><div><p className="text-xs font-bold">{c.name}</p><p className="text-[9px] uppercase text-muted-foreground">{c.type || 'ANY'}</p></div><div className="min-w-0 font-mono text-xs">{mode === 'edit' && <p className="truncate text-red-500/70 line-through">{String(row[c.name] ?? 'NULL')}</p>}<p className="truncate font-semibold text-emerald-600">{String(form[c.name] ?? 'NULL')}</p></div></div>)}</div>}
             {err && <p className="mt-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-500">{err}</p>}
           </main>
-          <footer className="flex items-center gap-2 border-t border-border/60 bg-muted/20 px-6 py-4"><Button variant="ghost" onClick={onClose}>{t.cancel}</Button>{step > 0 && <Button variant="outline" onClick={() => setStep((s) => s - 1)}><ChevronLeft /> Back</Button>}<span className="flex-1" />{step < reviewStep ? <Button onClick={() => setStep((s) => s + 1)} disabled={currentHasErrors}>Next <ChevronRight /></Button> : <Button onClick={submit} disabled={busy || hasErrors || (mode === 'edit' && changed.length === 0)} className="min-w-32 gap-2">{busy ? <Loader2 className="animate-spin" /> : mode === 'add' ? <Plus /> : <Save />}{busy ? (mode === 'add' ? t.creating : t.saving) : mode === 'add' ? t.create : t.save}</Button>}</footer>
+          <footer className="flex flex-wrap items-center gap-2 border-t border-border/60 bg-muted/20 px-4 py-4 sm:px-6"><Button variant="ghost" onClick={onClose}>{t.cancel}</Button>{step > 0 && <Button variant="outline" onClick={() => setStep((s) => s - 1)}><ChevronLeft /> Back</Button>}<span className="flex-1" />{step < reviewStep ? <Button onClick={() => setStep((s) => s + 1)} disabled={currentHasErrors}>Next <ChevronRight /></Button> : <Button onClick={submit} disabled={busy || hasErrors || (mode === 'edit' && changed.length === 0)} className="min-w-32 gap-2">{busy ? <Loader2 className="animate-spin" /> : mode === 'add' ? <Plus /> : <Save />}{busy ? (mode === 'add' ? t.creating : t.saving) : mode === 'add' ? t.create : t.save}</Button>}</footer>
         </div>
       </div>
     </Modal>
