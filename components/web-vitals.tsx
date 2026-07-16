@@ -2,8 +2,6 @@
 
 import { useReportWebVitals } from 'next/web-vitals';
 import { useState } from 'react';
-import { useLocale } from '@/hooks/use-locale';
-import { pagesDict } from '@/lib/pages-dict';
 
 type Rating = 'good' | 'needs' | 'poor' | 'pending';
 
@@ -13,16 +11,16 @@ interface MetricDef {
   unit: 'ms' | '';
   good: number; // ≤ good → good
   poor: number; // > poor → poor
-  hintKey: 'hintLcp' | 'hintInp' | 'hintCls' | 'hintFcp' | 'hintTtfb';
+  hint: string;
 }
 
 // Thresholds mirror Google/Cloudflare Core Web Vitals scoring.
 const DEFS: Record<string, MetricDef> = {
-  LCP: { name: 'LCP', label: 'Largest Contentful Paint', unit: 'ms', good: 2500, poor: 4000, hintKey: 'hintLcp' },
-  INP: { name: 'INP', label: 'Interaction to Next Paint', unit: 'ms', good: 200, poor: 500, hintKey: 'hintInp' },
-  CLS: { name: 'CLS', label: 'Cumulative Layout Shift', unit: '', good: 0.1, poor: 0.25, hintKey: 'hintCls' },
-  FCP: { name: 'FCP', label: 'First Contentful Paint', unit: 'ms', good: 1800, poor: 3000, hintKey: 'hintFcp' },
-  TTFB: { name: 'TTFB', label: 'Time to First Byte', unit: 'ms', good: 800, poor: 1800, hintKey: 'hintTtfb' },
+  LCP: { name: 'LCP', label: 'Largest Contentful Paint', unit: 'ms', good: 2500, poor: 4000, hint: 'Скорость отрисовки главного контента' },
+  INP: { name: 'INP', label: 'Interaction to Next Paint', unit: 'ms', good: 200, poor: 500, hint: 'Отзывчивость на действия' },
+  CLS: { name: 'CLS', label: 'Cumulative Layout Shift', unit: '', good: 0.1, poor: 0.25, hint: 'Стабильность вёрстки' },
+  FCP: { name: 'FCP', label: 'First Contentful Paint', unit: 'ms', good: 1800, poor: 3000, hint: 'Первая отрисовка' },
+  TTFB: { name: 'TTFB', label: 'Time to First Byte', unit: 'ms', good: 800, poor: 1800, hint: 'Ответ сервера' },
 };
 
 const ORDER = ['LCP', 'INP', 'CLS', 'FCP', 'TTFB'];
@@ -39,22 +37,15 @@ function format(def: MetricDef, value: number | undefined): string {
   return def.unit === 'ms' ? `${Math.round(value)} ms` : value.toFixed(3);
 }
 
-const RATING_STYLE: Record<Rating, { dot: string; text: string }> = {
-  good: { dot: 'bg-green-500', text: 'text-green-500' },
-  needs: { dot: 'bg-amber-400', text: 'text-amber-400' },
-  poor: { dot: 'bg-red-500', text: 'text-red-500' },
-  pending: { dot: 'bg-muted-foreground/40', text: 'text-muted-foreground' },
+const RATING_STYLE: Record<Rating, { dot: string; text: string; label: string }> = {
+  good: { dot: 'bg-green-500', text: 'text-green-500', label: 'Хорошо' },
+  needs: { dot: 'bg-amber-400', text: 'text-amber-400', label: 'Средне' },
+  poor: { dot: 'bg-red-500', text: 'text-red-500', label: 'Плохо' },
+  pending: { dot: 'bg-muted-foreground/40', text: 'text-muted-foreground', label: 'Ожидание…' },
 };
 
 export function WebVitals() {
   const [values, setValues] = useState<Record<string, number>>({});
-  const t = pagesDict(useLocale().locale).vitals;
-  const ratingLabels: Record<Rating, string> = {
-    good: t.good,
-    needs: t.medium,
-    poor: t.bad,
-    pending: t.pending,
-  };
 
   useReportWebVitals((metric) => {
     if (metric.name in DEFS) {
@@ -77,7 +68,7 @@ export function WebVitals() {
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{def.name}</span>
               <span className={`flex items-center gap-1.5 text-xs font-medium ${style.text}`}>
                 <span className={`h-2 w-2 rounded-full ${style.dot}`} />
-                {ratingLabels[r]}
+                {style.label}
               </span>
             </div>
             <p className="mt-3 text-3xl font-black tracking-tight tabular-nums">{format(def, value)}</p>
@@ -85,7 +76,7 @@ export function WebVitals() {
             <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div className={`h-full rounded-full transition-all ${style.dot}`} style={{ width: `${pct}%` }} />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground/80">{t[def.hintKey]}</p>
+            <p className="mt-2 text-xs text-muted-foreground/80">{def.hint}</p>
           </div>
         );
       })}

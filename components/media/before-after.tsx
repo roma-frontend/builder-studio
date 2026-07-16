@@ -3,14 +3,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { LazyVideo } from '@/components/media/lazy-video';
 import type { MediaEntry } from '@/lib/media';
-import { useLocale } from '@/hooks/use-locale';
-import { ui } from '@/lib/ui-dict';
-
-const LABELS = {
-  ru: { before: 'До', after: 'После' },
-  en: { before: 'Before', after: 'After' },
-  hy: { before: 'Առաջ', after: 'Հետո' },
-} as const;
 
 /**
  * Before/after comparison: two clips stacked, with a draggable handle that
@@ -20,19 +12,14 @@ const LABELS = {
 export function BeforeAfter({
   before,
   after,
-  beforeLabel,
-  afterLabel,
+  beforeLabel = 'До',
+  afterLabel = 'После',
 }: {
   before: MediaEntry;
   after: MediaEntry;
   beforeLabel?: string;
   afterLabel?: string;
 }) {
-  const locale = useLocale().locale;
-  const a11y = ui(locale).a11y;
-  const defaults = LABELS[locale] ?? LABELS.en;
-  const beforeText = beforeLabel ?? defaults.before;
-  const afterText = afterLabel ?? defaults.after;
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState(50); // percent
   const dragging = useRef(false);
@@ -70,21 +57,21 @@ export function BeforeAfter({
         {/* After (full) */}
         <LazyVideo src={after.src} srcMp4={after.srcMp4} poster={after.poster} ratio={after.aspectRatio} className="w-full" />
         <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/50 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
-          {afterText}
+          {afterLabel}
         </span>
 
         {/* Before (revealed to the left of the handle via clip-path) */}
         <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
           <LazyVideo src={before.src} srcMp4={before.srcMp4} poster={before.poster} ratio={before.aspectRatio} className="h-full w-full" />
           <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/50 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
-            {beforeText}
+            {beforeLabel}
           </span>
         </div>
 
         {/* Handle */}
         <div
           role="slider"
-          aria-label={a11y.beforeAfter}
+          aria-label="Сравнение до/после"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(pos)}

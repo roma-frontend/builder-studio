@@ -10,8 +10,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Trash2, ShieldQuestion } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLocale } from '@/hooks/use-locale';
-import { ui } from '@/lib/ui-dict';
 
 export type ConfirmTone = 'danger' | 'warning' | 'neutral';
 
@@ -35,7 +33,6 @@ const TONE_META: Record<ConfirmTone, {
 
 function ConfirmPanel({ opts, onClose }: { opts: ConfirmOptions; onClose: (ok: boolean) => void }) {
   const { Icon, iconCls, confirmVariant } = TONE_META[opts.tone ?? 'danger'];
-  const t = ui(useLocale().locale);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(false); };
@@ -73,10 +70,10 @@ function ConfirmPanel({ opts, onClose }: { opts: ConfirmOptions; onClose: (ok: b
         </div>
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="outline" onClick={() => onClose(false)} autoFocus>
-            {opts.cancelLabel ?? t.actions.cancel}
+            {opts.cancelLabel ?? 'Отмена'}
           </Button>
           <Button variant={confirmVariant} onClick={() => onClose(true)}>
-            {opts.confirmLabel ?? t.actions.confirm}
+            {opts.confirmLabel ?? 'Подтвердить'}
           </Button>
         </div>
       </motion.div>
