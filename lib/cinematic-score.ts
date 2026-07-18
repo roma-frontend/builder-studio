@@ -1,4 +1,4 @@
-import type { BuilderDoc } from '@/lib/builder/types';
+import type { BuilderDoc, BuilderNode } from '@/lib/builder/types';
 import type { Locale } from '@/lib/seo';
 
 export interface CinematicScoreResult {
@@ -98,7 +98,7 @@ function scoreVideoQuality(doc: BuilderDoc, suggestions: string[], t: typeof tra
   let videoCount = 0;
   let hasHeroVideo = false;
 
-  const walk = (nodes: any[]) => {
+  const walk = (nodes: BuilderNode[]) => {
     for (const node of nodes) {
       if (node.type === 'video' && node.props?.src) {
         videoCount++;
@@ -142,7 +142,7 @@ function scoreMotionDesign(doc: BuilderDoc, suggestions: string[], t: typeof tra
   let motionCount = 0;
   let totalElements = 0;
 
-  const walk = (nodes: any[]) => {
+  const walk = (nodes: BuilderNode[]) => {
     for (const node of nodes) {
       totalElements++;
       if (node.props?.animName || node.props?.hvScale || node.props?.hvTranslateY) {

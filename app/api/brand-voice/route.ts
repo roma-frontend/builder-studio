@@ -67,7 +67,20 @@ export async function GET(request: Request) {
 
   try {
     const db = getRawDb();
-    const row = db.prepare('SELECT * FROM brand_voice WHERE site_id = ?').get(siteId) as any;
+    const row = db.prepare(
+      'SELECT site_id, tone, style, audience, keywords, confidence, created_at, updated_at FROM brand_voice WHERE site_id = ?'
+    ).get(siteId) as
+      | {
+          site_id: string;
+          tone: string;
+          style: string;
+          audience: string;
+          keywords: string;
+          confidence: number;
+          created_at: number;
+          updated_at: number;
+        }
+      | undefined;
 
     if (!row) {
       return NextResponse.json({ voice: null });
@@ -76,7 +89,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       voice: {
         ...row,
-        keywords: JSON.parse(row.keywords || '[]'),
+        keywords: JSON.parse(row.keywords || '[]') as string[],
       },
     });
   } catch (error) {

@@ -6,6 +6,24 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { Locale } from '@/lib/seo';
 
+interface SpeechRecognitionLike extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult:
+    | ((e: {
+        resultIndex: number;
+        results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>;
+      }) => void)
+    | null;
+  onend: (() => void) | null;
+  onerror: ((e: { error?: string }) => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+
 interface VoiceToSiteCardProps {
   locale: Locale;
   onTranscript?: (text: string) => void;
@@ -60,13 +78,16 @@ export function VoiceToSiteCard({ locale, onTranscript }: VoiceToSiteCardProps) 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(true);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const w = window as unknown as {
+      SpeechRecognition?: SpeechRecognitionCtor;
+      webkitSpeechRecognition?: SpeechRecognitionCtor;
+    };
+    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setIsSupported(false);
@@ -78,23 +99,24 @@ export function VoiceToSiteCard({ locale, onTranscript }: VoiceToSiteCardProps) 
     recognition.interimResults = true;
     recognition.lang = locale === 'ru' ? 'ru-RU' : locale === 'hy' ? 'hy-AM' : 'en-US';
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event) => {
       let finalTranscript = '';
       let interimTranscript = '';
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
+        const result = event.results[i];
+        const piece = result[0]?.transcript ?? '';
+        if (result.isFinal) {
+          finalTranscript += piece;
         } else {
-          interimTranscript += transcript;
+          interimTranscript += piece;
         }
       }
 
       setTranscript((prev) => prev + finalTranscript + interimTranscript);
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
       setError(t.error);
       setIsListening(false);
