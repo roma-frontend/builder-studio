@@ -29,6 +29,97 @@ import { ArtifactsCanvas, type Artifact } from './artifacts-canvas';
 const DRAFT_KEY = 'cwk:assistant:draft';
 const HISTORY_KEY = 'cwk:assistant:input-history';
 
+function playAssistantSound(type: 'open' | 'click' | 'success' | 'send') {
+  if (typeof window === 'undefined') return;
+  const AudioContextClass = window.AudioContext;
+  if (!AudioContextClass) return;
+  try {
+    const ctx = new AudioContextClass();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    const now = ctx.currentTime;
+    if (type === 'open') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.3);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.15, now + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      osc.start(now);
+      osc.stop(now + 0.5);
+    } else if (type === 'click') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } else if (type === 'send') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } else if (type === 'success') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.15);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.setValueAtTime(0.1, now + 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    }
+  } catch {
+    /* ignore context failures */
+  }
+}
+
+function PipelineTicker() {
+  const [logs, setLogs] = useState<string[]>([]);
+  const steps = [
+    '⚡ Initializing Cinematic Pipeline...',
+    '🎨 Fetching Visual Mood presets...',
+    '📝 Generating responsive block templates...',
+    '⚙️ Optimizing layout CSS & layout hierarchy...',
+    '✨ Rerouting and applying assets...',
+  ];
+
+  useEffect(() => {
+    setLogs([steps[0]]);
+    const interval = setInterval(() => {
+      setLogs((prev) => {
+        if (prev.length < steps.length) {
+          return [...prev, steps[prev.length]];
+        }
+        return prev;
+      });
+    }, 1200);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="mt-2 rounded-xl border border-primary/20 bg-black/80 p-3 font-mono text-[10px] leading-relaxed text-green-300 shadow-inner">
+      {logs.map((log, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <span className="text-primary/70">&gt;</span>
+          <span>{log}</span>
+          {i === logs.length - 1 && i < steps.length - 1 && (
+            <span className="h-2 w-1.5 animate-pulse bg-green-300" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 type Role = 'customer' | 'admin' | 'superadmin';
 type StreamStatusValue = 'idle' | 'thinking' | 'writing' | 'fetching';
 
@@ -98,6 +189,13 @@ export function StudioAssistant({ role = 'customer' }: { role?: Role }) {
   const [showSettings, setShowSettings] = useState(false);
   const [variantIdx, setVariantIdx] = useState<Record<string, number>>({});
   const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    const lastMsg = a.messages[a.messages.length - 1];
+    if (lastMsg?.actionResult?.ok) {
+      playAssistantSound('success');
+    }
+  }, [a.messages]);
   const composerRef = useRef<HTMLDivElement>(null);
   const [searchResults, setSearchResults] = useState<Array<{ conversationId: string; messageId: string; role: string; content: string; conversationTitle: string }>>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -281,6 +379,7 @@ useEffect(() => {
   const submit = () => {
     const text = a.input.trim();
     if (!text) return;
+    playAssistantSound('send');
     inputHistory.current = pushInputHistory(inputHistory.current, text);
     persistHistory();
     setHistIdx(null);
@@ -915,7 +1014,7 @@ if (hist.length && (a.input === '' || histIdx !== null || singleLine)) {
 
   return (
     <>
-      <motion.button type="button" onClick={() => setOpen((v) => !v)} aria-label={open ? t.close : t.open}
+      <motion.button type="button" onClick={() => setOpen((v) => { const next = !v; playAssistantSound(next ? 'open' : 'click'); return next; })} aria-label={open ? t.close : t.open}
         className="fixed bottom-5 right-5 z-[60] flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground shadow-xl shadow-primary/30 ring-1 ring-white/10"
         whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}>
         <AnimatePresence mode="wait" initial={false}>
@@ -1294,8 +1393,8 @@ if (hist.length && (a.input === '' || histIdx !== null || singleLine)) {
                           <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                             <ImagePlus className="h-3 w-3" /> {t.generateImage}
                           </p>
-                          <div className="overflow-hidden rounded-xl border border-border/60">
-                            <img src={m.imageUrl} alt="Generated" className="w-full max-w-md" loading="lazy" />
+                          <div className="w-fit max-w-full overflow-hidden rounded-xl border border-border/60">
+                            <img src={m.imageUrl} alt="Generated" className="max-w-full md:max-w-md h-auto object-cover" loading="lazy" />
                           </div>
                         </div>
                       )}
@@ -1379,15 +1478,18 @@ if (hist.length && (a.input === '' || histIdx !== null || singleLine)) {
               {!a.unavailable && (
                 <div className="border-t border-border/60 bg-background/60 p-3">
                   {a.isLoading && (
-                    <div className={cn('mb-2 flex items-center gap-2', expanded && 'mx-auto w-full max-w-3xl')}>
-                      <StreamStatus status={a.streamStatus} thinkingLabel={t.statusThinking} writingLabel={t.statusWriting} fetchingLabel={t.statusFetching} />
-                      {a.streamStatus === 'thinking' && (
-                        <div className="flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-primary/60 motion-safe:animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <span className="h-1.5 w-1.5 rounded-full bg-primary/60 motion-safe:animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <span className="h-1.5 w-1.5 rounded-full bg-primary/60 motion-safe:animate-bounce" style={{ animationDelay: '300ms' }} />
-                        </div>
-                      )}
+                    <div className={cn('mb-2 flex flex-col gap-2', expanded && 'mx-auto w-full max-w-3xl')}>
+                      <div className="flex items-center gap-2">
+                        <StreamStatus status={a.streamStatus} thinkingLabel={t.statusThinking} writingLabel={t.statusWriting} fetchingLabel={t.statusFetching} />
+                        {a.streamStatus === 'thinking' && (
+                          <div className="flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary/60 motion-safe:animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary/60 motion-safe:animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary/60 motion-safe:animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                        )}
+                      </div>
+                      {a.streamStatus === 'thinking' && <PipelineTicker />}
                     </div>
                   )}
                   <div className={cn('relative mx-auto', expanded && 'w-full max-w-3xl')}>

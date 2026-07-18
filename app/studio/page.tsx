@@ -683,7 +683,7 @@ export default function StudioPage() {
 
       <div className="flex min-h-0 flex-1">
         {/* Left tools panel — scrollable */}
-        <aside className={cn('min-w-0 flex-1 overflow-y-auto', mobileView === 'preview' && 'hidden xl:block')}>
+        <aside className={cn('min-w-0 flex-1 overflow-y-auto overflow-x-hidden', mobileView === 'preview' && 'hidden xl:block')}>
           <div className="mx-auto max-w-3xl space-y-5 px-5 py-6">
         <motion.header {...fade} className="flex items-center gap-2.5">
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -834,19 +834,19 @@ export default function StudioPage() {
               placeholder={t.briefPlaceholder}
               className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/70"
             />
-            <div className="flex flex-col items-start justify-between gap-3 sm:gap-2 border-t border-border/60 p-3">
+            <div className="flex flex-col items-stretch gap-3 border-t border-border/60 p-3">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => fileRef.current?.click()}
-                className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                className="self-start gap-1.5 text-xs text-muted-foreground hover:text-foreground"
               >
                 <Upload className="h-3.5 w-3.5" /> {t.uploadMd}
               </Button>
               <input ref={fileRef} type="file" accept=".md,.markdown,.txt" hidden onChange={(e) => e.target.files?.[0] && readFile(e.target.files[0])} />
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 w-full @sm:flex-row @sm:flex-wrap @sm:items-center">
                 <Select value={styleId} onValueChange={(v) => setStyleId(v as StyleId)}>
-                  <SelectTrigger className="w-52 gap-1.5"><Palette className="h-4 w-4 opacity-60" /><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full @sm:w-52 gap-1.5 min-w-0"><Palette className="h-4 w-4 shrink-0 opacity-60" /><span className="truncate text-left"><SelectValue /></span></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="auto">{t.styleAuto}</SelectItem>
                     {STYLE_PRESETS.map((p) => (
@@ -855,7 +855,7 @@ export default function StudioPage() {
                   </SelectContent>
                 </Select>
                 <Select value={dnaId} onValueChange={setDnaId}>
-                  <SelectTrigger className="w-52 gap-1.5"><Clapperboard className="h-4 w-4 opacity-60" /><SelectValue placeholder="🎬 Кинематографичный стиль" /></SelectTrigger>
+                  <SelectTrigger className="w-full @sm:w-52 gap-1.5 min-w-0"><Clapperboard className="h-4 w-4 shrink-0 opacity-60" /><span className="truncate text-left"><SelectValue placeholder="🎬 Кинематографичный стиль" /></span></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Без DNA</SelectItem>
                     {DNA_PRESETS.map((d) => (
@@ -868,10 +868,10 @@ export default function StudioPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button size="sm" variant="outline" onClick={planWholePage} disabled={!brief.trim()} className="gap-1.5">
+                <Button size="sm" variant="outline" onClick={planWholePage} disabled={!brief.trim()} className="w-full @sm:w-auto gap-1.5">
                   <ListVideo className="h-4 w-4" /> {t.buildWholePage}
                 </Button>
-                <Button size="sm" onClick={generatePrompt} disabled={!brief.trim()} className="gap-1.5">
+                <Button size="sm" onClick={generatePrompt} disabled={!brief.trim()} className="w-full @sm:w-auto gap-1.5">
                   <Wand2 className="h-4 w-4" /> {t.onePrompt}
                 </Button>
               </div>
@@ -895,50 +895,54 @@ export default function StudioPage() {
                 placeholder={t.imgPromptPh}
                 className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/70"
               />
-              <div className="flex flex-wrap items-center gap-2 border-t border-border/60 p-3">
-                <Select value={imgStyle} onValueChange={(v) => setImgStyle(v as StyleId)}>
-                  <SelectTrigger className="w-52 gap-1.5"><Palette className="h-4 w-4 opacity-60" /><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">{t.styleAuto}</SelectItem>
-                    {STYLE_PRESETS.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={dnaId} onValueChange={setDnaId}>
-                  <SelectTrigger className="w-52 gap-1.5"><Clapperboard className="h-4 w-4 opacity-60" /><SelectValue placeholder="🎬 DNA" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Без DNA</SelectItem>
-                    {DNA_PRESETS.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{d.label}</span>
-                          <span className="text-xs text-muted-foreground">{d.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={imgAspect} onValueChange={setImgAspect}>
-                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {['16:9', '9:16', '1:1', '4:3', '3:2'].map((a) => (
-                      <SelectItem key={a} value={a}>{a}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={imgCount} onValueChange={setImgCount}>
-                  <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {['1', '2', '3', '4'].map((n) => (
-                      <SelectItem key={n} value={n}>×{n}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button size="sm" onClick={generateImages} disabled={imgBusy || !imgPrompt.trim()} className="ml-auto gap-1.5">
-                  {imgBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {imgBusy ? t.imgGenerating : t.imgGenerate}
-                </Button>
+              <div className="flex flex-col gap-2 border-t border-border/60 p-3">
+                <div className="flex flex-col gap-2 w-full @sm:flex-row @sm:flex-wrap @sm:items-center">
+                  <Select value={imgStyle} onValueChange={(v) => setImgStyle(v as StyleId)}>
+                    <SelectTrigger className="w-full @sm:w-52 gap-1.5 min-w-0"><Palette className="h-4 w-4 shrink-0 opacity-60" /><span className="truncate text-left"><SelectValue /></span></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">{t.styleAuto}</SelectItem>
+                      {STYLE_PRESETS.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={dnaId} onValueChange={setDnaId}>
+                    <SelectTrigger className="w-full @sm:w-52 gap-1.5 min-w-0"><Clapperboard className="h-4 w-4 shrink-0 opacity-60" /><span className="truncate text-left"><SelectValue placeholder="🎬 DNA" /></span></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Без DNA</SelectItem>
+                      {DNA_PRESETS.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{d.label}</span>
+                            <span className="text-xs text-muted-foreground">{d.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Select value={imgAspect} onValueChange={setImgAspect}>
+                      <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {['16:9', '9:16', '1:1', '4:3', '3:2'].map((a) => (
+                          <SelectItem key={a} value={a}>{a}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={imgCount} onValueChange={setImgCount}>
+                      <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {['1', '2', '3', '4'].map((n) => (
+                          <SelectItem key={n} value={n}>×{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button size="sm" onClick={generateImages} disabled={imgBusy || !imgPrompt.trim()} className="w-full @sm:w-auto @sm:ml-auto gap-1.5">
+                    {imgBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {imgBusy ? t.imgGenerating : t.imgGenerate}
+                  </Button>
+                </div>
               </div>
             </Card>
             <p className="mt-2 text-[11px] text-muted-foreground">{t.imgFreeNote}</p>

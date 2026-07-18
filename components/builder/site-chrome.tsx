@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import type { BuilderDoc } from '@/lib/builder/types';
 import { chromeBtnClass, navLinkClass, type ChromeBtnStyles } from '@/lib/builder/chrome-buttons';
@@ -7,6 +10,8 @@ import { SiteAuthButtons } from './site-auth-blocks';
 import { SiteThemeToggle } from './site-theme-toggle';
 import { siteRt, type SiteRtDict } from '@/lib/site-runtime-dict';
 import { LanguageSwitcher } from '../language-switcher';
+import { AmbientPlayer } from '@/components/media/ambient-player';
+import { LutWidget } from '@/components/media/lut-widget';
 
 const RT_DEFAULT = siteRt('ru');
 
@@ -407,6 +412,7 @@ function Aside({ doc }: { doc: BuilderDoc }) {
 }
 
 export function SiteChrome({ doc, children, t = RT_DEFAULT }: { doc: BuilderDoc; children: React.ReactNode; t?: SiteRtDict }) {
+  const [activeLut, setActiveLut] = useState('default');
   const aside = doc.asideVariant && doc.asideVariant !== 'none' ? doc.asideVariant : null;
   // Site-wide button shape: page CTAs (marked .bn-btn) inherit the chrome
   // buttons' corner radius via globals.css, so the whole site reads as one
@@ -415,7 +421,7 @@ export function SiteChrome({ doc, children, t = RT_DEFAULT }: { doc: BuilderDoc;
 
   if (aside) {
     return (
-      <div className="flex min-h-dvh" data-btn-round={btnRound}>
+      <div className={`flex min-h-dvh lut-container lut-${activeLut}`} data-btn-round={btnRound}>
         {aside === 'left' && <Aside doc={doc} />}
         <div className="flex min-w-0 flex-1 flex-col">
           <Header doc={doc} />
@@ -423,15 +429,19 @@ export function SiteChrome({ doc, children, t = RT_DEFAULT }: { doc: BuilderDoc;
           <Footer doc={doc} t={t} />
         </div>
         {aside === 'right' && <Aside doc={doc} />}
+        <AmbientPlayer themeId={doc.themeId || 'default'} />
+        <LutWidget activeLut={activeLut} onLutChange={setActiveLut} />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-dvh flex-col" data-btn-round={btnRound}>
+    <div className={`flex min-h-dvh flex-col lut-container lut-${activeLut}`} data-btn-round={btnRound}>
       <Header doc={doc} />
       <main className="flex-1">{children}</main>
       <Footer doc={doc} t={t} />
+      <AmbientPlayer themeId={doc.themeId || 'default'} />
+      <LutWidget activeLut={activeLut} onLutChange={setActiveLut} />
     </div>
   );
 }

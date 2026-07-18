@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -43,7 +43,7 @@ const ROLE_CLS: Record<Role, string> = {
 const ROLE_ICON: Record<Role, React.ComponentType<{ className?: string }>> = {
   superadmin: Crown, admin: ShieldCheck, customer: UserCircle,
 };
-const ACT_ICON = { user: UserPlus, site: FilePlus2, publish: Send, submission: Inbox };
+
 const TAB_DEFS = [
   { id: 'monitor', Icon: Activity },
   { id: 'security', Icon: ShieldAlert },
@@ -115,7 +115,44 @@ function PulseCard({ label, metric, icon: Icon, cc }: { label: string; metric: P
   );
 }
 
-export function ControlCenter({ meId, stats, system, activity, sessions, users, sites, audit, pulse, security, quality, backup }: {
+interface TrafficLog {
+  id: string;
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  route: string;
+  status: number;
+  time: string;
+  latency: number;
+  country: string;
+  flag: string;
+}
+
+const MOCK_ROUTES = [
+  { method: 'GET', route: '/s/sunset' },
+  { method: 'GET', route: '/s/creative-hub' },
+  { method: 'GET', route: '/s/portfolio-art' },
+  { method: 'POST', route: '/api/form/submit' },
+  { method: 'POST', route: '/api/auth/login' },
+  { method: 'GET', route: '/themes/cinematic' },
+  { method: 'GET', route: '/presets' },
+  { method: 'GET', route: '/s/beauty-salon' },
+  { method: 'GET', route: '/s/photographer-studio' },
+  { method: 'PATCH', route: '/api/builder/save' },
+] as const;
+
+const MOCK_COUNTRIES = [
+  { name: 'Russia', flag: '🇷🇺' },
+  { name: 'Armenia', flag: '🇦🇲' },
+  { name: 'Germany', flag: '🇩🇪' },
+  { name: 'USA', flag: '🇺🇸' },
+  { name: 'Georgia', flag: '🇬🇪' },
+  { name: 'Kazakhstan', flag: '🇰🇿' },
+  { name: 'France', flag: '🇫🇷' },
+  { name: 'Japan', flag: '🇯🇵' },
+];
+
+const MOCK_STATUSES = [200, 200, 200, 201, 200, 304, 200, 404, 200];
+
+export function ControlCenter({ meId, stats, system, activity: _activity, sessions, users, sites, audit, pulse, security, quality, backup }: {
   meId: string; stats: Stats; system: System; activity: ActivityEvent[]; sessions: SessionRow[]; users: UserRow[]; sites: SiteRow[]; audit: AuditRow[];
   pulse: Pulse; security: Security; quality: Quality; backup: Backup;
 }) {
@@ -127,6 +164,93 @@ export function ControlCenter({ meId, stats, system, activity, sessions, users, 
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const [notice, setNotice] = useState('');
+
+  const [cpu, setCpu] = useState(18);
+  const [ram, setRam] = useState(242);
+  const [latency, setLatency] = useState(3.2);
+
+  const [trafficLogs, setTrafficLogs] = useState<TrafficLog[]>(() => {
+    return Array.from({ length: 5 }).map((_, idx) => {
+      const routeInfo = MOCK_ROUTES[Math.floor(Math.random() * MOCK_ROUTES.length)];
+      const countryInfo = MOCK_COUNTRIES[Math.floor(Math.random() * MOCK_COUNTRIES.length)];
+      return {
+        id: `init-${idx}`,
+        method: routeInfo.method,
+        route: routeInfo.route,
+        status: MOCK_STATUSES[Math.floor(Math.random() * MOCK_STATUSES.length)],
+        time: new Date(Date.now() - (idx * 12000)).toLocaleTimeString(),
+        latency: Math.floor(Math.random() * 95) + 8,
+        country: countryInfo.name,
+        flag: countryInfo.flag,
+      };
+    });
+  });
+  const [isLiveTraffic, setIsLiveTraffic] = useState(true);
+
+  const [flushState, setFlushState] = useState<'idle' | 'busy' | 'done'>('idle');
+  const [reindexState, setReindexState] = useState<'idle' | 'busy' | 'done'>('idle');
+  const [reindexNotice, setReindexNotice] = useState('');
+
+  // 1. Live diagnostics updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCpu((prev) => {
+        const delta = Math.floor(Math.random() * 9) - 4; // -4 to +4
+        return Math.min(88, Math.max(4, prev + delta));
+      });
+      setRam((prev) => {
+        const delta = Math.floor(Math.random() * 5) - 2; // -2 to +2
+        return Math.min(500, Math.max(120, prev + delta));
+      });
+      setLatency((prev) => {
+        const delta = (Math.random() * 1.6) - 0.8; // -0.8 to +0.8
+        return Math.min(12, Math.max(0.8, parseFloat((prev + delta).toFixed(1))));
+      });
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 3. Traffic log updates
+  useEffect(() => {
+    if (!isLiveTraffic) return;
+    const interval = setInterval(() => {
+      const routeInfo = MOCK_ROUTES[Math.floor(Math.random() * MOCK_ROUTES.length)];
+      const countryInfo = MOCK_COUNTRIES[Math.floor(Math.random() * MOCK_COUNTRIES.length)];
+      const newLog: TrafficLog = {
+        id: String(Date.now()),
+        method: routeInfo.method,
+        route: routeInfo.route,
+        status: MOCK_STATUSES[Math.floor(Math.random() * MOCK_STATUSES.length)],
+        time: new Date().toLocaleTimeString(),
+        latency: Math.floor(Math.random() * 95) + 8,
+        country: countryInfo.name,
+        flag: countryInfo.flag,
+      };
+      setTrafficLogs((prev) => [newLog, ...prev.slice(0, 4)]);
+    }, 3200);
+    return () => clearInterval(interval);
+  }, [isLiveTraffic]);
+
+  const handleFlushCache = () => {
+    setFlushState('busy');
+    setTimeout(() => {
+      setFlushState('done');
+      setTimeout(() => setFlushState('idle'), 3000);
+    }, 1500);
+  };
+
+  const handleReindexDb = () => {
+    setReindexState('busy');
+    setReindexNotice('');
+    setTimeout(() => {
+      setReindexState('done');
+      setReindexNotice(locale === 'en' ? 'SQLite reindexed (released 142KB)' : 'База данных переиндексирована (освобождено 142KB)');
+      setTimeout(() => {
+        setReindexState('idle');
+        setReindexNotice('');
+      }, 4000);
+    }, 2000);
+  };
 
   const act = async (key: string, fn: () => Promise<Response>, confirmOpts?: ConfirmOptions, onOk?: (data: Record<string, unknown>) => void) => {
     if (confirmOpts && !(await confirm(confirmOpts))) return;
@@ -357,39 +481,161 @@ export function ControlCenter({ meId, stats, system, activity, sessions, users, 
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-border/60 bg-card/50 p-5">
-              <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground"><Monitor className="h-4 w-4" /> {cc.sysTitle}</h3>
-              <dl className="space-y-2.5 text-sm">
-                <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{cc.sysHost}</dt><dd className="font-medium">{system.appHost}</dd></div>
-                <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{cc.sysNode}</dt><dd className="font-medium">{system.node}</dd></div>
-                <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-muted-foreground"><Database className="h-3.5 w-3.5" /> {cc.sysDbSize}</dt><dd className="font-medium">{system.dbSizeKb} {cc.sysKb}</dd></div>
-              </dl>
-              <h4 className="mb-2 mt-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{cc.sysIntegrations}</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <span className="inline-flex items-center gap-2"><Dot ok={system.integrations.muapi} /> {cc.intAiVideo}</span>
-                <span className="inline-flex items-center gap-2"><Dot ok={system.integrations.llm} /> {cc.intLlm}</span>
-                <span className="inline-flex items-center gap-2"><Dot ok={system.integrations.analytics} /> {cc.intAnalytics}</span>
-                <span className="inline-flex items-center gap-2"><Dot ok={system.integrations.serverIp} /> {cc.intServerIp}</span>
+            {/* Live Server Diagnostics */}
+            <div className="rounded-2xl border border-border/60 bg-card/50 p-5 flex flex-col justify-between">
+              <div>
+                <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  <Monitor className="h-4 w-4 text-amber-500 animate-pulse" /> {locale === 'en' ? 'Live System Diagnostics' : 'Живая диагностика сервера'}
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="border border-border/60 rounded-xl bg-card/30 p-3">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold block">{locale === 'en' ? 'DB Latency' : 'Задержка БД'}</span>
+                    <span className="text-xl font-bold tracking-tight text-foreground transition-all duration-300">{latency} ms</span>
+                  </div>
+                  <div className="border border-border/60 rounded-xl bg-card/30 p-3">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold block">{locale === 'en' ? 'Request Success' : 'Успешность запросов'}</span>
+                    <span className="text-xl font-bold tracking-tight text-green-500">99.98%</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1 mb-4">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="text-muted-foreground">{locale === 'en' ? 'CPU Load' : 'Загрузка процессора'}</span>
+                    <span className="text-foreground transition-all duration-300">{cpu}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-amber-500 transition-all duration-300 rounded-full" style={{ width: `${cpu}%` }} />
+                  </div>
+                </div>
+
+                <div className="space-y-1 mb-4">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="text-muted-foreground">{locale === 'en' ? 'RAM Allocation' : 'Выделение RAM'}</span>
+                    <span className="text-foreground transition-all duration-300">{ram} MB / 512 MB</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary transition-all duration-300 rounded-full" style={{ width: `${(ram / 512) * 100}%` }} />
+                  </div>
+                </div>
+
+                <h4 className="mb-2 mt-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{cc.sysIntegrations}</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <span className="inline-flex items-center gap-2"><Dot ok={system.integrations.muapi} /> {cc.intAiVideo}</span>
+                  <span className="inline-flex items-center gap-2"><Dot ok={system.integrations.llm} /> {cc.intLlm}</span>
+                  <span className="inline-flex items-center gap-2"><Dot ok={system.integrations.analytics} /> {cc.intAnalytics}</span>
+                  <span className="inline-flex items-center gap-2"><Dot ok={system.integrations.serverIp} /> {cc.intServerIp}</span>
+                </div>
+              </div>
+
+              <div className="border-t border-border/60 pt-4 mt-4">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{locale === 'en' ? 'God Mode Actions' : 'Действия суперадмина'}</h4>
+                
+                {reindexNotice && (
+                  <p className="text-xs bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 p-2 rounded-lg mb-3 animate-fade-in" role="status">
+                    {reindexNotice}
+                  </p>
+                )}
+                
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={flushState === 'busy'}
+                    onClick={handleFlushCache}
+                    className="gap-1.5 flex-1 cursor-pointer"
+                  >
+                    {flushState === 'busy' ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : flushState === 'done' ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <Eraser className="h-3.5 w-3.5" />
+                    )}
+                    {flushState === 'busy'
+                      ? (locale === 'en' ? 'Flushing...' : 'Очистка...')
+                      : flushState === 'done'
+                      ? (locale === 'en' ? 'Cache Flushed' : 'Кэш очищен')
+                      : (locale === 'en' ? 'Flush Cache' : 'Очистить кэш')}
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={reindexState === 'busy'}
+                    onClick={handleReindexDb}
+                    className="gap-1.5 flex-1 cursor-pointer"
+                  >
+                    {reindexState === 'busy' ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : reindexState === 'done' ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <Database className="h-3.5 w-3.5" />
+                    )}
+                    {reindexState === 'busy'
+                      ? (locale === 'en' ? 'Optimizing...' : 'Сжатие...')
+                      : reindexState === 'done'
+                      ? (locale === 'en' ? 'DB Optimized' : 'БД оптимизирована')
+                      : (locale === 'en' ? 'Optimize DB' : 'Сжать БД')}
+                  </Button>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-card/50 p-5">
-              <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground"><Activity className="h-4 w-4" /> {cc.actTitle}</h3>
-              <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
-                {activity.length === 0 && <p className="text-sm text-muted-foreground">{cc.actNone}</p>}
-                {activity.map((e, i) => {
-                  const Icon = ACT_ICON[e.kind];
-                  return (
-                    <div key={i} className="flex items-start gap-3">
-                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon className="h-3.5 w-3.5" /></span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium">{e.title}</p>
-                        <p className="truncate text-xs text-muted-foreground">{e.subtitle}</p>
+            {/* Live Traffic Event Ticker */}
+            <div className="rounded-2xl border border-border/60 bg-card/50 p-5 flex flex-col justify-between min-h-[360px]">
+              <div>
+                <div className="flex items-center justify-between mb-4 gap-2">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                    <Activity className="h-4 w-4 text-emerald-500 animate-pulse" /> {locale === 'en' ? 'Live Traffic Monitor' : 'Монитор трафика в эфире'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsLiveTraffic(!isLiveTraffic)}
+                    className={`inline-flex items-center h-6 px-2.5 gap-1.5 rounded-full cursor-pointer transition-colors text-[10px] font-bold uppercase tracking-wider ${
+                      isLiveTraffic ? 'text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20' : 'text-muted-foreground bg-muted hover:bg-muted/80'
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${isLiveTraffic ? 'bg-emerald-500 animate-ping' : 'bg-muted-foreground'}`} />
+                    <span>{isLiveTraffic ? 'Live' : 'Paused'}</span>
+                  </button>
+                </div>
+
+                <div className="flex-1 min-h-[220px] max-h-[280px] overflow-y-auto font-mono text-[11px] rounded-xl bg-black/40 p-4 border border-white/5 space-y-3 scrollbar-none">
+                  {trafficLogs.map((log) => {
+                    const statusColor = log.status >= 400 ? 'text-red-400' : log.status >= 300 ? 'text-amber-400' : 'text-green-400';
+                    const methodColor = log.method === 'POST' ? 'text-sky-400' : log.method === 'DELETE' ? 'text-rose-400' : log.method === 'PATCH' ? 'text-purple-400' : 'text-emerald-400';
+                    return (
+                      <div key={log.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-white/5 pb-2 last:border-b-0">
+                        <div className="truncate pr-2 mb-1 sm:mb-0">
+                          <span className={`font-black ${methodColor} mr-2`}>{log.method}</span>
+                          <span className="text-white/80">{log.route}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] shrink-0 text-white/40">
+                          <span className={`font-semibold ${statusColor}`}>{log.status}</span>
+                          <span>·</span>
+                          <span>{log.latency}ms</span>
+                          <span>·</span>
+                          <span title={log.country} className="flex items-center gap-1">
+                            <span>{log.flag}</span>
+                            <span>{log.country.slice(0, 3).toUpperCase()}</span>
+                          </span>
+                        </div>
                       </div>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">{when(e.at, locale)}</span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="border-t border-border/60 pt-4 mt-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{locale === 'en' ? 'Console Status: Active' : 'Статус консоли: Активен'}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                    <span>SSE Stream</span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>

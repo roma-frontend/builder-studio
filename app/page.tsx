@@ -183,6 +183,12 @@ export default async function Home() {
     <Users key="5" className="h-6 w-6" />,
   ];
 
+  const commandPrompt = locale === 'en'
+    ? 'Press {key} to explore quick actions & themes'
+    : locale === 'hy'
+    ? 'Սեղմեք {key} արագ որոնման և թեմաների համար'
+    : 'Нажмите {key} для быстрого поиска и смены тем';
+
   return (
     <>
       <a href="#main-content" className="skip-link">{dict.a11y.skipContent}</a>
@@ -206,6 +212,7 @@ export default async function Home() {
           publish: heroCopy.previewPublish || extra.heroPreviewLabels.publish,
         }}
         swatches={swatches}
+        commandPrompt={commandPrompt}
         heroVideo={{
           src: mediaUrl('/generated/hero/hero-landing.webm'),
           srcMp4: mediaUrl('/generated/hero/hero-landing.mp4'),

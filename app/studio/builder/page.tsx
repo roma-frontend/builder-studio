@@ -2261,7 +2261,7 @@ function BuilderEditor() {
       </details>
 
       <div className="flex min-h-0 flex-1">
-        <aside className={cn('min-w-0 flex-1 overflow-y-auto px-3 pb-3 [contain:layout_style] [overscroll-behavior:contain] [scrollbar-gutter:stable] @container lg:border-r lg:border-border/60', mobileView === 'preview' && 'hidden lg:block')}>
+        <aside className={cn('min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-3 [contain:layout_style] [overscroll-behavior:contain] [scrollbar-gutter:stable] @container lg:border-r lg:border-border/60', mobileView === 'preview' && 'hidden lg:block')}>
           {/* Tabs — pinned to the top of the panel so they stay visible while
               the rest of the panel scrolls. Negative margins cancel the aside's
               p-3 so the sticky bar spans full width and reaches the very top. */}
@@ -2290,7 +2290,7 @@ function BuilderEditor() {
           <Card className="p-3">
             <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold"><LayoutTemplate className="h-4 w-4 text-primary" /> {tr('Готовые лендинги')}</p>
             <p className="mb-2 text-xs text-muted-foreground">{tr('Выберите лендинг — добавится как страница с подходящей темой, дальше меняйте под себя.')}</p>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-1 @sm:grid-cols-2 gap-1.5">
               {LANDINGS.map((t) => (
                 <div key={t.id} role="button" tabIndex={0} onClick={() => addTemplate(t.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addTemplate(t.id); } }} className="cursor-pointer overflow-hidden rounded-lg border border-border/60 text-left transition-colors hover:border-primary/60">
                   <LandingThumb def={t} />
@@ -2392,7 +2392,7 @@ function BuilderEditor() {
               const q = paletteQuery.trim().toLowerCase();
               const found = PALETTE.filter((t) => tr(NODE_LABELS[t]).toLowerCase().includes(q) || NODE_LABELS[t].toLowerCase().includes(q));
               return found.length ? (
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-1 @sm:grid-cols-2 gap-1.5">
                   {found.map((t) => (
                     <Button key={t} size="sm" variant="outline" onMouseDown={(e) => startPaletteDrag(t, e)} title={tr(NODE_LABELS[t])} className="min-w-0 cursor-grab justify-start gap-1 px-2 text-xs active:cursor-grabbing">
                       <Plus className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{tr(NODE_LABELS[t])}</span>
@@ -2408,7 +2408,7 @@ function BuilderEditor() {
           {/* Section presets */}
           <Card className="p-3">
             <p className="mb-2 text-sm font-semibold">{tr('Готовые секции')}</p>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-1 @sm:grid-cols-2 gap-1.5">
               {SECTION_PRESETS.map((s) => (
                 <Button key={s.id} size="sm" variant="outline" title={tplText(s.label, locale)} className="min-w-0 justify-start gap-1 px-2 text-xs" onClick={() => addSectionPreset(s.id)}>
                   <Plus className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{tplText(s.label, locale)}</span>

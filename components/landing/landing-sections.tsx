@@ -130,25 +130,57 @@ export function BentoFeatures({
 }) {
   // Spans give the grid a designed, asymmetric rhythm on large screens.
   const spans = ['lg:col-span-2 lg:row-span-2', '', '', '', 'lg:col-span-2', ''];
+  const tags = [
+    '01 // VISUAL_CONSTRUCTOR',
+    '02 // CINEMATIC_MEDIA',
+    '03 // MOTION_ENGINE',
+    '04 // THEME_BRANDING',
+    '05 // SEO_DOMAIN',
+    '06 // PORTAL_CABINETS',
+  ];
   return (
-    <section id="features" className="cv-section mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20">
-      <MotionReveal className="mb-12 text-center">
+    <section id="features" className="cv-section mx-auto max-w-[var(--container-max)] scroll-mt-24 px-6 py-16 sm:px-10 sm:py-20 relative overflow-hidden lg:overflow-visible">
+      {/* Blueprint background coordinate indicators */}
+      <div aria-hidden className="pointer-events-none absolute -left-2 top-4 hidden lg:flex items-center gap-1.5 b-tech-tag select-none text-[8px] opacity-40">
+        <span>LOC: [45.10, -12.30]</span>
+        <span className="h-1.5 w-1.5 rounded-full bg-primary/40 animate-pulse" />
+      </div>
+      <div aria-hidden className="pointer-events-none absolute -right-2 top-4 hidden lg:flex items-center gap-1.5 b-tech-tag select-none text-[8px] opacity-40">
+        <span>REF: B-STUDIO_v0.1</span>
+      </div>
+
+      {/* Decorative layout grids (Blueprint style) */}
+      <div aria-hidden className="absolute -left-6 top-16 b-tech-plus hidden lg:flex">+</div>
+      <div aria-hidden className="absolute -right-6 top-16 b-tech-plus hidden lg:flex">+</div>
+      <div aria-hidden className="absolute -left-6 bottom-16 b-tech-plus hidden lg:flex">+</div>
+      <div aria-hidden className="absolute -right-6 bottom-16 b-tech-plus hidden lg:flex">+</div>
+
+      <div aria-hidden className="absolute -left-6 top-16 right-0 b-tech-line-h hidden lg:block" />
+      <div aria-hidden className="absolute -left-6 bottom-16 right-0 b-tech-line-h hidden lg:block" />
+
+      <MotionReveal className="mb-12 text-center relative z-10">
         <h2 className="font-display text-3xl font-black tracking-tight sm:text-4xl">{title}</h2>
         <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{subtitle}</p>
       </MotionReveal>
-      <div className="grid auto-rows-[minmax(150px,auto)] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid auto-rows-[minmax(150px,auto)] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 relative z-10">
         {items.map((f, i) => (
           <MotionReveal key={f.title} delay={(i % 3) * 0.08} className={spans[i] ?? ''}>
             <Tilt className="h-full">
-              <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/50 p-6 backdrop-blur transition-colors hover:border-primary/50">
+              <div className="group b-border-beam relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/50 p-6 backdrop-blur transition-all duration-300 hover:border-primary/40">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"
                   style={{ background: 'radial-gradient(circle, var(--primary), transparent 65%)' }}
                 />
-                <span className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                  {icons[i]}
-                </span>
+                
+                {/* Monospace tech tag on top right */}
+                <div className="relative flex items-center justify-between mb-4">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15 text-primary transition-transform duration-300 group-hover:scale-110">
+                    {icons[i]}
+                  </span>
+                  <span className="b-tech-tag font-mono text-[9px] tracking-widest text-muted-foreground/60">{tags[i]}</span>
+                </div>
+
                 <h3 className={`relative font-bold tracking-tight ${i === 0 ? 'text-2xl' : 'text-lg'}`}>{f.title}</h3>
                 <p className="relative mt-2 text-sm text-muted-foreground">{f.text}</p>
               </div>

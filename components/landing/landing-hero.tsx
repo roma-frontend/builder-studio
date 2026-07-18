@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { Sparkles, ArrowRight, Check, Play, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ export function LandingHero({
   previewLabels,
   swatches,
   heroVideo,
+  commandPrompt,
 }: {
   badge: string;
   title: string;
@@ -36,6 +37,7 @@ export function LandingHero({
   previewLabels: { url: string; publish: string };
   swatches: HeroSwatch[];
   heroVideo?: { src: string; srcMp4?: string; poster?: string };
+  commandPrompt?: string;
 }) {
   const reduced = useReducedMotion();
   const ref = useRef<HTMLElement>(null);
@@ -48,6 +50,20 @@ export function LandingHero({
 
   const words = title.split(' ');
   const accentFrom = Math.max(0, words.length - 2); // last two words get the gradient
+
+  const [activeThemeId, setActiveThemeId] = useState(swatches[0]?.id || '');
+  const activeSwatch = swatches.find((s) => s.id === activeThemeId) || swatches[0];
+  const activeColors = activeSwatch?.colors || ['var(--primary)', 'var(--primary)', 'var(--muted)'];
+
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      setIsMac(/Mac|iPhone|iPad/.test(navigator.userAgent || ''));
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const kbdText = isMac ? '⌘K' : 'Ctrl+K';
+  const displayPrompt = commandPrompt ? commandPrompt.replace('{key}', kbdText) : '';
 
   return (
     <section ref={ref} className="relative overflow-hidden">
@@ -107,6 +123,19 @@ export function LandingHero({
             </Button>
           </div>
 
+          {displayPrompt && (
+            <div className="hero-rise mt-6" style={{ animationDelay: '280ms' }}>
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('cwk:open-palette'))}
+                className="group/cmd inline-flex items-center gap-2 rounded-full border border-border bg-card/45 px-3.5 py-1.5 text-xs text-muted-foreground transition-all duration-300 hover:border-primary/40 hover:bg-card/85 hover:text-foreground cursor-pointer shadow-sm hover:shadow-md backdrop-blur-sm"
+              >
+                <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 group-hover/cmd:bg-primary transition-colors animate-pulse" />
+                <span className="font-medium">{displayPrompt}</span>
+              </button>
+            </div>
+          )}
+
           <ul className="hero-rise mt-7 grid gap-2 text-sm text-muted-foreground sm:flex sm:flex-wrap sm:gap-x-6" style={{ animationDelay: '320ms' }}>
             {microItems.map((m) => (
               <li key={m} className="flex items-center gap-1.5">
@@ -123,7 +152,12 @@ export function LandingHero({
           <motion.div
             animate={reduced ? undefined : { y: [0, -10, 0] }}
             transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-            className="b-glass overflow-hidden rounded-2xl"
+            className="b-glass theme-preview-root overflow-hidden rounded-2xl"
+            style={{
+              '--preview-primary-light': activeColors[0],
+              '--preview-primary-dark': activeColors[1],
+              '--preview-muted': activeColors[2],
+            } as React.CSSProperties}
           >
             {/* Browser chrome */}
             <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
@@ -136,7 +170,7 @@ export function LandingHero({
             </div>
             {/* Mock site body */}
             <div className="space-y-4 p-5">
-              <div className="relative flex h-28 items-center justify-center overflow-hidden rounded-xl" style={{ background: 'linear-gradient(120deg, var(--primary), color-mix(in oklch, var(--primary) 45%, #a855f7))' }}>
+              <div className="relative flex h-28 items-center justify-center overflow-hidden rounded-xl transition-all duration-500" style={{ background: 'linear-gradient(120deg, var(--preview-primary, var(--primary)), color-mix(in oklch, var(--preview-primary, var(--primary)) 45%, #a855f7))' }}>
                 {heroVideo ? (
                   <LazyVideo src={heroVideo.src} srcMp4={heroVideo.srcMp4} poster={heroVideo.poster} fill priority className="absolute inset-0" />
                 ) : (
@@ -148,22 +182,45 @@ export function LandingHero({
                   </>
                 )}
               </div>
-              <div className="h-3 w-2/3 rounded-full bg-foreground/15" />
+              <div className="h-3 w-2/3 rounded-full bg-foreground/15 transition-all duration-300" style={{ backgroundColor: 'color-mix(in oklch, var(--preview-primary, var(--primary)) 20%, var(--foreground) 10%)' }} />
               <div className="h-3 w-1/2 rounded-full bg-foreground/10" />
               <div className="grid grid-cols-3 gap-2 pt-1">
                 {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-12 rounded-lg border border-border bg-card/70" />
+                  <div
+                    key={i}
+                    className="h-12 rounded-lg border transition-all duration-300"
+                    style={i === 0 ? {
+                      borderColor: 'color-mix(in oklch, var(--preview-primary, var(--primary)) 30%, transparent)',
+                      backgroundColor: 'color-mix(in oklch, var(--preview-primary, var(--primary)) 10%, transparent)',
+                    } : {
+                      borderColor: 'var(--border)',
+                      backgroundColor: 'color-mix(in oklch, var(--card) 70%, transparent)',
+                    }}
+                  />
                 ))}
               </div>
               {/* Theme swatches */}
               <div className="flex items-center gap-2 pt-1">
-                {swatches.slice(0, 4).map((s) => (
-                  <span key={s.id} className="flex overflow-hidden rounded-full border border-border">
-                    {s.colors.slice(0, 3).map((c, i) => (
-                      <span key={i} className="h-4 w-4" style={{ background: c }} />
-                    ))}
-                  </span>
-                ))}
+                {swatches.slice(0, 4).map((s) => {
+                  const isActive = s.id === activeThemeId;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setActiveThemeId(s.id)}
+                      aria-label={`Сменить тему на ${s.label}`}
+                      className={`group/swatch flex overflow-hidden rounded-full border cursor-pointer transition-all duration-300 ${
+                        isActive
+                          ? 'border-primary scale-110 shadow-md ring-2 ring-primary/20'
+                          : 'border-border hover:scale-105 hover:border-foreground/30'
+                      }`}
+                    >
+                      {s.colors.slice(0, 3).map((c, i) => (
+                        <span key={i} className="h-4 w-4 shrink-0" style={{ background: c }} />
+                      ))}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </motion.div>
