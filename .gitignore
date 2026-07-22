@@ -29,3 +29,9 @@ tsconfig.tsbuildinfo
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# CI debug artifacts
+ci-annotations.json
+ci-job1-logs.txt
+ci-jobs.json
+ci-status.json
